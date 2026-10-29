@@ -1,5 +1,15 @@
 import React from "react";
-import { Zap, RefreshCw, Play, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  Zap,
+  RefreshCw,
+  Play,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  ShieldAlert,
+  Sparkles,
+  Layers,
+} from "lucide-react";
 import { SystemOverview, StressTestResult } from "../../types";
 import { formatBytes } from "../../utils/formatters";
 
@@ -124,6 +134,77 @@ export const RamTab: React.FC<RamTabProps> = ({
             <p className="text-xs opacity-90">{ramResult.details}</p>
           </div>
         )}
+      </div>
+
+      {/* Info & Aanbevelingen Blok voor Werkgeheugen */}
+      <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-5">
+        <div className="flex items-center gap-2">
+          <Info className="w-5 h-5 text-purple-400" />
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            RAM Richtlijnen, Geheugengebruik &amp; Integriteitsadvies
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* Wat is een normaal RAM-gebruik? */}
+          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+            <h4 className="font-semibold text-slate-200 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-purple-400" />
+              Wat is een normaal geheugengebruik in Windows?
+            </h4>
+            <p className="text-slate-400 text-[11px] leading-relaxed">
+              Een bezettingsgraad tussen <strong>40% en 75%</strong> is volkomen normaal. Windows gebruikt ongebruikt RAM actief als <em>SuperFetch / Standby Cache</em> om geopende bestanden direct klaar te zetten.
+            </p>
+            <p className="text-slate-300 text-[11px]">
+              Pas wanneer het geheugengebruik continu boven de <strong>85% - 90%</strong> blijft, moet Windows gegevens wegschrijven naar het tragere schijf-wisselbestand (pagefile). Dit veroorzaakt haperingen en vertragingen.
+            </p>
+          </div>
+
+          {/* Waarom zijn 0 bit-flips vereist? */}
+          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+            <h4 className="font-semibold text-slate-200 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-rose-400" />
+              Waarom is 0 bit-flips een harde vereiste?
+            </h4>
+            <p className="text-slate-400 text-[11px] leading-relaxed">
+              Consumentengeheugen (Non-ECC RAM) heeft geen ingebouwde foutcorrectie. Als één enkele transistor een '1' naar een '0' flipt (een bit-flip), raakt de data in het geheugen direct corrupt.
+            </p>
+            <p className="text-slate-300 text-[11px]">
+              Dit leidt vaak tot onverklaarbare crashes, plotseling afsluitende browser-tabbladen of beruchte Blue Screens zoals <code>MEMORY_MANAGEMENT</code> of <code>PAGE_FAULT_IN_NONPAGED_AREA</code>.
+            </p>
+          </div>
+        </div>
+
+        {/* Concrete Tips & Aanbevelingen */}
+        <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3 text-xs">
+          <div className="flex items-center gap-2 text-purple-300 font-semibold">
+            <Sparkles className="w-4 h-4 text-purple-400" />
+            <span>Aanbevelingen bij Geheugenfouten of Hoog RAM-Gebruik</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
+            <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
+              <span className="font-medium text-white block">1. XMP / EXPO Klokprofiel Testen</span>
+              <p className="text-[11px] text-slate-400">
+                Verschijnen er bitfouten in de test? Schakel dan tijdelijk het XMP of AMD EXPO overklokprofiel uit in de BIOS en test opnieuw op de standaard JEDEC-snelheid.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
+              <span className="font-medium text-white block">2. RAM Modules Herplaatsen</span>
+              <p className="text-[11px] text-slate-400">
+                Soms maakt een RAM-stick slecht contact door stof of oxidatie in het slot. Schakel de pc uit, haal de modules eruit en klik ze stevig opnieuw vast (in slot 2 en 4 bij dual-channel).
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
+              <span className="font-medium text-white block">3. Controleer op Geheugenlekken</span>
+              <p className="text-[11px] text-slate-400">
+                Loopt het RAM-geheugen vol zonder dat er zware programma's openstaan? Open Taakbeheer (Ctrl+Shift+Esc), sorteer op 'Geheugen' en beëindig achtergrondprocessen met geheugenlekken.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

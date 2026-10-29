@@ -1,5 +1,15 @@
 import React from "react";
-import { Flame, RefreshCw, Play, CheckCircle2, AlertTriangle } from "lucide-react";
+import {
+  Flame,
+  RefreshCw,
+  Play,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  Activity,
+  Cpu,
+  Sparkles,
+} from "lucide-react";
 import { SystemOverview, StressTestResult } from "../../types";
 
 interface CpuTabProps {
@@ -127,6 +137,88 @@ export const CpuTab: React.FC<CpuTabProps> = ({
             <p className="text-xs opacity-90">{cpuResult.details}</p>
           </div>
         )}
+      </div>
+
+      {/* Info & Aanbevelingen Blok voor Processor & Stresstest */}
+      <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-5">
+        <div className="flex items-center gap-2">
+          <Info className="w-5 h-5 text-cyan-400" />
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            CPU Richtlijnen, Prestatiescores &amp; Stabiliteitsadvies
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* Wat meet deze stresstest? */}
+          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+            <h4 className="font-semibold text-slate-200 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-cyan-400" />
+              Wat meet deze stresstest precies?
+            </h4>
+            <p className="text-slate-400 text-[11px] leading-relaxed">
+              De test voert miljoenen non-lineaire goniometrische en drijvende-komma berekeningen (sinus/cosinus) per seconde uit via een multi-threaded Rayon threadpool.
+            </p>
+            <p className="text-slate-300 text-[11px]">
+              Hiermee worden alle logische kernen 100% belast. Dit brengt zwakke plekken zoals VRM spanningsdips, instabiele overkloks of overmatige hitte onmiddellijk aan het licht.
+            </p>
+          </div>
+
+          {/* Wat is een normale score? */}
+          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+            <h4 className="font-semibold text-slate-200 flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-emerald-400" />
+              Wat is een normale score in MOps/sec?
+            </h4>
+            <div className="space-y-1.5 text-[11px] text-slate-300">
+              <div className="flex justify-between border-b border-slate-800/80 pb-1">
+                <span className="text-slate-400">4 – 8 threads (Quad-core laptops):</span>
+                <span className="font-mono text-cyan-300">10 – 30 MOps/s</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/80 pb-1">
+                <span className="text-slate-400">12 – 16 threads (Moderne i7/Ultra/Ryzen):</span>
+                <span className="font-mono text-emerald-400">40 – 90 MOps/s</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">24+ threads (Desktop Workstations):</span>
+                <span className="font-mono text-purple-400">100+ MOps/s</span>
+              </div>
+            </div>
+            <p className="text-slate-500 text-[10px] pt-1">
+              Een hogere score betekent snellere multi-core rekenkracht en betere stabiliteit onder continue zware belasting.
+            </p>
+          </div>
+        </div>
+
+        {/* Aanbevelingen bij haperingen of inzakken */}
+        <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3 text-xs">
+          <div className="flex items-center gap-2 text-cyan-300 font-semibold">
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span>Aanbevelingen bij CPU Instabiliteit of Prestatieverlies</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
+            <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
+              <span className="font-medium text-white block">1. Controleer Klokfrequenties</span>
+              <p className="text-[11px] text-slate-400">
+                Als de score na 10-30 seconden sterk keldert, verlaagt het moederbord de MHz (Thermal Throttling). Bekijk het tabblad <em>Koeling &amp; Fans</em> om te zien of de temperatuur boven 90°C piekt.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
+              <span className="font-medium text-white block">2. Reset Overclock &amp; Undervolt</span>
+              <p className="text-[11px] text-slate-400">
+                Crasht de pc tijdens een stresstest met een Blue Screen (zoals WHEA_UNCORRECTABLE_ERROR)? Zet eventuele CPU-overclock of undervolt instellingen in de BIOS terug naar fabriekswaarden.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
+              <span className="font-medium text-white block">3. Energiebeheerschema</span>
+              <p className="text-[11px] text-slate-400">
+                Stel Windows Energiebeheer in op 'Gebalanceerd' of 'Beste Prestaties'. Vermijd energiebesparende profielen tijdens zware reken- of renderklussen.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

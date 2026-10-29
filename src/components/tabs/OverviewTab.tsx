@@ -9,6 +9,9 @@ import {
   HardDrive,
   Laptop,
   PcCase,
+  Fan,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import {
   SystemOverview,
@@ -47,6 +50,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 }) => {
   const totalDiskBytes = data.disks.reduce((acc, d) => acc + d.total_bytes, 0);
   const primaryGpu = data.gpus[0];
+
+  const fullDisks = data.disks.filter((d) => {
+    const usedPercent = Math.round(
+      ((d.total_bytes - d.available_bytes) / Math.max(1, d.total_bytes)) * 100
+    );
+    return usedPercent >= 85;
+  });
+
+  const isLongKernelUptime = data.kernel_uptime_secs > 86400 * 7; // Meer dan 7 dagen
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -257,6 +269,93 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <div className="text-[11px] text-slate-400 truncate">
               {powerData?.is_laptop ? "Mobiel Systeem (Accu)" : "Desktop Workstation (AC Line)"}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Algemene Systeemgezondheid & Aanbevelingen */}
+      <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-cyan-400" />
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+            Systeemgezondheid &amp; Directe Aanbevelingen
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
+          {/* Aanbeveling 1: Opslag */}
+          <div
+            onClick={() => setActiveTab("disk")}
+            className="p-4 bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl space-y-2 cursor-pointer transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                <HardDrive className="w-4 h-4 text-amber-400" /> Opslagstatus
+              </span>
+              {fullDisks.length > 0 ? (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-950 border border-amber-800 text-amber-300 font-bold">
+                  Opschonen
+                </span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-bold">
+                  Gezond
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {fullDisks.length > 0
+                ? `${fullDisks.length} schijfvolume(s) zijn voor >85% vol. Klik om schijfopruiming tips te bekijken.`
+                : "Voldoende vrije ruimte beschikbaar voor TRIM en SSD wear-leveling."}
+            </p>
+          </div>
+
+          {/* Aanbeveling 2: Koeling */}
+          <div
+            onClick={() => setActiveTab("cooling")}
+            className="p-4 bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl space-y-2 cursor-pointer transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                <Fan className="w-4 h-4 text-blue-400" /> Koelconditie
+              </span>
+              {coolingData?.is_throttling_suspected ? (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-rose-950 border border-rose-800 text-rose-300 font-bold animate-pulse">
+                  Throttling
+                </span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-bold">
+                  Normaal
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {coolingData?.is_throttling_suspected
+                ? "Temperaturen overschrijden 90°C. Maak de ventilatieroosters stofvrij en controleer koelpasta."
+                : "Thermische sensoren rapporteren stabiele en veilige bedrijfstemperaturen."}
+            </p>
+          </div>
+
+          {/* Aanbeveling 3: Herstart & Kernel Uptime */}
+          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                <RefreshCw className="w-4 h-4 text-purple-400" /> Systeemonderhoud
+              </span>
+              {isLongKernelUptime ? (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-purple-950 border border-purple-800 text-purple-300 font-bold">
+                  Herstart Advies
+                </span>
+              ) : (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-bold">
+                  Vers
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400">
+              {isLongKernelUptime
+                ? `Kernel draait al ${formatUptime(data.kernel_uptime_secs)}. Kies in Start voor 'Opnieuw opstarten' om stuurprogramma's te verversen.`
+                : "Windows kernel is recent herstart; systeemcaches en drivers zijn schoon geïnitialiseerd."}
+            </p>
           </div>
         </div>
       </div>
