@@ -7,6 +7,10 @@ import {
   Cpu,
   Zap,
   HardDrive,
+  Activity,
+  ListTree,
+  Timer,
+  Puzzle,
 } from "lucide-react";
 import { TabType, FreezeDiagnosticReport } from "../types";
 
@@ -36,6 +40,30 @@ export const Navigation: React.FC<NavigationProps> = ({
       </button>
 
       <button
+        onClick={() => setActiveTab("live")}
+        className={`py-3 px-3.5 text-sm font-medium border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+          activeTab === "live"
+            ? "border-emerald-400 text-emerald-400 font-semibold"
+            : "border-transparent text-slate-400 hover:text-slate-200"
+        }`}
+      >
+        <Activity className="w-4 h-4" />
+        Live Monitor
+      </button>
+
+      <button
+        onClick={() => setActiveTab("processes")}
+        className={`py-3 px-3.5 text-sm font-medium border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+          activeTab === "processes"
+            ? "border-sky-400 text-sky-400 font-semibold"
+            : "border-transparent text-slate-400 hover:text-slate-200"
+        }`}
+      >
+        <ListTree className="w-4 h-4" />
+        Processen
+      </button>
+
+      <button
         onClick={() => setActiveTab("freeze")}
         className={`py-3 px-3.5 text-sm font-medium border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
           activeTab === "freeze"
@@ -48,6 +76,30 @@ export const Navigation: React.FC<NavigationProps> = ({
         {freezeData && freezeData.system_freeze_risk === "Hoog" && (
           <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
         )}
+      </button>
+
+      <button
+        onClick={() => setActiveTab("latency")}
+        className={`py-3 px-3.5 text-sm font-medium border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+          activeTab === "latency"
+            ? "border-orange-400 text-orange-400 font-semibold"
+            : "border-transparent text-slate-400 hover:text-slate-200"
+        }`}
+      >
+        <Timer className="w-4 h-4" />
+        DPC Latency
+      </button>
+
+      <button
+        onClick={() => setActiveTab("drivers")}
+        className={`py-3 px-3.5 text-sm font-medium border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer ${
+          activeTab === "drivers"
+            ? "border-indigo-400 text-indigo-400 font-semibold"
+            : "border-transparent text-slate-400 hover:text-slate-200"
+        }`}
+      >
+        <Puzzle className="w-4 h-4" />
+        Drivers
       </button>
 
       <button

@@ -39,6 +39,26 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 * Automatische herkenning van alle volumes (SSD, HDD, NVMe, USB).
 * Sequentiële schrijf- en leessnelheidsmeting (MB/s) met byte-voor-byte data-integriteitscontrole.
 
+### 7. 📈 Live Monitor
+* Achtergrond-sampler (1x per seconde) die live grafieken voedt voor CPU-belasting, RAM, max. temperatuur, CPU-kloksnelheid, schijf-I/O en netwerkverkeer.
+* Ringbuffer van de laatste 5 minuten; onderbrekingen in de lijnen tonen direct waar het systeem bevroor.
+
+### 8. 📋 Procesmonitor
+* Top-processen op CPU, RAM of schijfgebruik, elke 2 seconden ververst.
+* **Processen vlak vóór een freeze:** koppelt elke door de Watchdog gedetecteerde freeze aan de processen die in de seconden ervoor het drukst waren.
+
+### 9. 🩺 Gezondheidsscore
+* Eén score (0-100) en cijfer (A-F) op het overzicht, opgebouwd uit temperatuur, stabiliteit, drivers, DPC latency, opslag, geheugen, processor en batterij.
+* Niet-uitgevoerde tests tellen niet mee en worden als "Niet getest" getoond; kritieke bevindingen begrenzen het cijfer.
+
+### 10. 🧩 Driver Check
+* Scant alle stuurprogramma's via WMI op probleemapparaten (Apparaatbeheer-foutcodes), verouderde drivers en niet-ondertekende drivers.
+* Richt zich op freeze-gevoelige klassen (GPU, opslagcontrollers, netwerk, audio, USB, chipset) met advies per driver.
+
+### 11. ⏱️ DPC Latency
+* Meet scheduling-latency met een hoge-prioriteit spin-loop (max / p99 / gemiddeld in µs, histogram) en leest de Windows-tellers `% DPC Time`, `% Interrupt Time` en `DPCs Queued/sec`.
+* Noemt waarschijnlijke verdachte drivers op basis van de Driver Check. Dit is géén meting per driver zoals LatencyMon (die ETW-tracing met adminrechten vereist).
+
 ---
 
 ## 🚀 Aan de slag
@@ -48,7 +68,7 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 npm run tauri dev
 ```
 
-### Unittests uitvoeren (7 tests)
+### Unittests uitvoeren
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
