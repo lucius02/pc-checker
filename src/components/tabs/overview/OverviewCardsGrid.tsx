@@ -357,7 +357,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
         </button>
       </div>
 
-      {/* 6. 5-Sec Freeze Detective Card */}
+      {/* 6. Freeze Detective Card */}
       <div className="p-5 bg-slate-900/70 border border-slate-800 rounded-2xl relative overflow-hidden flex flex-col justify-between hover:border-slate-700 transition-all">
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -368,7 +368,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               <div>
                 <h3 className="font-semibold text-slate-200">Freeze Detective</h3>
                 <p className="text-xs text-slate-400">
-                  5-seconden desktop freezes
+                  Systeem freeze detectie
                 </p>
               </div>
             </div>

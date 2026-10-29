@@ -31,10 +31,10 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
               </span>
               <div>
                 <h2 className="text-lg font-bold text-white">
-                  5-Seconden Freeze Detective &amp; Watchdog
+                  Freeze Detective &amp; Watchdog
                 </h2>
                 <p className="text-xs text-slate-300">
-                  Gespecialiseerd in het opsporen van de klassieke Windows 5-seconden desktop freezes (SATA link resets, GPU TDR crashes &amp; driver DPC latency).
+                  Gespecialiseerd in het opsporen van Windows freezes (SATA link resets, GPU TDR crashes &amp; driver DPC latency).
                 </p>
               </div>
             </div>
@@ -88,7 +88,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800/80 text-xs text-slate-400 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
             <span>
-              Nog geen live freezes geregistreerd sinds de app is geopend. Laat PC Checker op de achtergrond draaien om een eventuele 5-seconden freeze direct vast te leggen.
+              Nog geen live freezes geregistreerd sinds de app is geopend. Laat PC Checker op de achtergrond draaien om een eventuele freeze direct vast te leggen.
             </span>
           </div>
         )}
@@ -161,14 +161,14 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
       <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-2xl space-y-4">
         <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-cyan-400" />
-          Bewezen Oplossingen voor de 5-Seconden Freeze op Desktops
+          Bewezen Oplossingen voor Systeem Freezes op Desktops
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
             <h4 className="font-semibold text-amber-400">1. SATA Link Power Management (LPM / HIPM / DIPM)</h4>
             <p className="text-slate-300">
-              Als een SSD of extra HDD na enkele seconden in slaap valt (D3/Slumber), bevriest Windows voor 3 tot 5 seconden bij het ontwaken.
+              Als een SSD of extra HDD na enkele seconden in slaap valt (D3/Slumber), bevriest Windows kortstondig bij het ontwaken.
             </p>
             <p className="text-slate-400 text-[11px]">
               <strong>Oplossing:</strong> Open Geavanceerd Energiebeheer en zet "Harde schijf uitschakelen na" op 0 (Nooit). Schakel SATA LPM uit in de storage driver.
@@ -178,7 +178,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
             <h4 className="font-semibold text-cyan-400">2. Slechte SATA Datakabel of Extra Harde Schijf</h4>
             <p className="text-slate-300">
-              Een defecte of loszittende SATA-kabel veroorzaakt CRC-overdrachtsfouten. Windows wacht 5 seconden op een retry vóór time-out.
+              Een defecte of loszittende SATA-kabel veroorzaakt CRC-overdrachtsfouten. Windows wacht op een retry vóór time-out.
             </p>
             <p className="text-slate-400 text-[11px]">
               <strong>Oplossing:</strong> Vervang de SATA-datakabel van extra schijven of koppel tijdelijk niet-essentiële harde schijven los.
@@ -188,7 +188,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
             <h4 className="font-semibold text-rose-400">3. GPU Driver Timeout Detection (TDR)</h4>
             <p className="text-slate-300">
-              Als de videokaart 2-5 seconden niet antwoordt door een spanningsdip of driverbug, bevriest het scherm en reset de driver.
+              Als de videokaart niet tijdig antwoordt door een spanningsdip of driverbug, bevriest het scherm en reset de driver.
             </p>
             <p className="text-slate-400 text-[11px]">
               <strong>Oplossing:</strong> Schone installatie van de nieuwste videokaart-driver via DDU (Display Driver Uninstaller).
@@ -198,7 +198,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
             <h4 className="font-semibold text-purple-400">4. Bloatware &amp; RGB Monitoring Software</h4>
             <p className="text-slate-300">
-              Programma's zoals Asus Armoury Crate, iCUE, Synapse of verouderde antivirussen scannen continu de SMBus/PCIe sensoren en kunnen CPU cores 5 seconden blokkeren.
+              Programma's zoals Asus Armoury Crate, iCUE, Synapse of verouderde antivirussen scannen continu de SMBus/PCIe sensoren en kunnen CPU cores tijdelijk blokkeren en freezes veroorzaken.
             </p>
             <p className="text-slate-400 text-[11px]">
               <strong>Oplossing:</strong> Sluit overbodige RGB- en monitoringsoftware tijdelijk af om te testen.

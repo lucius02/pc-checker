@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
           <p className="text-xs text-slate-400">
-            Hardware tests, ventilatoren, stroom &amp; 5-sec freeze detective
+            Hardware tests, ventilatoren, stroom &amp; freeze detective
           </p>
         </div>
       </div>

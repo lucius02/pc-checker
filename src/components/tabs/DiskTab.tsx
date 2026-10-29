@@ -253,7 +253,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
               De C: schijf bevat het virtuele geheugenbestand (<code>pagefile.sys</code>) en het slaapstandbestand (<code>hiberfil.sys</code>).
             </p>
             <p className="text-slate-300 text-[11px]">
-              Als Windows geen tijdelijke swapruimte meer kan toewijzen, crashen applicaties direct met "Out of Memory", mislukken Windows Updates, en kunnen er 5-seconden desktop freezes of Blue Screens optreden.
+              Als Windows geen tijdelijke swapruimte meer kan toewijzen, crashen applicaties direct met "Out of Memory", mislukken Windows Updates, en kunnen er desktop freezes of Blue Screens optreden.
             </p>
           </div>
         </div>

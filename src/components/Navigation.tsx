@@ -44,7 +44,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         }`}
       >
         <ShieldAlert className="w-4 h-4 text-rose-400" />
-        Freeze Detective (5s Freeze)
+        Freeze Detective
         {freezeData && freezeData.system_freeze_risk === "Hoog" && (
           <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
         )}

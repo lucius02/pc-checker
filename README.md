@@ -8,12 +8,12 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 
 ## ⚡ Functionaliteiten & Modules
 
-### 1. 🛡️ 5-Seconden Freeze Detective & Watchdog *(Speciaal voor Desktop Freezes)*
-* **Achtergrond Watchdog (Live):** Monitort live en continu de thread scheduling in de kernel. Zodra het besturingssysteem langer dan 1.2 seconde bevriest (bijvoorbeeld de beruchte 5-seconden freeze), legt hij het exacte tijdstip en de precieze freeze-duur in milliseconden vast.
-* **Windows Systeemlogboek Scanner:** Scant met 1 klik op bekende boosdoeners van complete 5-seconden freezes:
+### 1. 🛡️ Freeze Detective & Watchdog *(Systeem Freeze Opsporing)*
+* **Achtergrond Watchdog (Live):** Monitort live en continu de thread scheduling in de kernel. Zodra het besturingssysteem langer dan 1.2 seconde bevriest, legt hij het exacte tijdstip en de precieze freeze-duur in milliseconden vast.
+* **Windows Systeemlogboek Scanner:** Scant met 1 klik op bekende boosdoeners van desktop freezes:
   * `storahci` Event 129 (*Reset to device was issued*): Dé #1 oorzaak: SATA/SSD slaapstand time-out (ALPM) of slechte datakabel.
   * `disk` Event 153 / 51 (*I/O retry*): Foutieve sectoren of buffer-hangups.
-  * `Display` / `nvlddmkm` / `amdkmdag` Event 4101 (*GPU TDR*): Videokaart driver reageerde 2-5 sec niet en is herstart door Windows.
+  * `Display` / `nvlddmkm` / `amdkmdag` Event 4101 (*GPU TDR*): Videokaart driver reageerde niet op tijd en is herstart door Windows.
   * `Microsoft-Windows-WHEA-Logger`: Hardware PCIe / CPU bus pariteitsfouten.
 * **Directe Oplossingsrichting:** Geeft per incident direct de stappen om het op te lossen (SATA LPM uitschakelen, DDU driver-reinstall, kabels controleren).
 

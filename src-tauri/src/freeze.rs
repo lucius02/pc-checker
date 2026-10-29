@@ -50,12 +50,12 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
                     let (category, suggestion) = if provider.contains("storahci") || provider.contains("disk") || provider.contains("nvme") {
                         (
                             "Opslag / Schijf Time-out".to_string(),
-                            "DIT VEROORZAAKT VAAK DE 5-SEC FREEZE: De schijf ontwaakte te traag uit slaapstand of SATA reset. Schakel 'AHCI Link Power Management' (HIPM/DIPM) uit in Energiebeheer, vervang de SATA-kabel of controleer de SSD gezondheid.".to_string(),
+                            "DIT VEROORZAAKT VAAK DE FREEZE: De schijf ontwaakte te traag uit slaapstand of SATA reset. Schakel 'AHCI Link Power Management' (HIPM/DIPM) uit in Energiebeheer, vervang de SATA-kabel of controleer de SSD gezondheid.".to_string(),
                         )
                     } else if provider.contains("Display") || provider.contains("nvlddmkm") || provider.contains("amdkmdag") {
                         (
                             "Videokaart Driver Crash (TDR)".to_string(),
-                            "De GPU reageerde niet binnen 2-5 sec; Windows heeft de driver herstart. Voer een schone driver-installatie uit met DDU of controleer PCIe voedingskabels.".to_string(),
+                            "De GPU reageerde niet op tijd (TDR time-out); Windows heeft de driver herstart. Voer een schone driver-installatie uit met DDU of controleer PCIe voedingskabels.".to_string(),
                         )
                     } else if provider.contains("WHEA") {
                         (
@@ -105,7 +105,7 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
 
     let diagnosis_summary = if !culprits.is_empty() {
         format!(
-            "Gevonden: {} kritieke event(s) in Windows logboek die direct overeenkomen met de 5-seconden freeze (o.a. opslag/driver time-outs).",
+            "Gevonden: {} kritieke event(s) in Windows logboek die direct overeenkomen met systeem freezes (o.a. opslag/driver time-outs).",
             culprits.len()
         )
     } else if !watchdog_freezes.is_empty() {
