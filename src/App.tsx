@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
 
-import { TabType } from "./types";
+import {
+  SystemOverview,
+  PowerInfo,
+  CoolingOverview,
+  FreezeDiagnosticReport,
+  BatteryHealthReport,
+  StressTestResult,
+  DriverReport,
+  LatencyTestResult,
+  TabType,
+} from "./types";
 import { formatBytes, formatUptime } from "./utils/formatters";
-import { useSystemTelemetry } from "./hooks/useSystemTelemetry";
 import { useHardwareTests } from "./hooks/useHardwareTests";
 import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
@@ -16,27 +26,110 @@ import { FreezeTab } from "./components/tabs/FreezeTab";
 import { CpuTab } from "./components/tabs/CpuTab";
 import { RamTab } from "./components/tabs/RamTab";
 import { DiskTab } from "./components/tabs/DiskTab";
+import { LiveTab } from "./components/tabs/LiveTab";
+import { ProcessesTab } from "./components/tabs/ProcessesTab";
+import { DriversTab } from "./components/tabs/DriversTab";
+import { LatencyTab } from "./components/tabs/LatencyTab";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
+  const [data, setData] = useState<SystemOverview | null>(null);
+  const [powerData, setPowerData] = useState<PowerInfo | null>(null);
+  const [coolingData, setCoolingData] = useState<CoolingOverview | null>(null);
+  const [freezeData, setFreezeData] = useState<FreezeDiagnosticReport | null>(null);
+  const [batteryReport, setBatteryReport] = useState<BatteryHealthReport | null>(null);
 
-  // Custom hooks voor telemetrie en stresstests
-  const {
-    data,
-    powerData,
-    coolingData,
-    freezeData,
-    batteryReport,
-    isLoading,
-    isScanningFreeze,
-    isTestingBattery,
-    autoRefresh,
-    setAutoRefresh,
-    lastUpdated,
-    fetchOverview,
-    scanFreezeDiagnostic,
-    runBatteryTest,
-  } = useSystemTelemetry();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isScanningFreeze, setIsScanningFreeze] = useState(false);
+  const [isTestingBattery, setIsTestingBattery] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  const [driverReport, setDriverReport] = useState<DriverReport | null>(null);
+  const [isScanningDrivers, setIsScanningDrivers] = useState(false);
+
+  const [latencyResult, setLatencyResult] = useState<LatencyTestResult | null>(null);
+  const [isTestingLatency, setIsTestingLatency] = useState(false);
+  const [latencyDuration, setLatencyDuration] = useState(10);
+
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  const fetchOverview = useCallback(async () => {
+    try {
+      const [overviewRes, powerRes, coolingRes] = await Promise.all([
+        invoke<SystemOverview>("get_system_overview"),
+        invoke<PowerInfo>("get_power_and_battery_info"),
+        invoke<CoolingOverview>("get_cooling_and_fan_info"),
+      ]);
+      setData(overviewRes);
+      setPowerData(powerRes);
+      setCoolingData(coolingRes);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error("Fout bij ophalen systeeminformatie:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const scanFreezeDiagnostic = async () => {
+    setIsScanningFreeze(true);
+    try {
+      const report = await invoke<FreezeDiagnosticReport>("scan_freeze_diagnostic");
+      setFreezeData(report);
+    } catch (err) {
+      console.error("Fout bij uitvoeren freeze-diagnose:", err);
+    } finally {
+      setIsScanningFreeze(false);
+    }
+  };
+
+  const runBatteryTest = async () => {
+    setIsTestingBattery(true);
+    try {
+      const report = await invoke<BatteryHealthReport>("run_battery_health_check");
+      setBatteryReport(report);
+    } catch (err) {
+      console.error("Fout bij uitvoeren batterijtest:", err);
+    } finally {
+      setIsTestingBattery(false);
+    }
+  };
+
+  const scanDrivers = async () => {
+    setIsScanningDrivers(true);
+    try {
+      const report = await invoke<DriverReport>("scan_drivers");
+      setDriverReport(report);
+    } catch (err) {
+      console.error("Fout bij uitvoeren driver-scan:", err);
+    } finally {
+      setIsScanningDrivers(false);
+    }
+  };
+
+  const runLatencyTest = async () => {
+    setIsTestingLatency(true);
+    setLatencyResult(null);
+    try {
+      const res = await invoke<LatencyTestResult>("run_latency_test", {
+        durationSecs: latencyDuration,
+      });
+      setLatencyResult(res);
+    } catch (err) {
+      console.error("Fout bij uitvoeren latency-test:", err);
+    } finally {
+      setIsTestingLatency(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOverview();
+    scanFreezeDiagnostic();
+
+    if (!autoRefresh) return;
+    const interval = setInterval(fetchOverview, 3000);
+    return () => clearInterval(interval);
+  }, [fetchOverview, autoRefresh]);
 
   const {
     isTestingCpu,
@@ -72,6 +165,8 @@ export default function App() {
       batteryReport,
       cooling: coolingData,
       freezeDiagnostics: freezeData,
+      drivers: driverReport,
+      latency: latencyResult,
       motherboard: data.motherboard,
       gpus: data.gpus,
       cpu: {
@@ -152,10 +247,34 @@ export default function App() {
                 coolingData={coolingData}
                 freezeData={freezeData}
                 batteryReport={batteryReport}
+                driverReport={driverReport}
+                latencyResult={latencyResult}
                 cpuResult={cpuResult}
                 ramResult={ramResult}
                 diskResult={diskResult}
                 setActiveTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "live" && <LiveTab />}
+
+            {activeTab === "processes" && <ProcessesTab />}
+
+            {activeTab === "drivers" && (
+              <DriversTab
+                driverReport={driverReport}
+                isScanningDrivers={isScanningDrivers}
+                scanDrivers={scanDrivers}
+              />
+            )}
+
+            {activeTab === "latency" && (
+              <LatencyTab
+                latencyResult={latencyResult}
+                isTestingLatency={isTestingLatency}
+                latencyDuration={latencyDuration}
+                setLatencyDuration={setLatencyDuration}
+                runLatencyTest={runLatencyTest}
               />
             )}
 

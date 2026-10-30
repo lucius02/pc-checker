@@ -275,9 +275,13 @@ export interface StressTestResult {
  */
 export type TabType =
   | "overview"
+  | "live"
+  | "processes"
   | "cpu"
   | "ram"
   | "disk"
   | "power"
   | "cooling"
-  | "freeze";
+  | "freeze"
+  | "drivers"
+  | "latency";

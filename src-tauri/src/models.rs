@@ -256,3 +256,166 @@ pub struct FreezeDiagnosticReport {
     /// Stapsgewijs actieplan om hardware- of driver-freezes definitief op te lossen.
     pub recommended_actions: Vec<String>,
 }
+
+// ===== Watchdog: gestructureerde freeze-records =====
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct FreezeRecord {
+    pub at_epoch_ms: u64,
+    pub duration_ms: u64,
+    pub timestamp: String,
+}
+
+// ===== Live Monitor (grafieken) & Procesmonitor =====
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    /// Percentage van de totale machine (0-100), niet per kern
+    pub cpu_usage: f32,
+    pub memory_bytes: u64,
+    pub disk_read_bytes_per_sec: u64,
+    pub disk_write_bytes_per_sec: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ProcessSnapshot {
+    pub taken_at_epoch_ms: u64,
+    pub total_processes: usize,
+    pub processes: Vec<ProcessInfo>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MetricsSample {
+    pub at_epoch_ms: u64,
+    pub cpu_usage: f32,
+    pub cpu_freq_avg_mhz: u64,
+    pub ram_used_percent: f32,
+    pub swap_used_percent: f32,
+    pub max_temp_celsius: Option<f32>,
+    pub disk_read_bytes_per_sec: u64,
+    pub disk_write_bytes_per_sec: u64,
+    pub net_rx_bytes_per_sec: u64,
+    pub net_tx_bytes_per_sec: u64,
+    /// Top processen op CPU-gebruik op dit moment (max 5)
+    pub top_processes: Vec<ProcessInfo>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MetricsHistory {
+    pub interval_ms: u64,
+    pub samples: Vec<MetricsSample>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct FreezeProcessContext {
+    pub freeze: FreezeRecord,
+    /// Metingen vlak vóór de freeze (oudste eerst)
+    pub samples_before: Vec<MetricsSample>,
+}
+
+// ===== Driver Check =====
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DriverEntry {
+    pub device_name: String,
+    pub device_class: String,
+    pub provider: String,
+    pub version: String,
+    /// "YYYY-MM-DD" of leeg als onbekend
+    pub date: String,
+    pub age_years: Option<f32>,
+    pub is_signed: Option<bool>,
+    /// "OK" | "Verouderd" | "Probleem" | "Niet ondertekend"
+    pub status: String,
+    pub problem_code: Option<u32>,
+    pub advice: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DriverReport {
+    pub is_available: bool,
+    pub scanned_at: String,
+    pub total_drivers: usize,
+    pub outdated_count: usize,
+    pub problem_count: usize,
+    pub unsigned_count: usize,
+    pub entries: Vec<DriverEntry>,
+    pub summary: String,
+}
+
+// ===== DPC / Interrupt Latency =====
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LatencyBucket {
+    pub label: String,
+    pub count: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct LatencyTestResult {
+    pub success: bool,
+    pub duration_ms: u64,
+    pub timer_samples: u64,
+    pub timer_max_gap_us: f64,
+    pub timer_avg_gap_us: f64,
+    pub timer_p99_gap_us: f64,
+    pub histogram: Vec<LatencyBucket>,
+    pub dpc_time_percent_avg: Option<f64>,
+    pub dpc_time_percent_max: Option<f64>,
+    pub interrupt_time_percent_avg: Option<f64>,
+    pub interrupt_time_percent_max: Option<f64>,
+    pub dpcs_queued_per_sec_avg: Option<f64>,
+    /// "Goed" | "Matig" | "Slecht"
+    pub verdict: String,
+    pub summary: String,
+    pub suspected_drivers: Vec<String>,
+    pub advice: Vec<String>,
+    pub error: Option<String>,
+}
+
+// ===== Gezondheidsscore =====
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct HealthInputs {
+    pub max_temp_celsius: Option<f32>,
+    pub is_throttling_suspected: bool,
+    pub freeze_scanned: bool,
+    pub watchdog_freeze_count: usize,
+    pub event_log_culprit_count: usize,
+    pub battery_health_percent: Option<f64>,
+    pub ram_used_percent: f32,
+    pub min_disk_free_percent: Option<f32>,
+    pub driver_problem_count: Option<usize>,
+    pub driver_outdated_count: Option<usize>,
+    pub latency_verdict: Option<String>,
+    pub latency_max_gap_us: Option<f64>,
+    pub dpc_time_percent_max: Option<f64>,
+    pub cpu_stress_ok: Option<bool>,
+    pub ram_test_ok: Option<bool>,
+    pub disk_test_ok: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HealthCategoryScore {
+    pub key: String,
+    pub label: String,
+    /// 0-100
+    pub score: u8,
+    pub weight: f32,
+    /// "Goed" | "Let op" | "Kritiek" | "Niet getest"
+    pub status: String,
+    pub detail: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HealthScore {
+    /// 0-100
+    pub score: u8,
+    /// "A" | "B" | "C" | "D" | "E" | "F"
+    pub grade: String,
+    pub label: String,
+    pub categories: Vec<HealthCategoryScore>,
+    pub top_issues: Vec<String>,
+}

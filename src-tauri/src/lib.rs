@@ -1,16 +1,26 @@
 pub mod cooling;
+pub mod drivers;
 pub mod freeze;
+pub mod health;
+pub mod latency;
 pub mod models;
+pub mod monitor;
 pub mod power;
+pub mod processes;
 pub mod stress;
 pub mod system;
 pub mod watchdog;
 
 // Re-export models and commands for clean public API and test access
 pub use cooling::get_cooling_and_fan_info;
+pub use drivers::scan_drivers;
 pub use freeze::scan_freeze_diagnostic;
+pub use health::compute_health_score;
+pub use latency::run_latency_test;
 pub use models::*;
+pub use monitor::get_metrics_history;
 pub use power::{get_power_and_battery_info, run_battery_health_check};
+pub use processes::{get_freeze_process_context, get_process_snapshot};
 pub use stress::{run_cpu_stress_test, run_disk_benchmark, run_ram_stress_test};
 pub use system::get_system_overview;
 pub use watchdog::ensure_watchdog_started;
@@ -21,6 +31,10 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            monitor::start(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_system_overview,
             get_power_and_battery_info,
@@ -29,7 +43,13 @@ pub fn run() {
             scan_freeze_diagnostic,
             run_cpu_stress_test,
             run_ram_stress_test,
-            run_disk_benchmark
+            run_disk_benchmark,
+            get_metrics_history,
+            get_process_snapshot,
+            get_freeze_process_context,
+            scan_drivers,
+            run_latency_test,
+            compute_health_score
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
