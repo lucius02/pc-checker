@@ -98,7 +98,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           onClick={() => setActiveTab("cpu")}
           className={cn(
             "mt-4 w-full py-2.5 bg-cyan-950/60 hover:bg-cyan-900/80 text-xs text-cyan-300 font-semibold rounded-xl border border-cyan-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
           )}
         >
           <Flame className="w-4 h-4 text-cyan-400" />
@@ -154,7 +154,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           onClick={() => setActiveTab("ram")}
           className={cn(
             "mt-4 w-full py-2.5 bg-purple-950/60 hover:bg-purple-900/80 text-xs text-purple-300 font-semibold rounded-xl border border-purple-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
           )}
         >
           <Zap className="w-4 h-4 text-purple-400" />
@@ -229,7 +229,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           onClick={() => setActiveTab("disk")}
           className={cn(
             "mt-4 w-full py-2.5 bg-amber-950/60 hover:bg-amber-900/80 text-xs text-amber-300 font-semibold rounded-xl border border-amber-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
           )}
         >
           <HardDrive className="w-4 h-4 text-amber-400" />
@@ -295,7 +295,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           onClick={() => setActiveTab("power")}
           className={cn(
             "mt-4 w-full py-2.5 bg-amber-950/60 hover:bg-amber-900/80 text-xs text-amber-300 font-semibold rounded-xl border border-amber-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
           )}
         >
           <BatteryCharging className="w-4 h-4 text-amber-400" />
@@ -368,7 +368,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           onClick={() => setActiveTab("cooling")}
           className={cn(
             "mt-4 w-full py-2.5 bg-blue-950/60 hover:bg-blue-900/80 text-xs text-blue-300 font-semibold rounded-xl border border-blue-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
           )}
         >
           <Fan className="w-4 h-4 text-blue-400" />
@@ -427,7 +427,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           onClick={() => setActiveTab("freeze")}
           className={cn(
             "mt-4 w-full py-2.5 bg-rose-950/60 hover:bg-rose-900/80 text-xs text-rose-300 font-semibold rounded-xl border border-rose-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
           )}
         >
           <ShieldAlert className="w-4 h-4 text-rose-400" />

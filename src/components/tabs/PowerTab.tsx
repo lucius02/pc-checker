@@ -46,7 +46,7 @@ export const PowerTab: React.FC<PowerTabProps> = ({
               disabled={isTestingBattery}
               className={cn(
                 "px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300",
                 isTestingBattery && "opacity-50 cursor-not-allowed"
               )}
             >

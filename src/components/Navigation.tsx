@@ -133,7 +133,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             onClick={() => setActiveTab(item.id)}
             className={cn(
               "py-3 px-3.5 text-sm font-medium border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+              "focus-visible:outline-2 focus-visible:outline-offset-2",
               isActive
                 ? cn(item.activeClass, item.focusClass)
                 : "border-transparent text-slate-400 hover:text-slate-200 focus-visible:outline-slate-400"

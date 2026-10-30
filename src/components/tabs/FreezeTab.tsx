@@ -48,7 +48,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
               disabled={isScanningFreeze}
               className={cn(
                 "px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 transition-all cursor-pointer",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300",
                 isScanningFreeze && "opacity-50 cursor-not-allowed"
               )}
             >
