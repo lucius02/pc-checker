@@ -1,18 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
 
-import {
-  SystemOverview,
-  PowerInfo,
-  CoolingOverview,
-  FreezeDiagnosticReport,
-  BatteryHealthReport,
-  StressTestResult,
-  TabType,
-} from "./types";
+import { TabType } from "./types";
 import { formatBytes, formatUptime } from "./utils/formatters";
+import { useSystemTelemetry } from "./hooks/useSystemTelemetry";
+import { useHardwareTests } from "./hooks/useHardwareTests";
 import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
 import { Footer } from "./components/Footer";
@@ -26,160 +19,42 @@ import { DiskTab } from "./components/tabs/DiskTab";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [data, setData] = useState<SystemOverview | null>(null);
-  const [powerData, setPowerData] = useState<PowerInfo | null>(null);
-  const [coolingData, setCoolingData] = useState<CoolingOverview | null>(null);
-  const [freezeData, setFreezeData] = useState<FreezeDiagnosticReport | null>(null);
-  const [batteryReport, setBatteryReport] = useState<BatteryHealthReport | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isScanningFreeze, setIsScanningFreeze] = useState(false);
-  const [isTestingBattery, setIsTestingBattery] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  // Custom hooks voor telemetrie en stresstests
+  const {
+    data,
+    powerData,
+    coolingData,
+    freezeData,
+    batteryReport,
+    isLoading,
+    isScanningFreeze,
+    isTestingBattery,
+    autoRefresh,
+    setAutoRefresh,
+    lastUpdated,
+    fetchOverview,
+    scanFreezeDiagnostic,
+    runBatteryTest,
+  } = useSystemTelemetry();
 
-  // Test states
-  const [isTestingCpu, setIsTestingCpu] = useState(false);
-  const [cpuDuration, setCpuDuration] = useState(5);
-  const [cpuResult, setCpuResult] = useState<StressTestResult | null>(null);
-
-  const [isTestingRam, setIsTestingRam] = useState(false);
-  const [ramSizeMb, setRamSizeMb] = useState(256);
-  const [ramResult, setRamResult] = useState<StressTestResult | null>(null);
-
-  const [isTestingDisk, setIsTestingDisk] = useState(false);
-  const [diskSizeMb, setDiskSizeMb] = useState(64);
-  const [diskResult, setDiskResult] = useState<StressTestResult | null>(null);
-
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-
-  const fetchOverview = useCallback(async () => {
-    try {
-      const [overviewRes, powerRes, coolingRes] = await Promise.all([
-        invoke<SystemOverview>("get_system_overview"),
-        invoke<PowerInfo>("get_power_and_battery_info"),
-        invoke<CoolingOverview>("get_cooling_and_fan_info"),
-      ]);
-      setData(overviewRes);
-      setPowerData(powerRes);
-      setCoolingData(coolingRes);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error("Fout bij ophalen systeeminformatie:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const scanFreezeDiagnostic = async () => {
-    setIsScanningFreeze(true);
-    try {
-      const report = await invoke<FreezeDiagnosticReport>("scan_freeze_diagnostic");
-      setFreezeData(report);
-    } catch (err) {
-      console.error("Fout bij uitvoeren freeze-diagnose:", err);
-    } finally {
-      setIsScanningFreeze(false);
-    }
-  };
-
-  const runBatteryTest = async () => {
-    setIsTestingBattery(true);
-    try {
-      const report = await invoke<BatteryHealthReport>("run_battery_health_check");
-      setBatteryReport(report);
-    } catch (err) {
-      console.error("Fout bij uitvoeren batterijtest:", err);
-    } finally {
-      setIsTestingBattery(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOverview();
-    scanFreezeDiagnostic();
-
-    if (!autoRefresh) return;
-    const interval = setInterval(fetchOverview, 3000);
-    return () => clearInterval(interval);
-  }, [fetchOverview, autoRefresh]);
-
-  const handleCpuStress = async () => {
-    setIsTestingCpu(true);
-    setCpuResult(null);
-    try {
-      const res = await invoke<StressTestResult>("run_cpu_stress_test", {
-        durationSecs: cpuDuration,
-        threadCount: null,
-      });
-      setCpuResult(res);
-    } catch (err: unknown) {
-      setCpuResult({
-        success: false,
-        test_name: "CPU Stress Test",
-        duration_ms: 0,
-        operations_or_bytes: 0,
-        score_or_speed: 0,
-        unit: "MOps/s",
-        details: "Test mislukt.",
-        error: String(err),
-      });
-    } finally {
-      setIsTestingCpu(false);
-      fetchOverview();
-    }
-  };
-
-  const handleRamStress = async () => {
-    setIsTestingRam(true);
-    setRamResult(null);
-    try {
-      const res = await invoke<StressTestResult>("run_ram_stress_test", {
-        sizeMb: ramSizeMb,
-        passes: 1,
-      });
-      setRamResult(res);
-    } catch (err: unknown) {
-      setRamResult({
-        success: false,
-        test_name: "RAM Geheugentest",
-        duration_ms: 0,
-        operations_or_bytes: 0,
-        score_or_speed: 0,
-        unit: "MB/s",
-        details: "Test mislukt.",
-        error: String(err),
-      });
-    } finally {
-      setIsTestingRam(false);
-      fetchOverview();
-    }
-  };
-
-  const handleDiskBenchmark = async () => {
-    setIsTestingDisk(true);
-    setDiskResult(null);
-    try {
-      const res = await invoke<StressTestResult>("run_disk_benchmark", {
-        targetDir: null,
-        fileSizeMb: diskSizeMb,
-      });
-      setDiskResult(res);
-    } catch (err: unknown) {
-      setDiskResult({
-        success: false,
-        test_name: "Schijf Benchmark",
-        duration_ms: 0,
-        operations_or_bytes: 0,
-        score_or_speed: 0,
-        unit: "MB/s",
-        details: "Test mislukt.",
-        error: String(err),
-      });
-    } finally {
-      setIsTestingDisk(false);
-      fetchOverview();
-    }
-  };
+  const {
+    isTestingCpu,
+    cpuDuration,
+    setCpuDuration,
+    cpuResult,
+    handleCpuStress,
+    isTestingRam,
+    ramSizeMb,
+    setRamSizeMb,
+    ramResult,
+    handleRamStress,
+    isTestingDisk,
+    diskSizeMb,
+    setDiskSizeMb,
+    diskResult,
+    handleDiskBenchmark,
+  } = useHardwareTests({ onTestComplete: fetchOverview });
 
   const exportReport = () => {
     if (!data) return;

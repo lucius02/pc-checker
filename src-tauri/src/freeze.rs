@@ -1,15 +1,20 @@
 use std::process::Command;
 use std::time::{Duration, Instant};
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 use crate::models::{FreezeDiagnosticReport, FreezeEventEntry};
 use crate::watchdog::{ensure_watchdog_started, get_watchdog_alerts};
 
+/// Voert de Windows Freeze Detective diagnose uit om eventuele freezes of driver crashes op te sporen.
 #[tauri::command]
 pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
     ensure_watchdog_started();
 
     let watchdog_freezes = get_watchdog_alerts();
 
+    // 1. Meet actuele thread scheduling jitter door middel van micro-slaap intervallen
     let mut max_jitter_ms: f64 = 0.0;
     for _ in 0..50 {
         let t0 = Instant::now();
@@ -22,11 +27,22 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
 
     let mut culprits: Vec<FreezeEventEntry> = Vec::new();
 
-    let ps_cmd = r#"Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='storahci','disk','nvme','Display','nvlddmkm','amdkmdag','Microsoft-Windows-WHEA-Logger'; Level=1,2,3} -MaxEvents 30 -ErrorAction SilentlyContinue | Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message | ConvertTo-Json -Compress"#;
+    // 2. Query Windows Event Logboek via veilige directe PowerShell executie (zonder cmd /c wrapper)
+    let ps_filter_script = r#"Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='storahci','disk','nvme','Display','nvlddmkm','amdkmdag','Microsoft-Windows-WHEA-Logger'; Level=1,2,3} -MaxEvents 30 -ErrorAction SilentlyContinue | Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message | ConvertTo-Json -Compress"#;
 
-    let output = Command::new("cmd")
-        .args(&["/c", &format!("powershell -NoProfile -Command \"{}\"", ps_cmd)])
-        .output();
+    let mut cmd = Command::new("powershell");
+    cmd.arg("-NoProfile")
+        .arg("-NonInteractive")
+        .arg("-Command")
+        .arg(ps_filter_script);
+
+    #[cfg(target_os = "windows")]
+    {
+        // 0x08000000 = CREATE_NO_WINDOW (voorkomt knipperende consoles)
+        cmd.creation_flags(0x08000000);
+    }
+
+    let output = cmd.output();
 
     if let Ok(out) = output {
         let json_str = String::from_utf8_lossy(&out.stdout).trim().to_string();

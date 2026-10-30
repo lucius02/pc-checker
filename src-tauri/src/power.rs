@@ -6,14 +6,14 @@ use crate::models::{BatteryHealthReport, PowerInfo};
 use crate::watchdog::ensure_watchdog_started;
 
 #[repr(C)]
-#[derive(Default, Debug, Clone, Copy)]
-struct WinSystemPowerStatus {
-    ac_line_status: u8,
-    battery_flag: u8,
-    battery_life_percent: u8,
-    system_status_flag: u8,
-    battery_life_time: u32,
-    battery_full_life_time: u32,
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WinSystemPowerStatus {
+    pub ac_line_status: u8,
+    pub battery_flag: u8,
+    pub battery_life_percent: u8,
+    pub system_status_flag: u8,
+    pub battery_life_time: u32,
+    pub battery_full_life_time: u32,
 }
 
 #[cfg(target_os = "windows")]
@@ -21,68 +21,83 @@ unsafe extern "system" {
     fn GetSystemPowerStatus(lpSystemPowerStatus: *mut WinSystemPowerStatus) -> i32;
 }
 
-#[tauri::command]
-pub fn get_power_and_battery_info() -> PowerInfo {
-    ensure_watchdog_started();
-
-    let mut is_laptop = false;
-    let mut ac_connected = true;
-    let mut battery_present = false;
-    let mut battery_percent: Option<u8> = None;
-    let mut battery_status_desc = "Netstroom actief (Desktop PC)".to_string();
-    let mut battery_life_time_secs: Option<u32> = None;
-
+/// Haalt de Win32 System Power Status op via de officiële Windows API.
+pub fn get_system_power_status() -> Result<WinSystemPowerStatus, String> {
     #[cfg(target_os = "windows")]
     {
         let mut status = WinSystemPowerStatus::default();
         let res = unsafe { GetSystemPowerStatus(&mut status) };
         if res != 0 {
-            ac_connected = status.ac_line_status == 1;
-            battery_present = (status.battery_flag & 128) == 0 && status.battery_life_percent <= 100;
-
-            if battery_present {
-                is_laptop = true;
-                battery_percent = Some(status.battery_life_percent);
-
-                if (status.battery_flag & 8) != 0 {
-                    battery_status_desc = format!("Opladen via Netstroom ({}%)", status.battery_life_percent);
-                } else if ac_connected {
-                    battery_status_desc = format!("Netstroom aangesloten, batterij vol ({}%)", status.battery_life_percent);
-                } else {
-                    battery_status_desc = format!("Draait op batterij ({}%)", status.battery_life_percent);
-                }
-
-                if status.battery_life_time != 0xFFFFFFFF {
-                    battery_life_time_secs = Some(status.battery_life_time);
-                }
-            } else {
-                is_laptop = false;
-                battery_status_desc = "Vaste Netstroom (Desktop Workstation)".to_string();
-            }
+            Ok(status)
+        } else {
+            Err("Win32 GetSystemPowerStatus aanroep mislukt".to_string())
         }
     }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(WinSystemPowerStatus {
+            ac_line_status: 1,
+            battery_flag: 128,
+            battery_life_percent: 100,
+            system_status_flag: 0,
+            battery_life_time: 0xFFFFFFFF,
+            battery_full_life_time: 0xFFFFFFFF,
+        })
+    }
+}
 
-    let power_plan_name = {
-        let output = Command::new("cmd")
-            .args(&["/c", "powercfg /getactivescheme"])
-            .output();
+/// Haalt de naam op van het actieve Windows energiebeheerschema.
+fn get_active_power_plan() -> String {
+    let output = Command::new("cmd")
+        .args(&["/c", "powercfg /getactivescheme"])
+        .output();
 
-        match output {
-            Ok(out) => {
-                let text = String::from_utf8_lossy(&out.stdout).to_string();
-                if let Some(pos) = text.find('(') {
-                    if let Some(end_pos) = text.find(')') {
-                        text[pos + 1..end_pos].trim().to_string()
-                    } else {
-                        "Gebalanceerd (Standaard)".to_string()
-                    }
+    match output {
+        Ok(out) => {
+            let text = String::from_utf8_lossy(&out.stdout).to_string();
+            if let Some(pos) = text.find('(') {
+                if let Some(end_pos) = text.find(')') {
+                    text[pos + 1..end_pos].trim().to_string()
                 } else {
                     "Gebalanceerd (Standaard)".to_string()
                 }
+            } else {
+                "Gebalanceerd (Standaard)".to_string()
             }
-            Err(_) => "Gebalanceerd".to_string(),
         }
+        Err(_) => "Gebalanceerd".to_string(),
+    }
+}
+
+/// Tauri-commando voor realtime voedings- en batterijtelemetrie.
+#[tauri::command]
+pub fn get_power_and_battery_info() -> PowerInfo {
+    ensure_watchdog_started();
+
+    let status = get_system_power_status().unwrap_or_default();
+    let ac_connected = status.ac_line_status == 1;
+    let battery_present = (status.battery_flag & 128) == 0 && status.battery_life_percent <= 100;
+
+    let (is_laptop, battery_percent, battery_status_desc, battery_life_time_secs) = if battery_present {
+        let pct = Some(status.battery_life_percent);
+        let desc = if (status.battery_flag & 8) != 0 {
+            format!("Opladen via Netstroom ({}%)", status.battery_life_percent)
+        } else if ac_connected {
+            format!("Netstroom aangesloten, batterij vol ({}%)", status.battery_life_percent)
+        } else {
+            format!("Draait op batterij ({}%)", status.battery_life_percent)
+        };
+        let life_secs = if status.battery_life_time != 0xFFFFFFFF {
+            Some(status.battery_life_time)
+        } else {
+            None
+        };
+        (true, pct, desc, life_secs)
+    } else {
+        (false, None, "Vaste Netstroom (Desktop Workstation)".to_string(), None)
     };
+
+    let power_plan_name = get_active_power_plan();
 
     let details = if is_laptop {
         format!(
@@ -112,40 +127,19 @@ pub fn get_power_and_battery_info() -> PowerInfo {
     }
 }
 
-#[tauri::command]
-pub fn run_battery_health_check() -> BatteryHealthReport {
-    ensure_watchdog_started();
-
-    // Check if battery is present first
-    #[cfg(target_os = "windows")]
-    {
-        let mut status = WinSystemPowerStatus::default();
-        let res = unsafe { GetSystemPowerStatus(&mut status) };
-        if res != 0 && (status.battery_flag & 128) != 0 {
-            return BatteryHealthReport {
-                is_available: false,
-                health_percent: 100.0,
-                wear_percent: 0.0,
-                design_capacity_mwh: 0,
-                full_charge_capacity_mwh: 0,
-                cycle_count: 0,
-                chemistry: "N.v.t.".to_string(),
-                manufacturer: "Desktop PSU".to_string(),
-                estimated_runtime: "Onbeperkt (Netstroom)".to_string(),
-                grade: "Desktop PC".to_string(),
-                advice: "Geen batterij aanwezig op dit systeem. Dit is een Desktop Workstation aangesloten op continue netstroomvoeding.".to_string(),
-            };
-        }
-    }
-
-    // Run powercfg /batteryreport /xml
+/// Voert `powercfg /batteryreport /xml` uit naar een tijdelijk bestand en retourneert de XML-tekst.
+pub fn run_powercfg_batteryreport() -> Result<String, String> {
     let temp_xml = std::env::temp_dir().join(format!("pc_checker_batt_{}.xml", std::process::id()));
-    let _ = Command::new("cmd")
-        .args(&[
-            "/c",
-            &format!("powercfg /batteryreport /xml /output \"{}\"", temp_xml.to_string_lossy()),
-        ])
-        .output();
+    let temp_path_str = temp_xml.to_string_lossy().to_string();
+
+    let output = Command::new("cmd")
+        .args(&["/c", &format!("powercfg /batteryreport /xml /output \"{}\"", temp_path_str)])
+        .output()
+        .map_err(|e| format!("Powercfg uitvoerfout: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!("powercfg commando gaf exitcode: {:?}", output.status.code()));
+    }
 
     let mut xml_content = String::new();
     if let Ok(mut f) = File::open(&temp_xml) {
@@ -153,7 +147,15 @@ pub fn run_battery_health_check() -> BatteryHealthReport {
     }
     let _ = std::fs::remove_file(&temp_xml);
 
-    // Parse design capacity and full charge capacity
+    if xml_content.is_empty() {
+        Err("Geen batterijrapport XML kunnen genereren of lezen".to_string())
+    } else {
+        Ok(xml_content)
+    }
+}
+
+/// Pure parser die de XML-inhoud van het Windows batterijrapport omzet in een `BatteryHealthReport`.
+pub fn parse_battery_report(xml_content: &str) -> BatteryHealthReport {
     let mut design_capacity: u64 = 0;
     let mut full_charge: u64 = 0;
     let mut cycles: u32 = 0;
@@ -211,6 +213,7 @@ pub fn run_battery_health_check() -> BatteryHealthReport {
         }
     }
 
+    // Fallback voor desktop of virtuele omgevingen
     if design_capacity == 0 || full_charge == 0 {
         design_capacity = 70000;
         full_charge = 66000;
@@ -253,5 +256,63 @@ pub fn run_battery_health_check() -> BatteryHealthReport {
         estimated_runtime: runtime_est,
         grade,
         advice,
+    }
+}
+
+/// Tauri-commando om de batterijconditietest te draaien.
+#[tauri::command]
+pub fn run_battery_health_check() -> BatteryHealthReport {
+    ensure_watchdog_started();
+
+    // Controleer eerst of er een batterij aanwezig is
+    if let Ok(status) = get_system_power_status() {
+        if (status.battery_flag & 128) != 0 {
+            return BatteryHealthReport {
+                is_available: false,
+                health_percent: 100.0,
+                wear_percent: 0.0,
+                design_capacity_mwh: 0,
+                full_charge_capacity_mwh: 0,
+                cycle_count: 0,
+                chemistry: "N.v.t.".to_string(),
+                manufacturer: "Desktop PSU".to_string(),
+                estimated_runtime: "Onbeperkt (Netstroom)".to_string(),
+                grade: "Desktop PC".to_string(),
+                advice: "Geen batterij aanwezig op dit systeem. Dit is een Desktop Workstation aangesloten op continue netstroomvoeding.".to_string(),
+            };
+        }
+    }
+
+    match run_powercfg_batteryreport() {
+        Ok(xml_content) => parse_battery_report(&xml_content),
+        Err(_) => parse_battery_report(""),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_battery_report_xml() {
+        let sample_xml = r#"
+            <BatteryReport>
+                <DesignCapacity>52000</DesignCapacity>
+                <FullChargeCapacity>46800</FullChargeCapacity>
+                <CycleCount>145</CycleCount>
+                <Chemistry>LION</Chemistry>
+                <Manufacturer>SMP</Manufacturer>
+                <ActiveRuntime>PT4H30M</ActiveRuntime>
+            </BatteryReport>
+        "#;
+        let report = parse_battery_report(sample_xml);
+        assert_eq!(report.design_capacity_mwh, 52000);
+        assert_eq!(report.full_charge_capacity_mwh, 46800);
+        assert_eq!(report.cycle_count, 145);
+        assert_eq!(report.chemistry, "LION");
+        assert_eq!(report.manufacturer, "SMP");
+        assert_eq!(report.estimated_runtime, "4 uur 30 min");
+        assert_eq!(report.health_percent, 90.0);
+        assert_eq!(report.grade, "Uitmuntend (Graad A)");
     }
 }
