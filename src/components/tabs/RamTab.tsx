@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { SystemOverview, StressTestResult } from "../../types";
 import { formatBytes } from "../../utils/formatters";
+import { cn } from "../../utils/cn";
 
 interface RamTabProps {
   data: SystemOverview;
@@ -54,13 +55,16 @@ export const RamTab: React.FC<RamTabProps> = ({
               {[128, 256, 512].map((mb) => (
                 <button
                   key={mb}
+                  type="button"
                   onClick={() => setRamSizeMb(mb)}
                   disabled={isTestingRam}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer",
+                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400",
                     ramSizeMb === mb
                       ? "bg-purple-500 text-slate-950 font-bold"
                       : "text-slate-400 hover:text-white"
-                  }`}
+                  )}
                 >
                   {mb} MB
                 </button>
@@ -68,9 +72,14 @@ export const RamTab: React.FC<RamTabProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handleRamStress}
               disabled={isTestingRam}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-slate-950 font-bold text-sm shadow-lg shadow-purple-500/20 disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer"
+              className={cn(
+                "px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-slate-950 font-bold text-sm shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2 cursor-pointer",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300",
+                isTestingRam && "opacity-50 cursor-not-allowed"
+              )}
             >
               {isTestingRam ? (
                 <>
@@ -112,11 +121,12 @@ export const RamTab: React.FC<RamTabProps> = ({
         {/* RAM Result Box */}
         {ramResult && (
           <div
-            className={`p-4 rounded-xl border ${
+            className={cn(
+              "p-4 rounded-xl border space-y-2",
               ramResult.success
                 ? "bg-emerald-950/30 border-emerald-800/80 text-emerald-300"
                 : "bg-red-950/30 border-red-800/80 text-red-300"
-            } space-y-2`}
+            )}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-semibold">
@@ -152,10 +162,10 @@ export const RamTab: React.FC<RamTabProps> = ({
               <Layers className="w-4 h-4 text-purple-400" />
               Wat is een normaal geheugengebruik in Windows?
             </h4>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
+            <p className="text-slate-400 text-xs leading-relaxed">
               Een bezettingsgraad tussen <strong>40% en 75%</strong> is volkomen normaal. Windows gebruikt ongebruikt RAM actief als <em>SuperFetch / Standby Cache</em> om geopende bestanden direct klaar te zetten.
             </p>
-            <p className="text-slate-300 text-[11px]">
+            <p className="text-slate-300 text-xs">
               Pas wanneer het geheugengebruik continu boven de <strong>85% - 90%</strong> blijft, moet Windows gegevens wegschrijven naar het tragere schijf-wisselbestand (pagefile). Dit veroorzaakt haperingen en vertragingen.
             </p>
           </div>
@@ -166,10 +176,10 @@ export const RamTab: React.FC<RamTabProps> = ({
               <ShieldAlert className="w-4 h-4 text-rose-400" />
               Waarom is 0 bit-flips een harde vereiste?
             </h4>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
+            <p className="text-slate-400 text-xs leading-relaxed">
               Consumentengeheugen (Non-ECC RAM) heeft geen ingebouwde foutcorrectie. Als één enkele transistor een '1' naar een '0' flipt (een bit-flip), raakt de data in het geheugen direct corrupt.
             </p>
-            <p className="text-slate-300 text-[11px]">
+            <p className="text-slate-300 text-xs">
               Dit leidt vaak tot onverklaarbare crashes, plotseling afsluitende browser-tabbladen of beruchte Blue Screens zoals <code>MEMORY_MANAGEMENT</code> of <code>PAGE_FAULT_IN_NONPAGED_AREA</code>.
             </p>
           </div>
@@ -185,21 +195,21 @@ export const RamTab: React.FC<RamTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">1. XMP / EXPO Klokprofiel Testen</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Verschijnen er bitfouten in de test? Schakel dan tijdelijk het XMP of AMD EXPO overklokprofiel uit in de BIOS en test opnieuw op de standaard JEDEC-snelheid.
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">2. RAM Modules Herplaatsen</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Soms maakt een RAM-stick slecht contact door stof of oxidatie in het slot. Schakel de pc uit, haal de modules eruit en klik ze stevig opnieuw vast (in slot 2 en 4 bij dual-channel).
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">3. Controleer op Geheugenlekken</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Loopt het RAM-geheugen vol zonder dat er zware programma's openstaan? Open Taakbeheer (Ctrl+Shift+Esc), sorteer op 'Geheugen' en beëindig achtergrondprocessen met geheugenlekken.
               </p>
             </div>

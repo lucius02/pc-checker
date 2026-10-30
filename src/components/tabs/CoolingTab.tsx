@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { CoolingOverview } from "../../types";
+import { cn } from "../../utils/cn";
 
 interface CoolingTabProps {
   coolingData: CoolingOverview | null;
@@ -35,11 +36,12 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
 
           {coolingData && (
             <span
-              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+              className={cn(
+                "px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2",
                 coolingData.is_throttling_suspected
                   ? "bg-rose-950 border-rose-800 text-rose-400 animate-pulse"
                   : "bg-emerald-950 border-emerald-800 text-emerald-400"
-              }`}
+              )}
             >
               {coolingData.is_throttling_suspected ? (
                 <>
@@ -74,18 +76,19 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
                 >
                   <div>
                     <span className="font-semibold text-slate-200 block text-sm">{t.label}</span>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       Maximaal toelaatbaar: {t.max_celsius !== null ? `${t.max_celsius.toFixed(0)}°C` : "100°C"}
                     </span>
                   </div>
                   <span
-                    className={`text-2xl font-bold font-mono ${
+                    className={cn(
+                      "text-2xl font-bold font-mono",
                       t.temperature_celsius > 85
                         ? "text-rose-400"
                         : t.temperature_celsius > 70
                         ? "text-amber-400"
                         : "text-cyan-400"
-                    }`}
+                    )}
                   >
                     {t.temperature_celsius.toFixed(1)}°C
                   </span>
@@ -116,14 +119,14 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
                   </div>
                   <div>
                     <span className="font-semibold text-slate-200 text-sm block">{f.name}</span>
-                    <span className="text-[11px] text-slate-400">{f.status}</span>
+                    <span className="text-xs text-slate-400">{f.status}</span>
                   </div>
                 </div>
                 <div className="text-right">
                   <span className="text-lg font-bold font-mono text-cyan-400 block">
                     {f.speed_rpm !== null ? `${f.speed_rpm} RPM` : "Dynamisch Actief"}
                   </span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     {f.speed_rpm !== null ? "Tachometer RPM" : "EC/BIOS Curve"}
                   </span>
                 </div>
@@ -154,9 +157,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-emerald-400 block">35°C – 50°C • Rust (Idle)</span>
-                  <span className="text-[11px] text-slate-400">Bij surfen, tekstverwerken of bureauwerk.</span>
+                  <span className="text-xs text-slate-400">Bij surfen, tekstverwerken of bureauwerk.</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-semibold border border-emerald-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-semibold border border-emerald-800">
                   Optimaal
                 </span>
               </div>
@@ -164,9 +167,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-cyan-300 block">60°C – 80°C • Normale Belasting</span>
-                  <span className="text-[11px] text-slate-400">Tijdens gamen, videobewerking of compileren.</span>
+                  <span className="text-xs text-slate-400">Tijdens gamen, videobewerking of compileren.</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-semibold border border-cyan-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-semibold border border-cyan-800">
                   Gezond
                 </span>
               </div>
@@ -174,9 +177,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-amber-300 block">85°C – 92°C • Hoge Belasting</span>
-                  <span className="text-[11px] text-slate-400">CPU benadert thermische limiet; ventilators draaien op piek.</span>
+                  <span className="text-xs text-slate-400">CPU benadert thermische limiet; ventilators draaien op piek.</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-semibold border border-amber-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-amber-950 text-amber-300 font-semibold border border-amber-800">
                   Warm
                 </span>
               </div>
@@ -184,9 +187,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-rose-400 block">&gt;95°C • Thermische Throttling</span>
-                  <span className="text-[11px] text-slate-400">CPU verlaagt automatisch kloksnelheid om schade te voorkomen.</span>
+                  <span className="text-xs text-slate-400">CPU verlaagt automatisch kloksnelheid om schade te voorkomen.</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-rose-950 text-rose-300 font-semibold border border-rose-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-rose-950 text-rose-300 font-semibold border border-rose-800">
                   Kritiek
                 </span>
               </div>
@@ -203,9 +206,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-emerald-400 block">0 – 1.200 RPM • Stiltemodus (Rust)</span>
-                  <span className="text-[11px] text-slate-400">Veel laptops/GPU's stoppen ventilatoren volledig (0 RPM modus).</span>
+                  <span className="text-xs text-slate-400">Veel laptops/GPU's stoppen ventilatoren volledig (0 RPM modus).</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
                   Stil
                 </span>
               </div>
@@ -213,9 +216,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-cyan-300 block">1.500 – 2.800 RPM • Gemiddeld</span>
-                  <span className="text-[11px] text-slate-400">Hoorbare luchtstroom bij actieve werklast; stabiele warmteafvoer.</span>
+                  <span className="text-xs text-slate-400">Hoorbare luchtstroom bij actieve werklast; stabiele warmteafvoer.</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
                   Gebalanceerd
                 </span>
               </div>
@@ -223,9 +226,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-amber-300 block">3.000 – 4.800 RPM • Maximaal (Laptops)</span>
-                  <span className="text-[11px] text-slate-400">Kleine laptop-blowers hebben hoge RPM nodig voor voldoende airflow.</span>
+                  <span className="text-xs text-slate-400">Kleine laptop-blowers hebben hoge RPM nodig voor voldoende airflow.</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
                   Piek Laptop
                 </span>
               </div>
@@ -233,9 +236,9 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
                   <span className="font-medium text-purple-300 block">EC/BIOS Dynamische Curve</span>
-                  <span className="text-[11px] text-slate-400">Moderne moederborden sturen toerentallen traploos aan via PWM/ACPI.</span>
+                  <span className="text-xs text-slate-400">Moderne moederborden sturen toerentallen traploos aan via PWM/ACPI.</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold border border-slate-800">
                   Automatisch
                 </span>
               </div>
@@ -253,21 +256,21 @@ export const CoolingTab: React.FC<CoolingTabProps> = ({ coolingData }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">1. Stofvrij Maken (Perslucht)</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Stofnesten in koelribben en ventilators kunnen de koelcapaciteit met 40% verlagen. Blaas de roosters eens per 6-12 maanden schoon met perslucht.
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">2. Zorg voor Vrije Luchttoevoer</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Plaats een laptop nooit op een dekbed of kussen. Gebruik een harde ondergrond of een verhoger zodat de ventilatieopeningen aan de onderkant vrij kunnen ademen.
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">3. Koelpasta &amp; BIOS Profiel</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Als de CPU na 2-3 jaar structureel 90°C overschrijdt, is de koelpasta vaak uitgedroogd. Controleer in de BIOS ook of het koelprofiel op 'Standaard' of 'Prestaties' staat.
               </p>
             </div>

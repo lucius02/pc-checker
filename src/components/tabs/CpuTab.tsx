@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { SystemOverview, StressTestResult } from "../../types";
+import { cn } from "../../utils/cn";
 
 interface CpuTabProps {
   data: SystemOverview;
@@ -48,13 +49,16 @@ export const CpuTab: React.FC<CpuTabProps> = ({
               {[5, 10, 30].map((sec) => (
                 <button
                   key={sec}
+                  type="button"
                   onClick={() => setCpuDuration(sec)}
                   disabled={isTestingCpu}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer",
+                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
                     cpuDuration === sec
-                      ? "bg-cyan-500 text-slate-950"
+                      ? "bg-cyan-500 text-slate-950 font-bold"
                       : "text-slate-400 hover:text-white"
-                  }`}
+                  )}
                 >
                   {sec}s
                 </button>
@@ -62,9 +66,14 @@ export const CpuTab: React.FC<CpuTabProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handleCpuStress}
               disabled={isTestingCpu}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer"
+              className={cn(
+                "px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2 cursor-pointer",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300",
+                isTestingCpu && "opacity-50 cursor-not-allowed"
+              )}
             >
               {isTestingCpu ? (
                 <>
@@ -92,7 +101,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
                 key={i}
                 className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl flex flex-col justify-between"
               >
-                <div className="flex justify-between items-center text-[11px] mb-1.5">
+                <div className="flex justify-between items-center text-xs mb-1.5">
                   <span className="text-slate-400 font-medium">Core {i}</span>
                   <span className="font-mono font-bold text-cyan-400">
                     {core.usage.toFixed(0)}%
@@ -104,7 +113,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
                     style={{ width: `${Math.min(100, core.usage)}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-slate-500 mt-1.5 text-right font-mono">
+                <span className="text-xs text-slate-500 mt-1.5 text-right font-mono">
                   {core.frequency_mhz} MHz
                 </span>
               </div>
@@ -115,11 +124,12 @@ export const CpuTab: React.FC<CpuTabProps> = ({
         {/* Result Box */}
         {cpuResult && (
           <div
-            className={`p-4 rounded-xl border ${
+            className={cn(
+              "p-4 rounded-xl border space-y-2",
               cpuResult.success
                 ? "bg-emerald-950/30 border-emerald-800/80 text-emerald-300"
                 : "bg-red-950/30 border-red-800/80 text-red-300"
-            } space-y-2`}
+            )}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-semibold">
@@ -155,10 +165,10 @@ export const CpuTab: React.FC<CpuTabProps> = ({
               <Activity className="w-4 h-4 text-cyan-400" />
               Wat meet deze stresstest precies?
             </h4>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
+            <p className="text-slate-400 text-xs leading-relaxed">
               De test voert miljoenen non-lineaire goniometrische en drijvende-komma berekeningen (sinus/cosinus) per seconde uit via een multi-threaded Rayon threadpool.
             </p>
-            <p className="text-slate-300 text-[11px]">
+            <p className="text-slate-300 text-xs">
               Hiermee worden alle logische kernen 100% belast. Dit brengt zwakke plekken zoals VRM spanningsdips, instabiele overkloks of overmatige hitte onmiddellijk aan het licht.
             </p>
           </div>
@@ -169,7 +179,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
               <Cpu className="w-4 h-4 text-emerald-400" />
               Wat is een normale score in MOps/sec?
             </h4>
-            <div className="space-y-1.5 text-[11px] text-slate-300">
+            <div className="space-y-1.5 text-xs text-slate-300">
               <div className="flex justify-between border-b border-slate-800/80 pb-1">
                 <span className="text-slate-400">4 – 8 threads (Quad-core laptops):</span>
                 <span className="font-mono text-cyan-300">10 – 30 MOps/s</span>
@@ -183,7 +193,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
                 <span className="font-mono text-purple-400">100+ MOps/s</span>
               </div>
             </div>
-            <p className="text-slate-500 text-[10px] pt-1">
+            <p className="text-slate-500 text-xs pt-1">
               Een hogere score betekent snellere multi-core rekenkracht en betere stabiliteit onder continue zware belasting.
             </p>
           </div>
@@ -199,21 +209,21 @@ export const CpuTab: React.FC<CpuTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">1. Controleer Klokfrequenties</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Als de score na 10-30 seconden sterk keldert, verlaagt het moederbord de MHz (Thermal Throttling). Bekijk het tabblad <em>Koeling &amp; Fans</em> om te zien of de temperatuur boven 90°C piekt.
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">2. Reset Overclock &amp; Undervolt</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Crasht de pc tijdens een stresstest met een Blue Screen (zoals WHEA_UNCORRECTABLE_ERROR)? Zet eventuele CPU-overclock of undervolt instellingen in de BIOS terug naar fabriekswaarden.
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">3. Energiebeheerschema</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Stel Windows Energiebeheer in op 'Gebalanceerd' of 'Beste Prestaties'. Vermijd energiebesparende profielen tijdens zware reken- of renderklussen.
               </p>
             </div>

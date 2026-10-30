@@ -8,6 +8,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { FreezeDiagnosticReport } from "../../types";
+import { cn } from "../../utils/cn";
 
 interface FreezeTabProps {
   freezeData: FreezeDiagnosticReport | null;
@@ -42,11 +43,16 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
 
           <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={scanFreezeDiagnostic}
               disabled={isScanningFreeze}
-              className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 disabled:opacity-50 transition-all cursor-pointer"
+              className={cn(
+                "px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 transition-all cursor-pointer",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300",
+                isScanningFreeze && "opacity-50 cursor-not-allowed"
+              )}
             >
-              <Search className={`w-4 h-4 ${isScanningFreeze ? "animate-spin" : ""}`} />
+              <Search className={cn("w-4 h-4", isScanningFreeze && "animate-spin")} />
               {isScanningFreeze ? "Logboek Scannen..." : "Herscan Windows Logboek"}
             </button>
           </div>
@@ -109,13 +115,14 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
 
           {freezeData && (
             <span
-              className={`px-3 py-1 text-xs font-bold rounded-lg border ${
+              className={cn(
+                "px-3 py-1 text-xs font-bold rounded-lg border",
                 freezeData.system_freeze_risk === "Hoog"
                   ? "bg-rose-950 border-rose-800 text-rose-400"
                   : freezeData.system_freeze_risk === "Middel"
                   ? "bg-amber-950 border-amber-800 text-amber-400"
                   : "bg-emerald-950 border-emerald-800 text-emerald-400"
-              }`}
+              )}
             >
               Freeze Risico: {freezeData.system_freeze_risk}
             </span>
@@ -138,7 +145,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
                   </div>
                   <span className="text-slate-500 font-mono">{culprit.timestamp}</span>
                 </div>
-                <p className="text-slate-300 font-mono text-[11px] bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/80">
+                <p className="text-slate-300 font-mono text-xs bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/80">
                   {culprit.message}
                 </p>
                 <div className="p-2.5 bg-cyan-950/30 border border-cyan-800/60 rounded-lg text-cyan-300">
@@ -170,7 +177,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
             <p className="text-slate-300">
               Als een SSD of extra HDD na enkele seconden in slaap valt (D3/Slumber), bevriest Windows kortstondig bij het ontwaken.
             </p>
-            <p className="text-slate-400 text-[11px]">
+            <p className="text-slate-400 text-xs">
               <strong>Oplossing:</strong> Open Geavanceerd Energiebeheer en zet "Harde schijf uitschakelen na" op 0 (Nooit). Schakel SATA LPM uit in de storage driver.
             </p>
           </div>
@@ -180,7 +187,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
             <p className="text-slate-300">
               Een defecte of loszittende SATA-kabel veroorzaakt CRC-overdrachtsfouten. Windows wacht op een retry vóór time-out.
             </p>
-            <p className="text-slate-400 text-[11px]">
+            <p className="text-slate-400 text-xs">
               <strong>Oplossing:</strong> Vervang de SATA-datakabel van extra schijven of koppel tijdelijk niet-essentiële harde schijven los.
             </p>
           </div>
@@ -190,7 +197,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
             <p className="text-slate-300">
               Als de videokaart niet tijdig antwoordt door een spanningsdip of driverbug, bevriest het scherm en reset de driver.
             </p>
-            <p className="text-slate-400 text-[11px]">
+            <p className="text-slate-400 text-xs">
               <strong>Oplossing:</strong> Schone installatie van de nieuwste videokaart-driver via DDU (Display Driver Uninstaller).
             </p>
           </div>
@@ -200,7 +207,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
             <p className="text-slate-300">
               Programma's zoals Asus Armoury Crate, iCUE, Synapse of verouderde antivirussen scannen continu de SMBus/PCIe sensoren en kunnen CPU cores tijdelijk blokkeren en freezes veroorzaken.
             </p>
-            <p className="text-slate-400 text-[11px]">
+            <p className="text-slate-400 text-xs">
               <strong>Oplossing:</strong> Sluit overbodige RGB- en monitoringsoftware tijdelijk af om te testen.
             </p>
           </div>

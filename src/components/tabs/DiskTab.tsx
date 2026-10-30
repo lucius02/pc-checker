@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { SystemOverview, StressTestResult } from "../../types";
 import { formatBytes } from "../../utils/formatters";
+import { cn } from "../../utils/cn";
 
 interface DiskTabProps {
   data: SystemOverview;
@@ -56,13 +57,16 @@ export const DiskTab: React.FC<DiskTabProps> = ({
               {[32, 64, 128].map((mb) => (
                 <button
                   key={mb}
+                  type="button"
                   onClick={() => setDiskSizeMb(mb)}
                   disabled={isTestingDisk}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer ${
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer",
+                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400",
                     diskSizeMb === mb
                       ? "bg-amber-500 text-slate-950 font-bold"
                       : "text-slate-400 hover:text-white"
-                  }`}
+                  )}
                 >
                   {mb} MB
                 </button>
@@ -70,9 +74,14 @@ export const DiskTab: React.FC<DiskTabProps> = ({
             </div>
 
             <button
+              type="button"
               onClick={handleDiskBenchmark}
               disabled={isTestingDisk}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer"
+              className={cn(
+                "px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300",
+                isTestingDisk && "opacity-50 cursor-not-allowed"
+              )}
             >
               {isTestingDisk ? (
                 <>
@@ -97,7 +106,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
               <span className="font-bold text-sm text-amber-300 block">
                 Waarschuwing: Schijfruimte raakt vol op {fullDisks.map((d) => d.mount_point || d.name).join(", ")}!
               </span>
-              <p className="text-[11px] text-amber-300/90 leading-relaxed">
+              <p className="text-xs text-amber-300/90 leading-relaxed">
                 Een of meerdere schijven zijn voor meer dan 85% bezet. SSD's verliezen schrijfprestaties en levensduur wanneer de vrije capaciteit onder 10-15% zakt. We raden aan onnodige bestanden op te schonen om vertragingen en Windows crashes te voorkomen.
               </p>
             </div>
@@ -120,30 +129,32 @@ export const DiskTab: React.FC<DiskTabProps> = ({
               return (
                 <div
                   key={i}
-                  className={`p-4 bg-slate-950/70 border rounded-xl space-y-3 transition-colors ${
+                  className={cn(
+                    "p-4 bg-slate-950/70 border rounded-xl space-y-3 transition-colors",
                     isCriticallyFull
                       ? "border-rose-800/80 bg-rose-950/10"
                       : isWarningFull
                       ? "border-amber-800/80 bg-amber-950/10"
                       : "border-slate-800"
-                  }`}
+                  )}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2.5">
                       <HardDrive
-                        className={`w-4 h-4 ${
+                        className={cn(
+                          "w-4 h-4",
                           isCriticallyFull
                             ? "text-rose-400"
                             : isWarningFull
                             ? "text-amber-400"
                             : "text-cyan-400"
-                        }`}
+                        )}
                       />
                       <div>
                         <span className="font-semibold text-slate-200 text-sm">
                           {d.name || d.mount_point}
                         </span>
-                        <span className="text-[11px] text-slate-500 block">
+                        <span className="text-xs text-slate-500 block">
                           Koppelpunt: {d.mount_point} ({d.file_system})
                         </span>
                       </div>
@@ -160,28 +171,29 @@ export const DiskTab: React.FC<DiskTabProps> = ({
                     </div>
                     <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                       <div
-                        className={`h-2 rounded-full transition-all duration-300 ${
+                        className={cn(
+                          "h-2 rounded-full transition-all duration-300",
                           isCriticallyFull
                             ? "bg-rose-500"
                             : isWarningFull
                             ? "bg-amber-400"
                             : "bg-cyan-400"
-                        }`}
+                        )}
                         style={{ width: `${usedPercent}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-[11px]">
+                    <div className="flex justify-between text-xs">
                       <span className="text-slate-500">
                         {usedPercent}% bezet
                       </span>
                       <span
-                        className={
+                        className={cn(
                           isCriticallyFull
                             ? "text-rose-400 font-bold"
                             : isWarningFull
                             ? "text-amber-400 font-semibold"
                             : "text-emerald-400"
-                        }
+                        )}
                       >
                         {formatBytes(d.available_bytes)} vrij ({100 - usedPercent}%)
                       </span>
@@ -196,11 +208,12 @@ export const DiskTab: React.FC<DiskTabProps> = ({
         {/* Disk Result Box */}
         {diskResult && (
           <div
-            className={`p-4 rounded-xl border ${
+            className={cn(
+              "p-4 rounded-xl border space-y-2",
               diskResult.success
                 ? "bg-emerald-950/30 border-emerald-800/80 text-emerald-300"
                 : "bg-red-950/30 border-red-800/80 text-red-300"
-            } space-y-2`}
+            )}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-semibold">
@@ -236,10 +249,10 @@ export const DiskTab: React.FC<DiskTabProps> = ({
               <HardDrive className="w-4 h-4 text-cyan-400" />
               Waarom heeft een SSD 15% tot 20% vrije ruimte nodig?
             </h4>
-            <p className="text-slate-400 leading-relaxed text-[11px]">
+            <p className="text-slate-400 leading-relaxed text-xs">
               Solid State Drives (SSD's) gebruiken interne flash-blokken. Om data snel te kunnen overschrijven, voert de schijf op de achtergrond <em>wear-leveling</em> en <em>TRIM-garbage collection</em> uit.
             </p>
-            <p className="text-slate-300 text-[11px]">
+            <p className="text-slate-300 text-xs">
               Wanneer de schijf voor &gt;85% vol raakt, moet de schijfcontroller continu datablokken verplaatsen (write amplification). Hierdoor daalt de schrijfsnelheid tot wel 70% en slijt het flash-geheugen aanzienlijk sneller.
             </p>
           </div>
@@ -249,10 +262,10 @@ export const DiskTab: React.FC<DiskTabProps> = ({
               <Layers className="w-4 h-4 text-amber-400" />
               Wat gebeurt er als de C: schijf 100% vol raakt?
             </h4>
-            <p className="text-slate-400 leading-relaxed text-[11px]">
+            <p className="text-slate-400 leading-relaxed text-xs">
               De C: schijf bevat het virtuele geheugenbestand (<code>pagefile.sys</code>) en het slaapstandbestand (<code>hiberfil.sys</code>).
             </p>
-            <p className="text-slate-300 text-[11px]">
+            <p className="text-slate-300 text-xs">
               Als Windows geen tijdelijke swapruimte meer kan toewijzen, crashen applicaties direct met "Out of Memory", mislukken Windows Updates, en kunnen er desktop freezes of Blue Screens optreden.
             </p>
           </div>
@@ -269,15 +282,15 @@ export const DiskTab: React.FC<DiskTabProps> = ({
             {/* Stap 1 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">1. Windows Schijfopruiming</span>
-              <p className="text-[11px] text-slate-400">
-                Druk op <kbd className="px-1 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">Win + R</kbd>, typ <code>cleanmgr</code> en klik op <em>Systeembestanden opschonen</em>. Dit ruimt oude Windows updates en logs op.
+              <p className="text-xs text-slate-400">
+                Druk op <kbd className="px-1 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono">Win + R</kbd>, typ <code>cleanmgr</code> en klik op <em>Systeembestanden opschonen</em>. Dit ruimt oude Windows updates en logs op.
               </p>
             </div>
 
             {/* Stap 2 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">2. Opslaginzicht (Storage Sense)</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Ga naar <em>Instellingen &gt; Systeem &gt; Opslag</em> en activeer <strong>Opslaginzicht</strong>. Windows verwijdert dan periodiek automatische tijdelijke app-bestanden en caches.
               </p>
             </div>
@@ -285,7 +298,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
             {/* Stap 3 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">3. Downloads &amp; Tijdelijke Mappen</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Controleer je map <code>C:\Users\...\Downloads</code> op oude installatiebestanden (.exe, .zip, .iso) en leeg de Prullenbak. Dit levert vaak tientallen gigabytes op.
               </p>
             </div>
@@ -293,7 +306,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
             {/* Stap 4 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
               <span className="font-medium text-white block">4. Grote Games &amp; Media</span>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Verplaats geïnstalleerde games (via bijv. Steam Bibliotheekbeheer) of grote videobestanden naar een tweede SSD of externe harde schijf.
               </p>
             </div>

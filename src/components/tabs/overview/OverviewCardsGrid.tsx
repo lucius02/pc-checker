@@ -18,6 +18,7 @@ import {
   TabType,
 } from "../../../types";
 import { formatBytes } from "../../../utils/formatters";
+import { cn } from "../../../utils/cn";
 
 interface OverviewCardsGridProps {
   data: SystemOverview;
@@ -59,7 +60,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               </div>
               <div>
                 <h3 className="font-semibold text-slate-200">Processor (CPU)</h3>
-                <p className="text-xs text-slate-400 truncate max-w-[150px]">
+                <p className="text-xs text-slate-400 truncate max-w-40">
                   {data.cpu.brand}
                 </p>
               </div>
@@ -82,7 +83,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {cpuResult ? (
               <span className="text-emerald-400 font-medium">
                 Laatste test: {cpuResult.score_or_speed.toFixed(2)} {cpuResult.unit}
@@ -95,7 +96,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
 
         <button
           onClick={() => setActiveTab("cpu")}
-          className="mt-4 w-full py-2.5 bg-cyan-950/60 hover:bg-cyan-900/80 text-xs text-cyan-300 font-semibold rounded-xl border border-cyan-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+          className={cn(
+            "mt-4 w-full py-2.5 bg-cyan-950/60 hover:bg-cyan-900/80 text-xs text-cyan-300 font-semibold rounded-xl border border-cyan-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+          )}
         >
           <Flame className="w-4 h-4 text-cyan-400" />
           Open CPU Stresstest
@@ -135,7 +139,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {ramResult ? (
               <span className="text-emerald-400 font-medium">
                 Laatste test: {ramResult.success ? "0 bitfouten gedetecteerd" : "Fouten gevonden!"}
@@ -148,7 +152,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
 
         <button
           onClick={() => setActiveTab("ram")}
-          className="mt-4 w-full py-2.5 bg-purple-950/60 hover:bg-purple-900/80 text-xs text-purple-300 font-semibold rounded-xl border border-purple-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+          className={cn(
+            "mt-4 w-full py-2.5 bg-purple-950/60 hover:bg-purple-900/80 text-xs text-purple-300 font-semibold rounded-xl border border-purple-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-400"
+          )}
         >
           <Zap className="w-4 h-4 text-purple-400" />
           Open Geheugencheck
@@ -198,7 +205,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               />
             </div>
             <div className="flex justify-between text-xs text-slate-400">
-              <span className="truncate max-w-[150px]">
+              <span className="truncate max-w-40">
                 {data.disks[0]?.name || "C:"} ({data.disks[0]?.disk_type || "SSD"})
               </span>
               <span>
@@ -207,7 +214,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {diskResult ? (
               <span className="text-emerald-400 font-medium">
                 Benchmark: {diskResult.score_or_speed.toFixed(1)} {diskResult.unit}
@@ -220,7 +227,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
 
         <button
           onClick={() => setActiveTab("disk")}
-          className="mt-4 w-full py-2.5 bg-amber-950/60 hover:bg-amber-900/80 text-xs text-amber-300 font-semibold rounded-xl border border-amber-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+          className={cn(
+            "mt-4 w-full py-2.5 bg-amber-950/60 hover:bg-amber-900/80 text-xs text-amber-300 font-semibold rounded-xl border border-amber-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+          )}
         >
           <HardDrive className="w-4 h-4 text-amber-400" />
           Open Schijf Benchmark
@@ -237,7 +247,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               </div>
               <div>
                 <h3 className="font-semibold text-slate-200">Stroom &amp; Batterij</h3>
-                <p className="text-xs text-slate-400 truncate max-w-[150px]">
+                <p className="text-xs text-slate-400 truncate max-w-40">
                   {powerData?.power_plan_name || "Netstroom"}
                 </p>
               </div>
@@ -270,7 +280,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+          <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {batteryReport ? (
               <span className="text-emerald-400 font-medium">
                 Gezondheid: {batteryReport.health_percent.toFixed(1)}% ({batteryReport.grade})
@@ -283,7 +293,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
 
         <button
           onClick={() => setActiveTab("power")}
-          className="mt-4 w-full py-2.5 bg-amber-950/60 hover:bg-amber-900/80 text-xs text-amber-300 font-semibold rounded-xl border border-amber-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+          className={cn(
+            "mt-4 w-full py-2.5 bg-amber-950/60 hover:bg-amber-900/80 text-xs text-amber-300 font-semibold rounded-xl border border-amber-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+          )}
         >
           <BatteryCharging className="w-4 h-4 text-amber-400" />
           Open Stroom &amp; Batterij
@@ -315,9 +328,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           <div className="space-y-2 mb-3">
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div
-                className={`h-2 rounded-full transition-all duration-500 ${
+                className={cn(
+                  "h-2 rounded-full transition-all duration-500",
                   coolingData?.is_throttling_suspected ? "bg-rose-500" : "bg-blue-400"
-                }`}
+                )}
                 style={{
                   width: `${
                     coolingData?.temperatures[0]?.temperature_celsius
@@ -334,23 +348,28 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                   : "Dynamische BIOS/EC Curve"}
               </span>
               <span
-                className={
-                  coolingData?.is_throttling_suspected ? "text-rose-400 font-bold" : "text-emerald-400"
-                }
+                className={cn(
+                  coolingData?.is_throttling_suspected
+                    ? "text-rose-400 font-bold"
+                    : "text-emerald-400 font-medium"
+                )}
               >
                 {coolingData?.is_throttling_suspected ? "Throttling" : "Thermisch Stabiel"}
               </span>
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 truncate">
+          <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 truncate">
             <span>Live ACPI sensoren &amp; ventilator toerentallen</span>
           </div>
         </div>
 
         <button
           onClick={() => setActiveTab("cooling")}
-          className="mt-4 w-full py-2.5 bg-blue-950/60 hover:bg-blue-900/80 text-xs text-blue-300 font-semibold rounded-xl border border-blue-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+          className={cn(
+            "mt-4 w-full py-2.5 bg-blue-950/60 hover:bg-blue-900/80 text-xs text-blue-300 font-semibold rounded-xl border border-blue-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+          )}
         >
           <Fan className="w-4 h-4 text-blue-400" />
           Open Koeling &amp; Fans
@@ -373,11 +392,12 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               </div>
             </div>
             <span
-              className={`text-xs px-2.5 py-1 rounded-lg font-bold border ${
+              className={cn(
+                "text-xs px-2.5 py-1 rounded-lg font-bold border",
                 freezeData?.system_freeze_risk === "Hoog"
                   ? "bg-rose-950 border-rose-800 text-rose-400"
                   : "bg-emerald-950 border-emerald-800 text-emerald-400"
-              }`}
+              )}
             >
               Risico: {freezeData?.system_freeze_risk || "Laag"}
             </span>
@@ -398,14 +418,17 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 truncate">
+          <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 truncate">
             <span>SATA resets, GPU TDR crashes &amp; DPC latency</span>
           </div>
         </div>
 
         <button
           onClick={() => setActiveTab("freeze")}
-          className="mt-4 w-full py-2.5 bg-rose-950/60 hover:bg-rose-900/80 text-xs text-rose-300 font-semibold rounded-xl border border-rose-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+          className={cn(
+            "mt-4 w-full py-2.5 bg-rose-950/60 hover:bg-rose-900/80 text-xs text-rose-300 font-semibold rounded-xl border border-rose-800/80 transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+          )}
         >
           <ShieldAlert className="w-4 h-4 text-rose-400" />
           Open Freeze Detective
