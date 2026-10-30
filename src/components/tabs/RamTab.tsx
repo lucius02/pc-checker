@@ -76,7 +76,7 @@ export const RamTab: React.FC<RamTabProps> = ({
               onClick={handleRamStress}
               disabled={isTestingRam}
               className={cn(
-                "px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-slate-950 font-bold text-sm shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2 cursor-pointer",
+                "px-5 py-2.5 rounded-xl bg-linear-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-slate-950 font-bold text-sm shadow-lg shadow-purple-500/20 transition-all flex items-center gap-2 cursor-pointer",
                 "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-300",
                 isTestingRam && "opacity-50 cursor-not-allowed"
               )}

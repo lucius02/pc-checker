@@ -26,12 +26,12 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
           <Activity className="w-5 h-5 text-slate-950 font-bold" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            <h1 className="text-lg font-bold tracking-tight bg-linear-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
               PC CHECKER
             </h1>
             <span className="px-2 py-0.5 text-xs font-semibold bg-cyan-950/80 border border-cyan-800 text-cyan-400 rounded-full">
