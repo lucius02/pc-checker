@@ -13,6 +13,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { LatencyTestResult, LatencyBucket } from "../../types";
+import { cn } from "../../utils/cn";
 
 interface LatencyTabProps {
   latencyResult: LatencyTestResult | null;
@@ -65,7 +66,7 @@ const VerdictBadge: React.FC<{ verdict: string }> = ({ verdict }) => {
       ? { cls: "bg-rose-950 border-rose-800 text-rose-400", Icon: XCircle }
       : { cls: "bg-amber-950 border-amber-800 text-amber-400", Icon: AlertTriangle };
   return (
-    <span className={`px-3 py-1.5 text-xs font-bold rounded-lg border flex items-center gap-1.5 ${cfg.cls}`}>
+    <span className={cn("px-3 py-1.5 text-xs font-bold rounded-lg border flex items-center gap-1.5", cfg.cls)}>
       <cfg.Icon className="w-4 h-4" />
       Latency: {verdict}
     </span>
@@ -79,9 +80,9 @@ const KpiTile: React.FC<{ label: string; value: string; hint?: string; muted?: b
   muted,
 }) => (
   <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl">
-    <div className="text-[11px] font-medium text-slate-400">{label}</div>
-    <div className={`mt-1 font-semibold ${muted ? "text-sm text-slate-500" : "text-xl text-white"}`}>{value}</div>
-    {hint && <div className="text-[11px] text-slate-500 mt-0.5">{hint}</div>}
+    <div className="text-xs font-medium text-slate-400">{label}</div>
+    <div className={cn("mt-1 font-semibold", muted ? "text-sm text-slate-500" : "text-xl text-white")}>{value}</div>
+    {hint && <div className="text-xs text-slate-500 mt-0.5">{hint}</div>}
   </div>
 );
 
@@ -92,7 +93,7 @@ const Histogram: React.FC<{ buckets: LatencyBucket[]; total: number }> = ({ buck
 
   return (
     <div className="space-y-1.5" role="table" aria-label="Verdeling van onderbrekingen">
-      <div role="row" className="grid grid-cols-[96px_1fr_150px] gap-3 text-[11px] text-slate-500 px-1">
+      <div role="row" className="grid grid-cols-[96px_1fr_150px] gap-3 text-xs text-slate-500 px-1">
         <span role="columnheader">Onderbreking</span>
         <span role="columnheader">Aantal (log-schaal)</span>
         <span role="columnheader" className="text-right">Aantal · aandeel</span>
@@ -111,9 +112,10 @@ const Histogram: React.FC<{ buckets: LatencyBucket[]; total: number }> = ({ buck
             onPointerLeave={() => setHover(null)}
             onFocus={() => setHover(i)}
             onBlur={() => setHover(null)}
-            className={`relative grid grid-cols-[96px_1fr_150px] gap-3 items-center px-1 py-1.5 rounded-lg outline-none transition-colors ${
-              active ? "bg-slate-800/50" : ""
-            } focus-visible:ring-1 focus-visible:ring-slate-600`}
+            className={cn(
+              "relative grid grid-cols-[96px_1fr_150px] gap-3 items-center px-1 py-1.5 rounded-lg outline-none transition-colors focus-visible:ring-2 focus-visible:ring-cyan-500",
+              active && "bg-slate-800/50"
+            )}
           >
             <span role="cell" className="text-xs text-slate-300 font-mono flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: zone.color }} aria-hidden />
@@ -149,7 +151,7 @@ const Histogram: React.FC<{ buckets: LatencyBucket[]; total: number }> = ({ buck
           </div>
         );
       })}
-      <div className="flex flex-wrap gap-4 pt-2 px-1 text-[11px] text-slate-400">
+      <div className="flex flex-wrap gap-4 pt-2 px-1 text-xs text-slate-400">
         {[STATUS.good, STATUS.warning, STATUS.critical].map((z, i) => (
           <span key={z.label} className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: z.color }} aria-hidden />
@@ -214,9 +216,10 @@ export const LatencyTab: React.FC<LatencyTabProps> = ({
                   key={sec}
                   onClick={() => setLatencyDuration(sec)}
                   disabled={isTestingLatency}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400",
                     latencyDuration === sec ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-white"
-                  }`}
+                  )}
                 >
                   {sec}s
                 </button>
@@ -226,7 +229,7 @@ export const LatencyTab: React.FC<LatencyTabProps> = ({
             <button
               onClick={handleStart}
               disabled={isTestingLatency}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
             >
               {isTestingLatency ? (
                 <>
@@ -269,7 +272,7 @@ export const LatencyTab: React.FC<LatencyTabProps> = ({
       </div>
 
       {r && (
-        <div className={`space-y-6 transition-opacity ${isTestingLatency ? "opacity-50" : ""}`}>
+        <div className={cn("space-y-6 transition-opacity", isTestingLatency && "opacity-50")}>
           {/* Oordeel + KPI's */}
           <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-5">
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
@@ -339,7 +342,7 @@ export const LatencyTab: React.FC<LatencyTabProps> = ({
                 <HardDrive className="w-4 h-4 text-cyan-400" />
                 Waarschijnlijke verdachte drivers
               </h3>
-              <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl text-[11px] text-slate-400 flex gap-2">
+              <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-slate-400 flex gap-2">
                 <Info className="w-4 h-4 text-slate-500 shrink-0 mt-px" />
                 <span>
                   Deze lijst is afgeleid uit de Driver Check (netwerk, audio, GPU, opslag en USB), niet gemeten per driver. Gebruik LatencyMon (Resplendence) voor een exacte DPC/ISR-toewijzing per driver.

@@ -289,7 +289,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
 
       {activeIdx !== null && hoverX !== null && (
         <div
-          className="pointer-events-none absolute top-1 z-10 min-w-[150px] rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-[11px] shadow-xl"
+          className="pointer-events-none absolute top-1 z-10 min-w-40 rounded-lg border border-slate-700 bg-slate-950/95 px-3 py-2 text-xs shadow-xl"
           style={{ left: tooltipFlip ? Math.max(0, hoverX - 12 - 170) : tooltipLeft }}
         >
           <div className="text-slate-500 mb-1" style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -299,7 +299,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             const v = s.values[activeIdx];
             return (
               <div key={s.key} className="flex items-center gap-2 py-0.5">
-                <span className="inline-block h-[2px] w-3 rounded" style={{ backgroundColor: SERIES_COLORS[i] }} />
+                <span className="inline-block h-0.5 w-3 rounded" style={{ backgroundColor: SERIES_COLORS[i] }} />
                 <span className="font-semibold text-slate-100" style={{ fontVariantNumeric: "tabular-nums" }}>
                   {v === null || v === undefined || !Number.isFinite(v) ? "—" : formatValue(v)}
                 </span>

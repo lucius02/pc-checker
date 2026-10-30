@@ -18,6 +18,7 @@ import {
   Layers,
 } from "lucide-react";
 import { DriverEntry, DriverReport } from "../../types";
+import { cn } from "../../utils/cn";
 
 interface DriversTabProps {
   driverReport: DriverReport | null;
@@ -124,22 +125,23 @@ export const DriversTab: React.FC<DriversTabProps> = ({
           <button
             onClick={scanDrivers}
             disabled={isScanningDrivers}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0"
+            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
-            <Search className={`w-4 h-4 ${isScanningDrivers ? "animate-spin" : ""}`} />
+            <Search className={cn("w-4 h-4", isScanningDrivers && "animate-spin")} />
             {isScanningDrivers ? "Drivers scannen..." : driverReport ? "Opnieuw scannen" : "Start driver-scan"}
           </button>
         </div>
 
         {driverReport && (
           <div
-            className={`p-4 rounded-xl border text-xs flex items-start gap-2.5 ${
+            className={cn(
+              "p-4 rounded-xl border text-xs flex items-start gap-2.5",
               !driverReport.is_available
                 ? "bg-slate-950/70 border-slate-800 text-slate-300"
                 : issueCount > 0
                 ? "bg-amber-950/30 border-amber-900/60 text-amber-200"
                 : "bg-emerald-950/30 border-emerald-900/60 text-emerald-300"
-            }`}
+            )}
           >
             {driverReport.is_available && issueCount === 0 ? (
               <CircleCheck className="w-4 h-4 shrink-0 mt-0.5" />
@@ -149,7 +151,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             <div className="space-y-1">
               <span>{driverReport.summary}</span>
               {driverReport.scanned_at && (
-                <span className="block text-[11px] text-slate-500">Gescand op {driverReport.scanned_at}</span>
+                <span className="block text-xs text-slate-500">Gescand op {driverReport.scanned_at}</span>
               )}
             </div>
           </div>
@@ -185,7 +187,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
           </span>
           <h3 className="text-sm font-bold text-slate-200">Driver-informatie niet beschikbaar</h3>
           <p className="text-xs text-slate-400 max-w-md">{driverReport.summary}</p>
-          <p className="text-[11px] text-slate-500 max-w-md">
+          <p className="text-xs text-slate-500 max-w-md">
             De Driver Check gebruikt Windows Management Instrumentation (WMI) via PowerShell en werkt alleen op Windows.
           </p>
         </div>
@@ -203,10 +205,10 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                   className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl flex items-center justify-between"
                 >
                   <div>
-                    <span className="text-[11px] text-slate-400 uppercase tracking-wider block">{c.label}</span>
-                    <span className={`text-2xl font-bold font-mono ${c.color}`}>{c.value}</span>
+                    <span className="text-xs text-slate-400 uppercase tracking-wider block">{c.label}</span>
+                    <span className={cn("text-2xl font-bold font-mono", c.color)}>{c.value}</span>
                   </div>
-                  <Icon className={`w-6 h-6 ${c.color} opacity-70`} />
+                  <Icon className={cn("w-6 h-6 opacity-70", c.color)} />
                 </div>
               );
             })}
@@ -229,11 +231,12 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                   <button
                     key={chip.id}
                     onClick={() => setFilter(chip.id)}
-                    className={`px-3 py-1.5 rounded-xl border font-semibold transition-all cursor-pointer ${
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl border font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
                       filter === chip.id
                         ? "bg-blue-950 border-blue-700 text-blue-300"
                         : "bg-slate-950/70 border-slate-800 text-slate-400 hover:text-slate-200"
-                    }`}
+                    )}
                   >
                     {chip.label}
                   </button>
@@ -256,7 +259,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                   return (
                     <div
                       key={`${entry.device_name}-${idx}`}
-                      className={`p-4 border rounded-xl text-xs space-y-3 ${st.card}`}
+                      className={cn("p-4 border rounded-xl text-xs space-y-3", st.card)}
                     >
                       <div className="flex flex-col md:flex-row md:items-start justify-between gap-2">
                         <div className="flex items-start gap-3 min-w-0">
@@ -267,14 +270,17 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                             <span className="font-semibold text-slate-100 text-sm block break-words">
                               {entry.device_name}
                             </span>
-                            <span className="text-[11px] text-slate-400">
+                            <span className="text-xs text-slate-400">
                               {ci.label}
                               {entry.provider && <> &middot; {entry.provider}</>}
                             </span>
                           </div>
                         </div>
                         <span
-                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5 self-start shrink-0 ${st.badge}`}
+                          className={cn(
+                            "px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 self-start shrink-0",
+                            st.badge
+                          )}
                         >
                           <StatusIcon className="w-3.5 h-3.5" />
                           {entry.status}
@@ -282,7 +288,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                         <div className="px-3 py-2 bg-slate-950/70 border border-slate-800 rounded-lg">
                           <span className="text-slate-500 block">Versie</span>
                           <span className="font-mono text-slate-200">{entry.version || "—"}</span>
@@ -290,9 +296,10 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                         <div className="px-3 py-2 bg-slate-950/70 border border-slate-800 rounded-lg">
                           <span className="text-slate-500 block">Datum / leeftijd</span>
                           <span
-                            className={`font-mono ${
+                            className={cn(
+                              "font-mono",
                               entry.status === "Verouderd" ? "text-amber-400" : "text-slate-200"
-                            }`}
+                            )}
                           >
                             {formatDate(entry)}
                           </span>
@@ -300,9 +307,10 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                         <div className="px-3 py-2 bg-slate-950/70 border border-slate-800 rounded-lg">
                           <span className="text-slate-500 block">Digitaal ondertekend</span>
                           <span
-                            className={`font-mono ${
+                            className={cn(
+                              "font-mono",
                               entry.is_signed === false ? "text-orange-400" : "text-slate-200"
-                            }`}
+                            )}
                           >
                             {signedLabel(entry.is_signed)}
                           </span>
@@ -311,9 +319,10 @@ export const DriversTab: React.FC<DriversTabProps> = ({
 
                       {entry.status !== "OK" || entry.advice !== "Geen actie nodig." ? (
                         <div
-                          className={`flex items-start gap-2 text-[11px] leading-relaxed ${
+                          className={cn(
+                            "flex items-start gap-2 text-xs leading-relaxed",
                             entry.status === "OK" ? "text-slate-400" : "text-slate-300"
-                          }`}
+                          )}
                         >
                           <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
                           <span>{entry.advice}</span>

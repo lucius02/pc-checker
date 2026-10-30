@@ -31,6 +31,7 @@ import {
   TabType,
 } from "../../../types";
 import { buildHealthInputs } from "../../../utils/healthInputs";
+import { cn } from "../../../utils/cn";
 
 export interface HealthScoreCardProps {
   data: SystemOverview;
@@ -118,6 +119,7 @@ const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade })
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
+        className="block"
         role="img"
         aria-label={`Gezondheidsscore ${score} van 100, cijfer ${grade}`}
       >
@@ -137,7 +139,7 @@ const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade })
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-5xl font-bold text-white leading-none">{score}</span>
-        <span className="text-[11px] text-slate-400 mt-1">van 100</span>
+        <span className="text-xs text-slate-400 mt-1">van 100</span>
       </div>
     </div>
   );
@@ -159,7 +161,7 @@ const CategoryRow: React.FC<{
       type="button"
       onClick={() => meta && onOpen(meta.tab)}
       title={`${cat.label}: ${cat.detail}${untested ? "" : ` (score ${cat.score}/100)`} — klik om te openen`}
-      className="group w-full text-left px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-600 hover:bg-slate-950 transition-colors cursor-pointer"
+      className="group w-full text-left px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-600 hover:bg-slate-950 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
     >
       <div className="flex items-center gap-2">
         <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -168,7 +170,10 @@ const CategoryRow: React.FC<{
           {untested ? "—" : cat.score}
         </span>
         <span
-          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-medium whitespace-nowrap ${st.badge}`}
+          className={cn(
+            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-xs font-medium whitespace-nowrap",
+            st.badge
+          )}
         >
           <StatusIcon className="w-3 h-3" />
           {cat.status}
@@ -186,7 +191,7 @@ const CategoryRow: React.FC<{
           />
         )}
       </div>
-      <p className="mt-1 text-[11px] text-slate-400 truncate">{cat.detail}</p>
+      <p className="mt-1 text-xs text-slate-400 truncate">{cat.detail}</p>
     </button>
   );
 };
@@ -270,7 +275,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
           <span>Gezondheidsscore</span>
         </div>
         {error && (
-          <span className="text-[11px] text-amber-300 truncate" title={error}>
+          <span className="text-xs text-amber-300 truncate" title={error}>
             Laatste berekening mislukt — vorige score getoond
           </span>
         )}
@@ -278,7 +283,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
 
       <div className="flex flex-col lg:flex-row gap-5">
         {/* Totaalscore */}
-        <div className="flex items-center gap-4 lg:w-[300px] shrink-0">
+        <div className="flex items-center gap-4 lg:w-72 shrink-0">
           <ScoreRing score={health.score} grade={health.grade} />
           <div className="space-y-2 min-w-0">
             <div className="flex items-baseline gap-2">
@@ -286,12 +291,15 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
               <span className="text-3xl font-bold text-white leading-none">{health.grade}</span>
             </div>
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${gradeStyle.badge}`}
+              className={cn(
+                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-medium",
+                gradeStyle.badge
+              )}
             >
               <GradeIcon className="w-3.5 h-3.5" />
               {health.label}
             </span>
-            <p className="text-[11px] text-slate-400 leading-snug">
+            <p className="text-xs text-slate-400 leading-snug">
               Gebaseerd op {health.categories.length - untested.length} van {health.categories.length} onderdelen;
               freeze-oorzaken wegen het zwaarst.
             </p>
@@ -308,7 +316,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
 
       {issues.length > 0 && (
         <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Belangrijkste aandachtspunten
           </div>
           <ol className="space-y-1">
@@ -323,7 +331,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
       )}
 
       {untested.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
           <Info className="w-3.5 h-3.5 shrink-0" />
           <span>Niet getest (telt niet mee; test voor een nauwkeurigere score):</span>
           {untested.map((c) => {
@@ -333,7 +341,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
                 key={c.key}
                 type="button"
                 onClick={() => meta && setActiveTab(meta.tab)}
-                className="px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-700 text-slate-300 hover:border-cyan-700 hover:text-cyan-300 transition-colors cursor-pointer"
+                className="px-2 py-0.5 rounded-md bg-slate-800/60 border border-slate-700 text-slate-300 hover:border-cyan-700 hover:text-cyan-300 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
               >
                 {c.label}
               </button>

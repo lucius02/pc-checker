@@ -4,6 +4,7 @@ import { AlertTriangle, Cpu, HardDrive, ListTree, MemoryStick, Snowflake, Zap } 
 import { FreezeProcessContext, ProcessInfo, ProcessSnapshot } from "../../types";
 import { formatBytes } from "../../utils/formatters";
 import { SERIES_COLORS, formatClock, formatPercent, formatRate } from "../live/chartUtils";
+import { cn } from "../../utils/cn";
 
 type SortKey = "cpu" | "memory" | "disk";
 
@@ -93,13 +94,13 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
             <span className="font-semibold text-slate-100 text-sm block">
               Freeze van {(ctx.freeze.duration_ms / 1000).toFixed(2)} s
             </span>
-            <span className="text-[11px] text-slate-500">
+            <span className="text-xs text-slate-500">
               Begon om {formatClock(ctx.freeze.at_epoch_ms)} · gemeld {ctx.freeze.timestamp}
             </span>
           </div>
         </div>
         {last && (
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-400">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
             <span>
               CPU <span className="font-semibold text-slate-100">{formatPercent(last.cpu_usage)}</span>
             </span>
@@ -136,7 +137,7 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
             <tbody className="divide-y divide-slate-800/70 text-slate-300" style={{ fontVariantNumeric: "tabular-nums" }}>
               {top.map((p) => (
                 <tr key={p.pid}>
-                  <td className="py-1.5 pr-3 font-medium text-slate-200 truncate max-w-[220px]" title={p.name}>
+                  <td className="py-1.5 pr-3 font-medium text-slate-200 truncate max-w-56" title={p.name}>
                     {p.name}
                   </td>
                   <td className="py-1.5 px-3 text-right text-slate-500">{p.pid}</td>
@@ -147,7 +148,7 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
               ))}
             </tbody>
           </table>
-          <p className="text-[10px] text-slate-500 mt-2">
+          <p className="text-xs text-slate-500 mt-2">
             Gebaseerd op {ctx.samples_before.length} meting{ctx.samples_before.length === 1 ? "" : "en"}
             {windowSec !== null ? ` in de ${windowSec} s vóór de freeze` : " vlak vóór de freeze"}.
           </p>
@@ -245,9 +246,10 @@ export const ProcessesTab: React.FC = () => {
                 key={opt.key}
                 onClick={() => setSortBy(opt.key)}
                 aria-pressed={sortBy === opt.key}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400",
                   sortBy === opt.key ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-white"
-                }`}
+                )}
               >
                 {opt.icon}
                 {opt.label}
@@ -256,7 +258,7 @@ export const ProcessesTab: React.FC = () => {
           </div>
         </div>
 
-        <div className="text-[11px] text-slate-500">
+        <div className="text-xs text-slate-500">
           {snapshot && snapshot.total_processes > 0
             ? `${snapshot.total_processes} processen actief · top ${processes.length} gesorteerd op ${
                 SORT_OPTIONS.find((o) => o.key === sortBy)?.label
@@ -274,9 +276,10 @@ export const ProcessesTab: React.FC = () => {
         )}
 
         <div
-          className={`overflow-x-auto rounded-xl border border-slate-800 transition-opacity ${
+          className={cn(
+            "overflow-x-auto rounded-xl border border-slate-800 transition-opacity",
             refetching ? "opacity-50" : "opacity-100"
-          }`}
+          )}
         >
           <table className="w-full text-xs">
             <thead className="bg-slate-950/80 text-slate-400">
@@ -297,20 +300,20 @@ export const ProcessesTab: React.FC = () => {
                 const value = metricOf(p, sortBy);
                 return (
                   <tr key={p.pid} className="hover:bg-slate-800/30">
-                    <td className="px-3 py-2 font-medium text-slate-200 truncate max-w-[260px]" title={p.name}>
+                    <td className="px-3 py-2 font-medium text-slate-200 truncate max-w-64" title={p.name}>
                       {p.name}
                     </td>
                     <td className="px-3 py-2 text-right text-slate-500">{p.pid}</td>
-                    <td className={`px-3 py-2 text-right ${sortBy === "cpu" ? "text-slate-100 font-semibold" : ""}`}>
+                    <td className={cn("px-3 py-2 text-right", sortBy === "cpu" && "text-slate-100 font-semibold")}>
                       {formatPercent(p.cpu_usage)}
                     </td>
-                    <td className={`px-3 py-2 text-right ${sortBy === "memory" ? "text-slate-100 font-semibold" : ""}`}>
+                    <td className={cn("px-3 py-2 text-right", sortBy === "memory" && "text-slate-100 font-semibold")}>
                       {formatBytes(p.memory_bytes)}
                     </td>
-                    <td className={`px-3 py-2 text-right ${sortBy === "disk" ? "text-slate-100 font-semibold" : ""}`}>
+                    <td className={cn("px-3 py-2 text-right", sortBy === "disk" && "text-slate-100 font-semibold")}>
                       {formatRate(p.disk_read_bytes_per_sec)}
                     </td>
-                    <td className={`px-3 py-2 text-right ${sortBy === "disk" ? "text-slate-100 font-semibold" : ""}`}>
+                    <td className={cn("px-3 py-2 text-right", sortBy === "disk" && "text-slate-100 font-semibold")}>
                       {formatRate(p.disk_write_bytes_per_sec)}
                     </td>
                     <td className="px-3 py-2">
