@@ -20,10 +20,13 @@ import {
   FreezeDiagnosticReport,
   BatteryHealthReport,
   StressTestResult,
+  DriverReport,
+  LatencyTestResult,
   TabType,
 } from "../../types";
 import { formatBytes, formatUptime } from "../../utils/formatters";
 import { OverviewCardsGrid } from "./overview/OverviewCardsGrid";
+import { HealthScoreCard } from "./overview/HealthScoreCard";
 
 interface OverviewTabProps {
   data: SystemOverview;
@@ -31,6 +34,8 @@ interface OverviewTabProps {
   coolingData: CoolingOverview | null;
   freezeData: FreezeDiagnosticReport | null;
   batteryReport: BatteryHealthReport | null;
+  driverReport: DriverReport | null;
+  latencyResult: LatencyTestResult | null;
   cpuResult: StressTestResult | null;
   ramResult: StressTestResult | null;
   diskResult: StressTestResult | null;
@@ -43,6 +48,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   coolingData,
   freezeData,
   batteryReport,
+  driverReport,
+  latencyResult,
   cpuResult,
   ramResult,
   diskResult,
@@ -76,6 +83,19 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       </div>
 
       {/* 6 Rich Diagnostic & Hardware Cards Grid */}
+      <HealthScoreCard
+        data={data}
+        coolingData={coolingData}
+        freezeData={freezeData}
+        batteryReport={batteryReport}
+        driverReport={driverReport}
+        latencyResult={latencyResult}
+        cpuResult={cpuResult}
+        ramResult={ramResult}
+        diskResult={diskResult}
+        setActiveTab={setActiveTab}
+      />
+
       <OverviewCardsGrid
         data={data}
         powerData={powerData}

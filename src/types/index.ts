@@ -134,11 +134,146 @@ export interface StressTestResult {
   error?: string | null;
 }
 
+export interface FreezeRecord {
+  at_epoch_ms: number;
+  duration_ms: number;
+  timestamp: string;
+}
+
+export interface ProcessInfo {
+  pid: number;
+  name: string;
+  /** Percentage van de totale machine (0-100), niet per kern */
+  cpu_usage: number;
+  memory_bytes: number;
+  disk_read_bytes_per_sec: number;
+  disk_write_bytes_per_sec: number;
+}
+
+export interface ProcessSnapshot {
+  taken_at_epoch_ms: number;
+  total_processes: number;
+  processes: ProcessInfo[];
+}
+
+export interface MetricsSample {
+  at_epoch_ms: number;
+  cpu_usage: number;
+  cpu_freq_avg_mhz: number;
+  ram_used_percent: number;
+  swap_used_percent: number;
+  max_temp_celsius: number | null;
+  disk_read_bytes_per_sec: number;
+  disk_write_bytes_per_sec: number;
+  net_rx_bytes_per_sec: number;
+  net_tx_bytes_per_sec: number;
+  top_processes: ProcessInfo[];
+}
+
+export interface MetricsHistory {
+  interval_ms: number;
+  samples: MetricsSample[];
+}
+
+export interface FreezeProcessContext {
+  freeze: FreezeRecord;
+  samples_before: MetricsSample[];
+}
+
+export interface DriverEntry {
+  device_name: string;
+  device_class: string;
+  provider: string;
+  version: string;
+  date: string;
+  age_years: number | null;
+  is_signed: boolean | null;
+  status: "OK" | "Verouderd" | "Probleem" | "Niet ondertekend" | string;
+  problem_code: number | null;
+  advice: string;
+}
+
+export interface DriverReport {
+  is_available: boolean;
+  scanned_at: string;
+  total_drivers: number;
+  outdated_count: number;
+  problem_count: number;
+  unsigned_count: number;
+  entries: DriverEntry[];
+  summary: string;
+}
+
+export interface LatencyBucket {
+  label: string;
+  count: number;
+}
+
+export interface LatencyTestResult {
+  success: boolean;
+  duration_ms: number;
+  timer_samples: number;
+  timer_max_gap_us: number;
+  timer_avg_gap_us: number;
+  timer_p99_gap_us: number;
+  histogram: LatencyBucket[];
+  dpc_time_percent_avg: number | null;
+  dpc_time_percent_max: number | null;
+  interrupt_time_percent_avg: number | null;
+  interrupt_time_percent_max: number | null;
+  dpcs_queued_per_sec_avg: number | null;
+  verdict: "Goed" | "Matig" | "Slecht" | string;
+  summary: string;
+  suspected_drivers: string[];
+  advice: string[];
+  error: string | null;
+}
+
+export interface HealthInputs {
+  max_temp_celsius: number | null;
+  is_throttling_suspected: boolean;
+  freeze_scanned: boolean;
+  watchdog_freeze_count: number;
+  event_log_culprit_count: number;
+  battery_health_percent: number | null;
+  ram_used_percent: number;
+  min_disk_free_percent: number | null;
+  driver_problem_count: number | null;
+  driver_outdated_count: number | null;
+  latency_verdict: string | null;
+  latency_max_gap_us: number | null;
+  dpc_time_percent_max: number | null;
+  cpu_stress_ok: boolean | null;
+  ram_test_ok: boolean | null;
+  disk_test_ok: boolean | null;
+}
+
+export interface HealthCategoryScore {
+  key: string;
+  label: string;
+  score: number;
+  weight: number;
+  status: "Goed" | "Let op" | "Kritiek" | "Niet getest" | string;
+  detail: string;
+}
+
+export interface HealthScore {
+  score: number;
+  grade: "A" | "B" | "C" | "D" | "E" | "F" | string;
+  label: string;
+  categories: HealthCategoryScore[];
+  top_issues: string[];
+}
+
 export type TabType =
   | "overview"
+  | "live"
+  | "processes"
   | "cpu"
   | "ram"
   | "disk"
   | "power"
   | "cooling"
-  | "freeze";
+  | "freeze"
+  | "drivers"
+  | "latency";

@@ -10,6 +10,8 @@ import {
   FreezeDiagnosticReport,
   BatteryHealthReport,
   StressTestResult,
+  DriverReport,
+  LatencyTestResult,
   TabType,
 } from "./types";
 import { formatBytes, formatUptime } from "./utils/formatters";
@@ -23,6 +25,10 @@ import { FreezeTab } from "./components/tabs/FreezeTab";
 import { CpuTab } from "./components/tabs/CpuTab";
 import { RamTab } from "./components/tabs/RamTab";
 import { DiskTab } from "./components/tabs/DiskTab";
+import { LiveTab } from "./components/tabs/LiveTab";
+import { ProcessesTab } from "./components/tabs/ProcessesTab";
+import { DriversTab } from "./components/tabs/DriversTab";
+import { LatencyTab } from "./components/tabs/LatencyTab";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -49,6 +55,13 @@ export default function App() {
   const [isTestingDisk, setIsTestingDisk] = useState(false);
   const [diskSizeMb, setDiskSizeMb] = useState(64);
   const [diskResult, setDiskResult] = useState<StressTestResult | null>(null);
+
+  const [driverReport, setDriverReport] = useState<DriverReport | null>(null);
+  const [isScanningDrivers, setIsScanningDrivers] = useState(false);
+
+  const [latencyResult, setLatencyResult] = useState<LatencyTestResult | null>(null);
+  const [isTestingLatency, setIsTestingLatency] = useState(false);
+  const [latencyDuration, setLatencyDuration] = useState(10);
 
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -91,6 +104,33 @@ export default function App() {
       console.error("Fout bij uitvoeren batterijtest:", err);
     } finally {
       setIsTestingBattery(false);
+    }
+  };
+
+  const scanDrivers = async () => {
+    setIsScanningDrivers(true);
+    try {
+      const report = await invoke<DriverReport>("scan_drivers");
+      setDriverReport(report);
+    } catch (err) {
+      console.error("Fout bij uitvoeren driver-scan:", err);
+    } finally {
+      setIsScanningDrivers(false);
+    }
+  };
+
+  const runLatencyTest = async () => {
+    setIsTestingLatency(true);
+    setLatencyResult(null);
+    try {
+      const res = await invoke<LatencyTestResult>("run_latency_test", {
+        durationSecs: latencyDuration,
+      });
+      setLatencyResult(res);
+    } catch (err) {
+      console.error("Fout bij uitvoeren latency-test:", err);
+    } finally {
+      setIsTestingLatency(false);
     }
   };
 
@@ -197,6 +237,8 @@ export default function App() {
       batteryReport,
       cooling: coolingData,
       freezeDiagnostics: freezeData,
+      drivers: driverReport,
+      latency: latencyResult,
       motherboard: data.motherboard,
       gpus: data.gpus,
       cpu: {
@@ -277,10 +319,34 @@ export default function App() {
                 coolingData={coolingData}
                 freezeData={freezeData}
                 batteryReport={batteryReport}
+                driverReport={driverReport}
+                latencyResult={latencyResult}
                 cpuResult={cpuResult}
                 ramResult={ramResult}
                 diskResult={diskResult}
                 setActiveTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "live" && <LiveTab />}
+
+            {activeTab === "processes" && <ProcessesTab />}
+
+            {activeTab === "drivers" && (
+              <DriversTab
+                driverReport={driverReport}
+                isScanningDrivers={isScanningDrivers}
+                scanDrivers={scanDrivers}
+              />
+            )}
+
+            {activeTab === "latency" && (
+              <LatencyTab
+                latencyResult={latencyResult}
+                isTestingLatency={isTestingLatency}
+                latencyDuration={latencyDuration}
+                setLatencyDuration={setLatencyDuration}
+                runLatencyTest={runLatencyTest}
               />
             )}
 
