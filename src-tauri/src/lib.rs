@@ -13,7 +13,7 @@ pub mod watchdog;
 
 // Re-export models and commands for clean public API and test access
 pub use cooling::get_cooling_and_fan_info;
-pub use drivers::scan_drivers;
+pub use drivers::{open_device_manager, open_windows_update, scan_drivers};
 pub use freeze::scan_freeze_diagnostic;
 pub use health::compute_health_score;
 pub use latency::run_latency_test;
@@ -48,6 +48,8 @@ pub fn run() {
             get_process_snapshot,
             get_freeze_process_context,
             scan_drivers,
+            open_device_manager,
+            open_windows_update,
             run_latency_test,
             compute_health_score
         ])

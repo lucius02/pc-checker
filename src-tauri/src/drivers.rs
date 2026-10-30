@@ -71,6 +71,30 @@ pub async fn scan_drivers() -> DriverReport {
         })
 }
 
+#[tauri::command]
+pub fn open_device_manager() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        Command::new("cmd")
+            .args(["/c", "start", "devmgmt.msc"])
+            .spawn()
+            .map_err(|e| format!("Kon Apparaatbeheer niet openen: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_windows_update() -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        Command::new("cmd")
+            .args(["/c", "start", "ms-settings:windowsupdate"])
+            .spawn()
+            .map_err(|e| format!("Kon Windows Update niet openen: {}", e))?;
+    }
+    Ok(())
+}
+
 pub fn scan_drivers_blocking() -> DriverReport {
     let scanned_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let today = chrono::Local::now().date_naive();
@@ -387,7 +411,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
             22 => "Heb je dit apparaat bewust uitgeschakeld, dan is er geen actie nodig. Zo niet: schakel het weer in via Apparaatbeheer.".to_string(),
             14 | 38 => "Herstart de computer en scan opnieuw.".to_string(),
             28 | 18 | 39 | 31 | 37 | 10 | 43 | 52 => format!(
-                "Verwijder het apparaat in Apparaatbeheer (vink 'driver verwijderen' aan) en installeer de juiste driver opnieuw. {}",
+                "Veilige oplossing: open Apparaatbeheer, klik met de rechtermuisknop op dit apparaat en kies 'Apparaat verwijderen' (laat 'stuurprogramma verwijderen' UIT). Klik daarna op 'Actie' -> 'Zoeken naar gewijzigde apparaten' zodat Windows de schone driver lokaal herstelt (geen downloads nodig). Blijft de fout? Update via Windows Update (Optionele updates) of de officiële fabrikantsite. {}",
                 class_advice(&d.class)
             ),
             _ => class_advice(&d.class).to_string(),

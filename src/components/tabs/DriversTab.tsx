@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   CircuitBoard,
   Clock,
@@ -16,6 +17,8 @@ import {
   Volume2,
   Wrench,
   Layers,
+  ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 import { DriverEntry, DriverReport } from "../../types";
 import { cn } from "../../utils/cn";
@@ -84,6 +87,22 @@ export const DriversTab: React.FC<DriversTabProps> = ({
 }) => {
   const [filter, setFilter] = useState<FilterMode>("all");
 
+  const handleOpenDeviceManager = async () => {
+    try {
+      await invoke("open_device_manager");
+    } catch (err) {
+      console.error("Fout bij openen Apparaatbeheer:", err);
+    }
+  };
+
+  const handleOpenWindowsUpdate = async () => {
+    try {
+      await invoke("open_windows_update");
+    } catch (err) {
+      console.error("Fout bij openen Windows Update:", err);
+    }
+  };
+
   const issueCount = driverReport
     ? driverReport.problem_count + driverReport.outdated_count + driverReport.unsigned_count
     : 0;
@@ -122,14 +141,34 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={scanDrivers}
-            disabled={isScanningDrivers}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-          >
-            <Search className={cn("w-4 h-4", isScanningDrivers && "animate-spin")} />
-            {isScanningDrivers ? "Drivers scannen..." : driverReport ? "Opnieuw scannen" : "Start driver-scan"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              onClick={handleOpenDeviceManager}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+              title="Open Windows Apparaatbeheer (devmgmt.msc)"
+            >
+              <Wrench className="w-3.5 h-3.5 text-blue-400" />
+              Apparaatbeheer
+            </button>
+
+            <button
+              onClick={handleOpenWindowsUpdate}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+              title="Open Windows Update voor optionele stuurprogramma-updates"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+              Windows Update
+            </button>
+
+            <button
+              onClick={scanDrivers}
+              disabled={isScanningDrivers}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+            >
+              <Search className={cn("w-4 h-4", isScanningDrivers && "animate-spin")} />
+              {isScanningDrivers ? "Drivers scannen..." : driverReport ? "Opnieuw scannen" : "Start driver-scan"}
+            </button>
+          </div>
         </div>
 
         {driverReport && (
@@ -214,6 +253,43 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             })}
           </div>
 
+          {/* Safe Resolution Advice Guide */}
+          {driverReport.problem_count > 0 && (
+            <div className="p-5 bg-blue-950/30 border border-blue-900/60 rounded-2xl space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-sm font-bold text-white">
+                  Veilig probleem-drivers oplossen (zonder risicovolle downloads)
+                </h3>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Een foutcode zoals <strong>Code 39</strong> betekent meestal dat een registratiebestand of pad in Windows beschadigd is. 
+                De officiële, geteste driver staat in 95% van de gevallen al op je computer opgeslagen in de interne Windows DriverStore. 
+                Je hoeft dus <strong>geen</strong> losse bestanden van het internet te downloaden!
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-1">
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
+                  <span className="font-semibold text-cyan-400 block">Stap 1: Apparaatbeheer herstel</span>
+                  <p className="text-slate-400 text-xs">
+                    Klik op <em>Apparaatbeheer</em>, zoek het apparaat, rechtermuisknop &rarr; <strong>Apparaat verwijderen</strong> (laat het vinkje 'stuurprogramma verwijderen' <u>uit</u>). Klik bovenin op <strong>Actie &rarr; Zoeken naar gewijzigde apparaten</strong>. Windows herstelt de driver direct lokaal.
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
+                  <span className="font-semibold text-emerald-400 block">Stap 2: Windows Update</span>
+                  <p className="text-slate-400 text-xs">
+                    Ga via <em>Windows Update</em> naar <strong>Geavanceerde opties &rarr; Optionele updates</strong>. Vink eventuele Intel/hardware-updates aan. Dit zijn door Microsoft digitaal goedgekeurde drivers.
+                  </p>
+                </div>
+                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
+                  <span className="font-semibold text-amber-400 block">Stap 3: Nooit nepsites bezoeken</span>
+                  <p className="text-slate-400 text-xs">
+                    Download <strong>nooit</strong> van sites zoals 'DriverGuide' of 'Driver Booster'. Gebruik uitsluitend officiële tools van de fabrikant (zoals de <em>Intel® Driver &amp; Support Assistant</em> op <code>intel.com</code> of Lenovo/Dell/MSI software).
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* List */}
           <div className="p-5 bg-slate-900/70 border border-slate-800 rounded-2xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -232,7 +308,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                     key={chip.id}
                     onClick={() => setFilter(chip.id)}
                     className={cn(
-                      "px-3 py-1.5 rounded-xl border font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
+                      "px-3 py-1.5 rounded-xl border font-semibold transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400",
                       filter === chip.id
                         ? "bg-blue-950 border-blue-700 text-blue-300"
                         : "bg-slate-950/70 border-slate-800 text-slate-400 hover:text-slate-200"
@@ -318,14 +394,27 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                       </div>
 
                       {entry.status !== "OK" || entry.advice !== "Geen actie nodig." ? (
-                        <div
-                          className={cn(
-                            "flex items-start gap-2 text-xs leading-relaxed",
-                            entry.status === "OK" ? "text-slate-400" : "text-slate-300"
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                          <div
+                            className={cn(
+                              "flex items-start gap-2 text-xs leading-relaxed flex-1",
+                              entry.status === "OK" ? "text-slate-400" : "text-slate-300"
+                            )}
+                          >
+                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
+                            <span>{entry.advice}</span>
+                          </div>
+                          {entry.status === "Probleem" && (
+                            <button
+                              type="button"
+                              onClick={handleOpenDeviceManager}
+                              className="px-3 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 self-start sm:self-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
+                              title="Open Windows Apparaatbeheer om dit apparaat te beheren"
+                            >
+                              <Wrench className="w-3.5 h-3.5 text-rose-400" />
+                              Open in Apparaatbeheer
+                            </button>
                           )}
-                        >
-                          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
-                          <span>{entry.advice}</span>
                         </div>
                       ) : null}
                     </div>
