@@ -9,7 +9,6 @@ import {
   CoolingOverview,
   FreezeDiagnosticReport,
   BatteryHealthReport,
-  StressTestResult,
   DriverReport,
   LatencyTestResult,
   TabType,
