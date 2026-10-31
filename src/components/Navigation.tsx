@@ -11,6 +11,9 @@ import {
   ListTree,
   Timer,
   Puzzle,
+  Keyboard,
+  Monitor,
+  MousePointer,
 } from "lucide-react";
 import { TabType, FreezeDiagnosticReport } from "../types";
 import { cn } from "../utils/cn";
@@ -117,6 +120,27 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: HardDrive,
       activeClass: "border-cyan-400 text-cyan-400 font-semibold",
       focusClass: "focus-visible:outline-cyan-400",
+    },
+    {
+      id: "keyboard",
+      label: "Toetsenbord",
+      icon: Keyboard,
+      activeClass: "border-emerald-400 text-emerald-400 font-semibold",
+      focusClass: "focus-visible:outline-emerald-400",
+    },
+    {
+      id: "screen",
+      label: "Beeldscherm",
+      icon: Monitor,
+      activeClass: "border-teal-400 text-teal-400 font-semibold",
+      focusClass: "focus-visible:outline-teal-400",
+    },
+    {
+      id: "touchpad",
+      label: "Touchpad & Muis",
+      icon: MousePointer,
+      activeClass: "border-violet-400 text-violet-400 font-semibold",
+      focusClass: "focus-visible:outline-violet-400",
     },
   ];
 

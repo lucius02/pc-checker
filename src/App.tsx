@@ -29,6 +29,9 @@ import { LiveTab } from "./components/tabs/LiveTab";
 import { ProcessesTab } from "./components/tabs/ProcessesTab";
 import { DriversTab } from "./components/tabs/DriversTab";
 import { LatencyTab } from "./components/tabs/LatencyTab";
+import { KeyboardTab } from "./components/tabs/KeyboardTab";
+import { ScreenTab } from "./components/tabs/ScreenTab";
+import { TouchpadTab } from "./components/tabs/TouchpadTab";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -330,6 +333,12 @@ export default function App() {
                 diskResult={diskResult}
               />
             )}
+
+            {activeTab === "keyboard" && <KeyboardTab />}
+
+            {activeTab === "screen" && <ScreenTab />}
+
+            {activeTab === "touchpad" && <TouchpadTab />}
           </>
         )}
       </main>

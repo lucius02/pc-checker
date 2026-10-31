@@ -415,4 +415,7 @@ export type TabType =
   | "cooling"
   | "freeze"
   | "drivers"
-  | "latency";
+  | "latency"
+  | "keyboard"
+  | "screen"
+  | "touchpad";
