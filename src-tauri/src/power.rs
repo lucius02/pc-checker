@@ -1,9 +1,13 @@
 use std::fs::File;
 use std::io::Read;
 use std::process::Command;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use crate::models::{BatteryHealthReport, PowerInfo};
 use crate::watchdog::ensure_watchdog_started;
+
+static POWER_PLAN_CACHE: Mutex<Option<(Instant, String)>> = Mutex::new(None);
 
 #[repr(C)]
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,13 +50,21 @@ pub fn get_system_power_status() -> Result<WinSystemPowerStatus, String> {
     }
 }
 
-/// Haalt de naam op van het actieve Windows energiebeheerschema.
+/// Haalt de naam op van het actieve Windows energiebeheerschema (gecachet voor 30s).
 fn get_active_power_plan() -> String {
+    if let Ok(guard) = POWER_PLAN_CACHE.lock() {
+        if let Some((fetched_at, ref plan)) = *guard {
+            if fetched_at.elapsed() < Duration::from_secs(30) {
+                return plan.clone();
+            }
+        }
+    }
+
     let output = Command::new("cmd")
         .args(&["/c", "powercfg /getactivescheme"])
         .output();
 
-    match output {
+    let plan = match output {
         Ok(out) => {
             let text = String::from_utf8_lossy(&out.stdout).to_string();
             if let Some(pos) = text.find('(') {
@@ -66,7 +78,13 @@ fn get_active_power_plan() -> String {
             }
         }
         Err(_) => "Gebalanceerd".to_string(),
+    };
+
+    if let Ok(mut guard) = POWER_PLAN_CACHE.lock() {
+        *guard = Some((Instant::now(), plan.clone()));
     }
+
+    plan
 }
 
 /// Tauri-commando voor realtime voedings- en batterijtelemetrie.

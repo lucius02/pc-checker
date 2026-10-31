@@ -4,125 +4,33 @@ import {
   RotateCcw,
   Info,
   Zap,
+  Laptop,
+  Monitor,
+  Layers,
+  Sparkles,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
+import {
+  FormFactor,
+  KeymapType,
+  EnterStyle,
+  generateKeyboardRows,
+  NUMPAD_ROWS,
+  scanKeyboardLayout,
+} from "./keyboard/keyboardLayouts";
 
-interface KeyDef {
-  code: string;
-  label: string;
-  width?: string;
+interface KeyboardTabProps {
+  isLaptop?: boolean;
 }
 
-// Keyboard rows definition
-const KEYBOARD_ROWS: KeyDef[][] = [
-  // Function Row
-  [
-    { code: "Escape", label: "ESC", width: "w-11" },
-    { code: "F1", label: "F1" },
-    { code: "F2", label: "F2" },
-    { code: "F3", label: "F3" },
-    { code: "F4", label: "F4" },
-    { code: "F5", label: "F5" },
-    { code: "F6", label: "F6" },
-    { code: "F7", label: "F7" },
-    { code: "F8", label: "F8" },
-    { code: "F9", label: "F9" },
-    { code: "F10", label: "F10" },
-    { code: "F11", label: "F11" },
-    { code: "F12", label: "F12" },
-    { code: "PrintScreen", label: "PRT" },
-    { code: "ScrollLock", label: "SCR" },
-    { code: "Pause", label: "PAU" },
-  ],
-  // Number Row
-  [
-    { code: "Backquote", label: "` ~" },
-    { code: "Digit1", label: "1" },
-    { code: "Digit2", label: "2" },
-    { code: "Digit3", label: "3" },
-    { code: "Digit4", label: "4" },
-    { code: "Digit5", label: "5" },
-    { code: "Digit6", label: "6" },
-    { code: "Digit7", label: "7" },
-    { code: "Digit8", label: "8" },
-    { code: "Digit9", label: "9" },
-    { code: "Digit0", label: "0" },
-    { code: "Minus", label: "- _" },
-    { code: "Equal", label: "= +" },
-    { code: "Backspace", label: "Backspace", width: "w-20 sm:w-24" },
-    { code: "Insert", label: "INS" },
-    { code: "Delete", label: "DEL" },
-  ],
-  // QWERTY Row
-  [
-    { code: "Tab", label: "Tab", width: "w-14 sm:w-16" },
-    { code: "KeyQ", label: "Q" },
-    { code: "KeyW", label: "W" },
-    { code: "KeyE", label: "E" },
-    { code: "KeyR", label: "R" },
-    { code: "KeyT", label: "T" },
-    { code: "KeyY", label: "Y" },
-    { code: "KeyU", label: "U" },
-    { code: "KeyI", label: "I" },
-    { code: "KeyO", label: "O" },
-    { code: "KeyP", label: "P" },
-    { code: "BracketLeft", label: "[ {" },
-    { code: "BracketRight", label: "] }" },
-    { code: "Backslash", label: "\\ |", width: "w-14 sm:w-16" },
-    { code: "Home", label: "HOME" },
-    { code: "End", label: "END" },
-  ],
-  // ASDF Row
-  [
-    { code: "CapsLock", label: "Caps Lock", width: "w-16 sm:w-20" },
-    { code: "KeyA", label: "A" },
-    { code: "KeyS", label: "S" },
-    { code: "KeyD", label: "D" },
-    { code: "KeyF", label: "F" },
-    { code: "KeyG", label: "G" },
-    { code: "KeyH", label: "H" },
-    { code: "KeyJ", label: "J" },
-    { code: "KeyK", label: "K" },
-    { code: "KeyL", label: "L" },
-    { code: "Semicolon", label: "; :" },
-    { code: "Quote", label: "' \"" },
-    { code: "Enter", label: "Enter", width: "w-20 sm:w-24" },
-    { code: "PageUp", label: "PGUP" },
-    { code: "PageDown", label: "PGDN" },
-  ],
-  // ZXCV Row
-  [
-    { code: "ShiftLeft", label: "Shift", width: "w-20 sm:w-24" },
-    { code: "KeyZ", label: "Z" },
-    { code: "KeyX", label: "X" },
-    { code: "KeyC", label: "C" },
-    { code: "KeyV", label: "V" },
-    { code: "KeyB", label: "B" },
-    { code: "KeyN", label: "N" },
-    { code: "KeyM", label: "M" },
-    { code: "Comma", label: ", <" },
-    { code: "Period", label: ". >" },
-    { code: "Slash", label: "/ ?" },
-    { code: "ShiftRight", label: "Shift", width: "w-24 sm:w-28" },
-    { code: "ArrowUp", label: "▲" },
-  ],
-  // Bottom Row
-  [
-    { code: "ControlLeft", label: "Ctrl", width: "w-12 sm:w-14" },
-    { code: "MetaLeft", label: "Win", width: "w-11 sm:w-12" },
-    { code: "AltLeft", label: "Alt", width: "w-12 sm:w-14" },
-    { code: "Space", label: "Spacebar", width: "flex-1 max-w-sm sm:max-w-md" },
-    { code: "AltRight", label: "AltGr", width: "w-12 sm:w-14" },
-    { code: "MetaRight", label: "Win", width: "w-11 sm:w-12" },
-    { code: "ContextMenu", label: "Menu", width: "w-11 sm:w-12" },
-    { code: "ControlRight", label: "Ctrl", width: "w-12 sm:w-14" },
-    { code: "ArrowLeft", label: "◀" },
-    { code: "ArrowDown", label: "▼" },
-    { code: "ArrowRight", label: "▶" },
-  ],
-];
+export const KeyboardTab: React.FC<KeyboardTabProps> = ({ isLaptop = false }) => {
+  const [formFactor, setFormFactor] = useState<FormFactor>(isLaptop ? "laptop" : "full");
+  const [keymapType, setKeymapType] = useState<KeymapType>("qwerty");
+  const [enterStyle, setEnterStyle] = useState<EnterStyle>("ansi");
+  const [scanInfo, setScanInfo] = useState<string>("Detecteren van systeemindeling...");
+  const [hasScanned, setHasScanned] = useState(false);
 
-export const KeyboardTab: React.FC = () => {
   const [pressedCodes, setPressedCodes] = useState<Set<string>>(new Set());
   const [testedCodes, setTestedCodes] = useState<Set<string>>(new Set());
   const [maxRollover, setMaxRollover] = useState<number>(0);
@@ -132,9 +40,38 @@ export const KeyboardTab: React.FC = () => {
     time: string;
   } | null>(null);
 
+  // Scan layout on mount or when isLaptop changes
+  const runAutoScan = useCallback(async () => {
+    try {
+      const res = await scanKeyboardLayout(isLaptop);
+      setFormFactor(res.formFactor);
+      setKeymapType(res.keymapType);
+      setEnterStyle(res.enterStyle);
+      setScanInfo(res.details);
+      setHasScanned(true);
+    } catch {
+      setScanInfo("Automatische scan voltooid met standaardinstellingen.");
+    }
+  }, [isLaptop]);
+
+  useEffect(() => {
+    runAutoScan();
+  }, [runAutoScan]);
+
+  // Generate rows dynamically
+  const mainRows = useMemo(() => {
+    return generateKeyboardRows(formFactor, keymapType, enterStyle);
+  }, [formFactor, keymapType, enterStyle]);
+
+  // Calculate total key count
   const totalKeysCount = useMemo(() => {
-    return KEYBOARD_ROWS.reduce((acc, row) => acc + row.length, 0);
-  }, []);
+    const mainCount = mainRows.reduce((acc, row) => acc + row.length, 0);
+    const numpadCount =
+      formFactor === "full"
+        ? NUMPAD_ROWS.reduce((acc, row) => acc + row.length, 0)
+        : 0;
+    return mainCount + numpadCount;
+  }, [mainRows, formFactor]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Prevent default browser shortcuts for testing purposes
@@ -143,6 +80,17 @@ export const KeyboardTab: React.FC = () => {
     }
 
     const code = e.code;
+
+    // Smart sniffing: If user presses ISO backslash key (< > |), switch to ISO enter
+    if (code === "IntlBackslash" && enterStyle !== "iso") {
+      setEnterStyle("iso");
+    }
+
+    // Smart sniffing: If user presses a Numpad key while in laptop/tkl mode, offer/switch to Full
+    if (code.startsWith("Numpad") && formFactor !== "full") {
+      setFormFactor("full");
+    }
+
     setPressedCodes((prev) => {
       const next = new Set(prev);
       next.add(code);
@@ -163,7 +111,7 @@ export const KeyboardTab: React.FC = () => {
       code: e.code,
       time: new Date().toLocaleTimeString(),
     });
-  }, [maxRollover]);
+  }, [enterStyle, formFactor, maxRollover]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     setPressedCodes((prev) => {
@@ -197,7 +145,7 @@ export const KeyboardTab: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Header */}
+      {/* Header & Controls */}
       <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -205,20 +153,123 @@ export const KeyboardTab: React.FC = () => {
               <Keyboard className="w-6 h-6" />
             </span>
             <div>
-              <h2 className="text-lg font-bold text-white">Toetsenbord &amp; Ghosting Test</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-white">Toetsenbord &amp; Ghosting Test</h2>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/80 border border-emerald-700/60 text-emerald-300">
+                  {formFactor === "laptop" ? "Laptop 75%" : formFactor === "tkl" ? "TKL 80%" : "Volledig 100%"}
+                </span>
+              </div>
               <p className="text-xs text-slate-400 mt-1">
-                Druk op willekeurige toetsen op je laptop of losse toetsenbord. Elke werkende toets licht groen op en registreert rollover/ghosting.
+                Herkenning van laptop- vs desktop-indeling, ANSI/ISO Enter en Numpad. Druk op een willekeurige toets om te testen.
               </p>
             </div>
           </div>
 
-          <button
-            onClick={resetTest}
-            className="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-          >
-            <RotateCcw className="w-4 h-4 text-emerald-400" />
-            Reset Toetsentest
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={runAutoScan}
+              title="Scant aangesloten toetsenbord en Windows-taalindeling"
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              Scan Toetsenbord
+            </button>
+            <button
+              onClick={resetTest}
+              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {/* Scan Status banner */}
+        <div className="px-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 text-slate-300">
+            <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="font-mono text-[11px] text-slate-300">
+              {hasScanned ? scanInfo : "Bezig met scannen van toetsenbord..."}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-[11px]">
+            {/* Form factor switcher */}
+            <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5">
+              <button
+                onClick={() => setFormFactor("laptop")}
+                className={cn(
+                  "px-2 py-1 rounded-md transition-all font-medium flex items-center gap-1",
+                  formFactor === "laptop"
+                    ? "bg-emerald-600 text-white font-semibold"
+                    : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                <Laptop className="w-3 h-3" />
+                Laptop 75%
+              </button>
+              <button
+                onClick={() => setFormFactor("tkl")}
+                className={cn(
+                  "px-2 py-1 rounded-md transition-all font-medium flex items-center gap-1",
+                  formFactor === "tkl"
+                    ? "bg-emerald-600 text-white font-semibold"
+                    : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                <Layers className="w-3 h-3" />
+                TKL 80%
+              </button>
+              <button
+                onClick={() => setFormFactor("full")}
+                className={cn(
+                  "px-2 py-1 rounded-md transition-all font-medium flex items-center gap-1",
+                  formFactor === "full"
+                    ? "bg-emerald-600 text-white font-semibold"
+                    : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                <Monitor className="w-3 h-3" />
+                100% Numpad
+              </button>
+            </div>
+
+            {/* Layout switcher */}
+            <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5">
+              {(["qwerty", "azerty", "qwertz"] as KeymapType[]).map((km) => (
+                <button
+                  key={km}
+                  onClick={() => setKeymapType(km)}
+                  className={cn(
+                    "px-2 py-1 rounded-md uppercase font-mono transition-all font-medium",
+                    keymapType === km
+                      ? "bg-cyan-600 text-white font-semibold"
+                      : "text-slate-400 hover:text-slate-200"
+                  )}
+                >
+                  {km}
+                </button>
+              ))}
+            </div>
+
+            {/* Enter style switcher */}
+            <div className="flex items-center rounded-lg bg-slate-900 border border-slate-800 p-0.5">
+              {(["ansi", "iso"] as EnterStyle[]).map((es) => (
+                <button
+                  key={es}
+                  onClick={() => setEnterStyle(es)}
+                  className={cn(
+                    "px-2 py-1 rounded-md uppercase font-mono transition-all font-medium",
+                    enterStyle === es
+                      ? "bg-purple-600 text-white font-semibold"
+                      : "text-slate-400 hover:text-slate-200"
+                  )}
+                >
+                  {es === "ansi" ? "ANSI Plat" : "ISO L-Enter"}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Progress & Stat Cards */}
@@ -264,35 +315,73 @@ export const KeyboardTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Visual Keyboard Matrix */}
+      {/* Visual Keyboard Matrix with Optional Numpad */}
       <div className="p-5 bg-slate-900/70 border border-slate-800 rounded-2xl space-y-2 overflow-x-auto">
-        <div className="min-w-[760px] space-y-1.5 py-2">
-          {KEYBOARD_ROWS.map((row, rIdx) => (
-            <div key={rIdx} className="flex gap-1.5 justify-center">
-              {row.map((k) => {
-                const isPressed = pressedCodes.has(k.code);
-                const isTested = testedCodes.has(k.code);
+        <div className="flex justify-center gap-4 min-w-[760px] py-2">
+          {/* Main Alpha Cluster */}
+          <div className="space-y-1.5 flex flex-col items-center">
+            {mainRows.map((row, rIdx) => (
+              <div key={rIdx} className="flex gap-1.5 justify-center">
+                {row.map((k) => {
+                  const isPressed = pressedCodes.has(k.code);
+                  const isTested = testedCodes.has(k.code);
 
-                return (
-                  <div
-                    key={k.code}
-                    className={cn(
-                      "h-9 sm:h-10 rounded-lg text-xs font-mono font-medium flex items-center justify-center transition-all select-none border",
-                      k.width || "w-9 sm:w-10",
-                      isPressed
-                        ? "bg-emerald-500 border-emerald-400 text-slate-950 font-bold scale-95 shadow-md shadow-emerald-500/40"
-                        : isTested
-                        ? "bg-emerald-950/60 border-emerald-700/80 text-emerald-300"
-                        : "bg-slate-950/80 border-slate-800/90 text-slate-400 hover:border-slate-700"
-                    )}
-                    title={`Code: ${k.code}`}
-                  >
-                    {k.label}
-                  </div>
-                );
-              })}
+                  return (
+                    <div
+                      key={k.code}
+                      className={cn(
+                        "h-9 sm:h-10 rounded-lg text-xs font-mono font-medium flex items-center justify-center transition-all select-none border",
+                        k.width || "w-9 sm:w-10",
+                        isPressed
+                          ? "bg-emerald-500 border-emerald-400 text-slate-950 font-bold scale-95 shadow-md shadow-emerald-500/40"
+                          : isTested
+                          ? "bg-emerald-950/60 border-emerald-700/80 text-emerald-300"
+                          : "bg-slate-950/80 border-slate-800/90 text-slate-400 hover:border-slate-700"
+                      )}
+                      title={`Code: ${k.code}`}
+                    >
+                      {k.label}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Dedicated Numpad for 100% format */}
+          {formFactor === "full" && (
+            <div className="pl-3 border-l border-slate-800/80 space-y-1.5 flex flex-col justify-end pb-0.5">
+              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider text-center block mb-1">
+                Numpad
+              </span>
+              {NUMPAD_ROWS.map((nrow, nIdx) => (
+                <div key={nIdx} className="flex gap-1.5 justify-center">
+                  {nrow.map((nk) => {
+                    const isPressed = pressedCodes.has(nk.code);
+                    const isTested = testedCodes.has(nk.code);
+
+                    return (
+                      <div
+                        key={nk.code}
+                        className={cn(
+                          "h-9 sm:h-10 rounded-lg text-xs font-mono font-medium flex items-center justify-center transition-all select-none border",
+                          nk.width || "w-9 sm:w-10",
+                          isPressed
+                            ? "bg-emerald-500 border-emerald-400 text-slate-950 font-bold scale-95 shadow-md shadow-emerald-500/40"
+                            : isTested
+                            ? "bg-emerald-950/60 border-emerald-700/80 text-emerald-300"
+                            : "bg-slate-950/80 border-slate-800/90 text-slate-400 hover:border-slate-700"
+                        )}
+                        title={`Code: ${nk.code}`}
+                      >
+                        {nk.label}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -301,11 +390,12 @@ export const KeyboardTab: React.FC = () => {
         <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
           <h4 className="font-semibold text-slate-200 flex items-center gap-2">
             <Zap className="w-4 h-4 text-emerald-400" />
-            Wat is Ghosting &amp; N-Key Rollover (NKRO)?
+            Hoe herkent PC Checker je toetsenbord?
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            Veel kantoor- en goedkopere laptop-toetsenborden gebruiken een gedeelde printplaatmatrix. Hierdoor registreren ze maximaal <strong>3 tot 6 gelijktijdige toetsen</strong>. 
-            Gaming-toetsenborden hebben <em>N-Key Rollover (NKRO)</em>, waardoor je tientallen toetsen tegelijk kunt indrukken zonder dat er toetsen wegvallen (ghosting).
+            PC Checker combineert de chassis-detectie van je pc (laptop vs desktop) met de Windows Keyboard Layout Map API. 
+            Hierdoor schakelt het programma automatisch tussen compacte laptop-indelingen en volledige 100%-toetsenborden met Numpad. 
+            Je kunt met de knoppen hierboven handmatig wisselen tussen <strong>Laptop 75%</strong>, <strong>TKL 80%</strong> en <strong>100%</strong>.
           </p>
         </div>
 
@@ -315,8 +405,8 @@ export const KeyboardTab: React.FC = () => {
             Toets weigert of typt dubbel (Key Chatter)?
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            Als een toets niet oplicht of dubbele letters typt, zit er vaak stof onder het membraan of is een schakelaar vervuild. 
-            Reiniging met perslucht (bij laptops) of isopropylalcohol (bij mechanische switches) lost dit in 90% van de gevallen op zonder reparatiekosten.
+            Als een specifieke toets niet oplicht of dubbele tekens registreert, zit er vaak stof onder het membraan of is een switch vuil. 
+            Reiniging met perslucht (bij laptops) of het vervangen van de mechanische switch lost dit meestal direct op zonder reparatiekosten.
           </p>
         </div>
       </div>

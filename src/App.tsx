@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
@@ -55,7 +55,11 @@ export default function App() {
 
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  const isFetchingRef = useRef(false);
+
   const fetchOverview = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       const [overviewRes, powerRes, coolingRes] = await Promise.all([
         invoke<SystemOverview>("get_system_overview"),
@@ -69,6 +73,7 @@ export default function App() {
     } catch (err) {
       console.error("Fout bij ophalen systeeminformatie:", err);
     } finally {
+      isFetchingRef.current = false;
       setIsLoading(false);
     }
   }, []);
@@ -334,7 +339,9 @@ export default function App() {
               />
             )}
 
-            {activeTab === "keyboard" && <KeyboardTab />}
+            {activeTab === "keyboard" && (
+              <KeyboardTab isLaptop={powerData?.is_laptop ?? false} />
+            )}
 
             {activeTab === "screen" && <ScreenTab />}
 
