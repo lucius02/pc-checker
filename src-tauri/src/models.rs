@@ -419,3 +419,29 @@ pub struct HealthScore {
     pub categories: Vec<HealthCategoryScore>,
     pub top_issues: Vec<String>,
 }
+
+/// Resultaat van de controle op stroomtoevoer per specifiek hardware-onderdeel.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct PowerComponentCheck {
+    pub name: String,
+    pub status: String,
+    pub is_sufficient: bool,
+    pub metric: String,
+    pub details: String,
+}
+
+/// Volledig hardware-vermogensrapport over stroomtoevoer naar alle interne componenten.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct HardwarePowerCheckReport {
+    pub is_sufficient: bool,
+    pub score: u32,
+    pub summary: String,
+    pub ac_connected: bool,
+    pub is_laptop: bool,
+    pub psu_or_adapter_verdict: String,
+    pub checks: Vec<PowerComponentCheck>,
+    pub dirty_shutdowns_count: u32,
+    pub throttling_events_count: u32,
+    pub usb_surge_count: u32,
+    pub recommendations: Vec<String>,
+}

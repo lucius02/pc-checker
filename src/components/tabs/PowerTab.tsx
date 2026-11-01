@@ -9,14 +9,18 @@ import {
   Sparkles,
   Plug,
 } from "lucide-react";
-import { PowerInfo, BatteryHealthReport } from "../../types";
+import { PowerInfo, BatteryHealthReport, HardwarePowerCheckReport } from "../../types";
 import { cn } from "../../utils/cn";
+import { HardwarePowerSection } from "./power/HardwarePowerSection";
 
 interface PowerTabProps {
   powerData: PowerInfo | null;
   batteryReport: BatteryHealthReport | null;
   isTestingBattery: boolean;
   runBatteryTest: () => void;
+  powerDeliveryReport: HardwarePowerCheckReport | null;
+  isTestingPowerDelivery: boolean;
+  runPowerDeliveryCheck: () => void;
 }
 
 export const PowerTab: React.FC<PowerTabProps> = ({
@@ -24,6 +28,9 @@ export const PowerTab: React.FC<PowerTabProps> = ({
   batteryReport,
   isTestingBattery,
   runBatteryTest,
+  powerDeliveryReport,
+  isTestingPowerDelivery,
+  runPowerDeliveryCheck,
 }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -173,6 +180,13 @@ export const PowerTab: React.FC<PowerTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* Hardware Stroomvoorziening & Componenten Vermogenstest */}
+      <HardwarePowerSection
+        report={powerDeliveryReport}
+        isTesting={isTestingPowerDelivery}
+        onRunTest={runPowerDeliveryCheck}
+      />
 
       {/* Info & Aanbevelingen Blok voor Stroom & Batterij */}
       <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-5">

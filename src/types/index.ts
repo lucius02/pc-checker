@@ -465,3 +465,5 @@ export interface PeripheralTestResults {
     packetLossPercent: number;
   };
 }
+
+export * from "./power";

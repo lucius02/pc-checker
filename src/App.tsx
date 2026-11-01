@@ -13,6 +13,7 @@ import {
   LatencyTestResult,
   TabType,
   PeripheralTestResults,
+  HardwarePowerCheckReport,
 } from "./types";
 import { formatBytes, formatUptime } from "./utils/formatters";
 import { useHardwareTests } from "./hooks/useHardwareTests";
@@ -44,10 +45,12 @@ export default function App() {
   const [coolingData, setCoolingData] = useState<CoolingOverview | null>(null);
   const [freezeData, setFreezeData] = useState<FreezeDiagnosticReport | null>(null);
   const [batteryReport, setBatteryReport] = useState<BatteryHealthReport | null>(null);
+  const [powerDeliveryReport, setPowerDeliveryReport] = useState<HardwarePowerCheckReport | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isScanningFreeze, setIsScanningFreeze] = useState(false);
   const [isTestingBattery, setIsTestingBattery] = useState(false);
+  const [isTestingPowerDelivery, setIsTestingPowerDelivery] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const [driverReport, setDriverReport] = useState<DriverReport | null>(null);
@@ -105,6 +108,18 @@ export default function App() {
       console.error("Fout bij uitvoeren batterijtest:", err);
     } finally {
       setIsTestingBattery(false);
+    }
+  };
+
+  const runPowerDeliveryCheck = async () => {
+    setIsTestingPowerDelivery(true);
+    try {
+      const report = await invoke<HardwarePowerCheckReport>("check_hardware_power_delivery");
+      setPowerDeliveryReport(report);
+    } catch (err) {
+      console.error("Fout bij uitvoeren hardware vermogenstest:", err);
+    } finally {
+      setIsTestingPowerDelivery(false);
     }
   };
 
@@ -190,6 +205,7 @@ export default function App() {
       },
       power: powerData,
       batteryReport,
+      hardwarePowerDelivery: powerDeliveryReport,
       cooling: coolingData,
       freezeDiagnostics: freezeData,
       drivers: driverReport,
@@ -319,6 +335,9 @@ export default function App() {
                 batteryReport={batteryReport}
                 isTestingBattery={isTestingBattery}
                 runBatteryTest={runBatteryTest}
+                powerDeliveryReport={powerDeliveryReport}
+                isTestingPowerDelivery={isTestingPowerDelivery}
+                runPowerDeliveryCheck={runPowerDeliveryCheck}
               />
             )}
 
