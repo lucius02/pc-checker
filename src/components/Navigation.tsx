@@ -14,6 +14,9 @@ import {
   Keyboard,
   Monitor,
   MousePointer,
+  Volume2,
+  Camera,
+  Wifi,
 } from "lucide-react";
 import { TabType, FreezeDiagnosticReport } from "../types";
 import { cn } from "../utils/cn";
@@ -141,6 +144,27 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: MousePointer,
       activeClass: "border-violet-400 text-violet-400 font-semibold",
       focusClass: "focus-visible:outline-violet-400",
+    },
+    {
+      id: "audio",
+      label: "Audio & Mic",
+      icon: Volume2,
+      activeClass: "border-pink-400 text-pink-400 font-semibold",
+      focusClass: "focus-visible:outline-pink-400",
+    },
+    {
+      id: "camera",
+      label: "Webcam",
+      icon: Camera,
+      activeClass: "border-rose-400 text-rose-400 font-semibold",
+      focusClass: "focus-visible:outline-rose-400",
+    },
+    {
+      id: "network",
+      label: "Netwerk & Wi-Fi",
+      icon: Wifi,
+      activeClass: "border-blue-400 text-blue-400 font-semibold",
+      focusClass: "focus-visible:outline-blue-400",
     },
   ];
 

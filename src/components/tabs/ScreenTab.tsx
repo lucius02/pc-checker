@@ -19,10 +19,33 @@ const SOLID_COLORS = [
   { name: "Magenta", hex: "#ff00ff", desc: "Combinatietest rood + blauw" },
 ];
 
-export const ScreenTab: React.FC = () => {
+interface ScreenTabProps {
+  onUpdateResult?: (data: {
+    width: number;
+    height: number;
+    dpr: number;
+    colorDepth: number;
+    refreshRateHz: number;
+  }) => void;
+}
+
+export const ScreenTab: React.FC<ScreenTabProps> = ({ onUpdateResult }) => {
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [colorIndex, setColorIndex] = useState(0);
   const [measuredHz, setMeasuredHz] = useState<number | null>(null);
+
+  // Notify parent for export
+  useEffect(() => {
+    if (measuredHz !== null) {
+      onUpdateResult?.({
+        width: window.screen.width,
+        height: window.screen.height,
+        dpr: window.devicePixelRatio || 1,
+        colorDepth: window.screen.colorDepth || 24,
+        refreshRateHz: measuredHz,
+      });
+    }
+  }, [measuredHz, onUpdateResult]);
 
   // Measure display refresh rate using requestAnimationFrame
   useEffect(() => {

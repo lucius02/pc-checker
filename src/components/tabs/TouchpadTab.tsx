@@ -17,7 +17,17 @@ import {
 
 type TrailMode = "fading" | "permanent";
 
-export const TouchpadTab: React.FC = () => {
+interface TouchpadTabProps {
+  onUpdateResult?: (data: {
+    coveragePercent: number;
+    doubleClickMs: number | null;
+    hasSwitchChatter: boolean;
+    pollingRateHz: number;
+    scrollSteps: number;
+  }) => void;
+}
+
+export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,6 +97,17 @@ export const TouchpadTab: React.FC = () => {
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
   }, [resizeCanvas]);
+
+  // Update parent for export
+  useEffect(() => {
+    onUpdateResult?.({
+      coveragePercent,
+      doubleClickMs: doubleClickSpeed,
+      hasSwitchChatter: isSwitchChatterWarning,
+      pollingRateHz: eventRateHz,
+      scrollSteps: totalScrollSteps,
+    });
+  }, [coveragePercent, doubleClickSpeed, isSwitchChatterWarning, eventRateHz, totalScrollSteps, onUpdateResult]);
 
   // 2. Accurate Polling Rate (Hz) calculated over a moving window of recent pointer events
   useEffect(() => {

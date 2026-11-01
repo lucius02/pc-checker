@@ -12,6 +12,7 @@ import {
   DriverReport,
   LatencyTestResult,
   TabType,
+  PeripheralTestResults,
 } from "./types";
 import { formatBytes, formatUptime } from "./utils/formatters";
 import { useHardwareTests } from "./hooks/useHardwareTests";
@@ -32,6 +33,9 @@ import { LatencyTab } from "./components/tabs/LatencyTab";
 import { KeyboardTab } from "./components/tabs/KeyboardTab";
 import { ScreenTab } from "./components/tabs/ScreenTab";
 import { TouchpadTab } from "./components/tabs/TouchpadTab";
+import { AudioTab } from "./components/tabs/AudioTab";
+import { CameraTab } from "./components/tabs/CameraTab";
+import { NetworkTab } from "./components/tabs/NetworkTab";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -52,6 +56,8 @@ export default function App() {
   const [latencyResult, setLatencyResult] = useState<LatencyTestResult | null>(null);
   const [isTestingLatency, setIsTestingLatency] = useState(false);
   const [latencyDuration, setLatencyDuration] = useState(10);
+
+  const [peripherals, setPeripherals] = useState<PeripheralTestResults>({});
 
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -134,9 +140,23 @@ export default function App() {
     scanFreezeDiagnostic();
 
     if (!autoRefresh) return;
-    const interval = setInterval(fetchOverview, 3000);
+
+    // Tab-gebaseerde polling optimalisatie:
+    // Pauzeer zware achtergrond-polling wanneer de gebruiker in een interactieve test zit
+    const isPeripheralTesting = [
+      "keyboard",
+      "screen",
+      "touchpad",
+      "audio",
+      "camera",
+      "network",
+    ].includes(activeTab);
+
+    if (isPeripheralTesting) return;
+
+    const interval = setInterval(fetchOverview, 4000);
     return () => clearInterval(interval);
-  }, [fetchOverview, autoRefresh]);
+  }, [fetchOverview, autoRefresh, activeTab]);
 
   const {
     isTestingCpu,
@@ -197,6 +217,14 @@ export default function App() {
         cpuTest: cpuResult,
         ramTest: ramResult,
         diskTest: diskResult,
+        peripheralTests: {
+          keyboard: peripherals.keyboard || "Niet getest",
+          screen: peripherals.screen || "Niet getest",
+          touchpadAndMouse: peripherals.touchpad || "Niet getest",
+          audioAndMic: peripherals.audio || "Niet getest",
+          webcam: peripherals.camera || "Niet getest",
+          networkAndPing: peripherals.network || "Niet getest",
+        },
       },
     };
 
@@ -340,12 +368,53 @@ export default function App() {
             )}
 
             {activeTab === "keyboard" && (
-              <KeyboardTab isLaptop={powerData?.is_laptop ?? false} />
+              <KeyboardTab
+                isLaptop={powerData?.is_laptop ?? false}
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, keyboard: res }))
+                }
+              />
             )}
 
-            {activeTab === "screen" && <ScreenTab />}
+            {activeTab === "screen" && (
+              <ScreenTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, screen: res }))
+                }
+              />
+            )}
 
-            {activeTab === "touchpad" && <TouchpadTab />}
+            {activeTab === "touchpad" && (
+              <TouchpadTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, touchpad: res }))
+                }
+              />
+            )}
+
+            {activeTab === "audio" && (
+              <AudioTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, audio: res }))
+                }
+              />
+            )}
+
+            {activeTab === "camera" && (
+              <CameraTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, camera: res }))
+                }
+              />
+            )}
+
+            {activeTab === "network" && (
+              <NetworkTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, network: res }))
+                }
+              />
+            )}
           </>
         )}
       </main>

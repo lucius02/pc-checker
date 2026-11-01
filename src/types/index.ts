@@ -418,4 +418,50 @@ export type TabType =
   | "latency"
   | "keyboard"
   | "screen"
-  | "touchpad";
+  | "touchpad"
+  | "audio"
+  | "camera"
+  | "network";
+
+export interface PeripheralTestResults {
+  keyboard?: {
+    testedKeys: number;
+    totalKeys: number;
+    maxRollover: number;
+    formFactor: string;
+    keymap: string;
+    enterStyle: string;
+  };
+  screen?: {
+    width: number;
+    height: number;
+    dpr: number;
+    colorDepth: number;
+    refreshRateHz: number;
+  };
+  touchpad?: {
+    coveragePercent: number;
+    doubleClickMs: number | null;
+    hasSwitchChatter: boolean;
+    pollingRateHz: number;
+    scrollSteps: number;
+  };
+  audio?: {
+    stereoTested: boolean;
+    frequenciesTested: boolean;
+    micWorking: boolean;
+    peakDecibels?: number;
+  };
+  camera?: {
+    cameraName: string;
+    resolution: string;
+    fps: number;
+    tested: boolean;
+  };
+  network?: {
+    online: boolean;
+    avgPingMs: number;
+    jitterMs: number;
+    packetLossPercent: number;
+  };
+}

@@ -9,6 +9,8 @@ import {
   Layers,
   Sparkles,
   HelpCircle,
+  Maximize,
+  Minimize,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
 import {
@@ -22,14 +24,26 @@ import {
 
 interface KeyboardTabProps {
   isLaptop?: boolean;
+  onUpdateResult?: (data: {
+    testedKeys: number;
+    totalKeys: number;
+    maxRollover: number;
+    formFactor: string;
+    keymap: string;
+    enterStyle: string;
+  }) => void;
 }
 
-export const KeyboardTab: React.FC<KeyboardTabProps> = ({ isLaptop = false }) => {
+export const KeyboardTab: React.FC<KeyboardTabProps> = ({
+  isLaptop = false,
+  onUpdateResult,
+}) => {
   const [formFactor, setFormFactor] = useState<FormFactor>(isLaptop ? "laptop" : "full");
   const [keymapType, setKeymapType] = useState<KeymapType>("qwerty");
   const [enterStyle, setEnterStyle] = useState<EnterStyle>("ansi");
   const [scanInfo, setScanInfo] = useState<string>("Detecteren van systeemindeling...");
   const [hasScanned, setHasScanned] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [pressedCodes, setPressedCodes] = useState<Set<string>>(new Set());
   const [testedCodes, setTestedCodes] = useState<Set<string>>(new Set());
@@ -39,6 +53,27 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({ isLaptop = false }) =>
     code: string;
     time: string;
   } | null>(null);
+
+  // Track fullscreen state
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error("Fullscreen error:", err);
+    }
+  };
 
   // Scan layout on mount or when isLaptop changes
   const runAutoScan = useCallback(async () => {
@@ -72,6 +107,17 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({ isLaptop = false }) =>
         : 0;
     return mainCount + numpadCount;
   }, [mainRows, formFactor]);
+
+  useEffect(() => {
+    onUpdateResult?.({
+      testedKeys: testedCodes.size,
+      totalKeys: totalKeysCount,
+      maxRollover,
+      formFactor,
+      keymap: keymapType,
+      enterStyle,
+    });
+  }, [testedCodes.size, totalKeysCount, maxRollover, formFactor, keymapType, enterStyle, onUpdateResult]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Prevent default browser shortcuts for testing purposes
@@ -167,8 +213,32 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({ isLaptop = false }) =>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={toggleFullscreen}
+              title="Schakel volledig scherm in om alle toetsaanslagen direct op te vangen"
+              aria-label={isFullscreen ? "Verlaat volledig scherm focus modus" : "Open volledig scherm focus modus"}
+              className={cn(
+                "px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2",
+                isFullscreen
+                  ? "bg-purple-950/80 border-purple-700 text-purple-300 focus-visible:outline-purple-400"
+                  : "bg-slate-900 border-slate-700 hover:border-slate-600 text-slate-300 focus-visible:outline-slate-400"
+              )}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize className="w-3.5 h-3.5 text-purple-400" />
+                  Verlaat Focus
+                </>
+              ) : (
+                <>
+                  <Maximize className="w-3.5 h-3.5 text-purple-400" />
+                  Focus Modus
+                </>
+              )}
+            </button>
+            <button
               onClick={runAutoScan}
               title="Scant aangesloten toetsenbord en Windows-taalindeling"
+              aria-label="Scan aangesloten toetsenbord en taalindeling"
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
             >
               <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
@@ -176,6 +246,7 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({ isLaptop = false }) =>
             </button>
             <button
               onClick={resetTest}
+              aria-label="Reset toetsenbord testgeschiedenis"
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             >
               <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
