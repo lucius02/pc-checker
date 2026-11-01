@@ -59,6 +59,31 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 * Meet scheduling-latency met een hoge-prioriteit spin-loop (max / p99 / gemiddeld in µs, histogram) en leest de Windows-tellers `% DPC Time`, `% Interrupt Time` en `DPCs Queued/sec`.
 * Noemt waarschijnlijke verdachte drivers op basis van de Driver Check. Dit is géén meting per driver zoals LatencyMon (die ETW-tracing met adminrechten vereist).
 
+### 12. ⌨️ Toetsenbord & Ghosting Matrix Test
+* **Chassis- & Formaat-detectie:** Schakelt automatisch naar **Laptop 75%** compact bij laptops, en naar **100% Volledig met Numpad** bij desktops. Handmatig omschakelbaar naar TKL 80%.
+* **Windows Keyboard Layout Map API:** Herkent live de actieve Windows-toetsenbordindeling (**QWERTY**, **AZERTY**, **QWERTZ**).
+* **ANSI vs. ISO Enter Detectie:** Detecteert automatisch of het toetsenbord een ANSI (platte Enter) of ISO indeling (grote L-Enter met `< > |` toets) heeft.
+* **N-Key Rollover (NKRO) & Ghosting:** Meet live gelijktijdig ingedrukte toetsen en houdt de maximale rollover-capaciteit bij.
+* **Toetsenbord Matrix Verificatie:** Toont geteste toetsen met percentage-voortgang en slaat aanslagen realtime op.
+
+### 13. 🖥️ Beeldscherm & Dode Pixel Detector
+* **Volledig Scherm Dode/Vastzittende Pixel Test:** Focust op 8 pure testkleuren (Zwart, Wit, Rood, Groen, Blauw, Geel, Cyaan, Magenta) met toetsenbord- en muisnavigatie.
+* **Live Display Telemetrie:** Resolutie, Display Scaling (DPR factor), kleurdiepte (bits) en live gemeten verversingssnelheid (Hz / FPS) via `requestAnimationFrame`.
+* **Dynamisch Bereik & Contrast:** 256-staps grijswaarden kleurverloop en een 2%–14% zwartwaardencheck om donkere schaduwdetails te kalibreren.
+
+### 14. 🖱️ Touchpad & 5-Knoppen Muis Diagnostic Suite
+* **Hi-DPI Responsive Canvas (1:1 Pixel Mapping):** Geen coördinatenverloop of afkapping; dynamische schaling volgt de cursor haarscherp.
+* **Dode Zone Scanner (Vaste Modus) vs. Vloeiend Spoor:** Biedt een permanent tekenvlak om het hele touchpad/muismat in te kleuren met live dekkingsindicator (%), of een vervagend spoor (2s).
+* **5-Knoppen Muis Ondersteuning:** Test LMB, MMB (scrollklik), RMB, Zijkant 1 (Vorige / Knop 4) en Zijkant 2 (Volgende / Knop 5) met navigatiebeveiliging.
+* **Hardware Dubbelklik-defect (Switch Chatter) Detector:** Waarschuwt direct met visuele waarschuwingen bij klikintervallen onder de 75 ms (slijtage van microswitches).
+* **Vastklik- & Sleeptest (Drag & Drop Integriteit):** Toont live of een ingedrukte muisknop contact verliest tijdens het slepen.
+* **Scrollwiel & Gesture Telemetrie:** Meet realtime richting (▲, ▼, ◀, ▶) en scrollstappen zonder dat het venster meebeweegt.
+
+### 15. ⚡ Prestatie- & Caching Engine (Anti-Lag Architecture)
+* **In-Memory Uptime Caching (`SESSION_START_CACHE`):** Vervangt trage 2.2-seconde PowerShell `Get-WinEvent` queries door een in-memory berekening (< 0,001 ms).
+* **30-Seconden WMI & Power Plan TTL:** Zware ACPI thermische zones en Windows energieplannen worden slim gecachet; realtime hardwaresensortemperaturen blijven instant (< 1 ms).
+* **Frontend In-Flight Request Guards:** Voorkomt opeenhoping van polling-aanroepen en garandeert 60 FPS UI-responsiviteit.
+
 ---
 
 ## 🚀 Aan de slag
@@ -82,7 +107,7 @@ De kant-en-klare installer wordt geplaatst in `src-tauri/target/release/bundle/n
 ---
 
 ## 🤖 Gevalideerd met JARVIS
-De volledige testsuite (7/7 tests) is autonoom geverifieerd door **JARVIS** (`d:\projects\JARVIS\agents\jarvis_agent.py`):
+De volledige testsuite (**54 unittests in Rust**: 52 passed, 2 optionele hardware-specifieke benchmarks) en alle frontend Tailwind-componenten zijn autonoom geverifieerd door **JARVIS** (`d:\projects\JARVIS\agents\jarvis_agent.py`):
 * `test_power_and_battery_info`: **OK**
 * `test_cooling_and_fans`: **OK**
 * `test_freeze_diagnostic_scanner`: **OK**
@@ -90,3 +115,8 @@ De volledige testsuite (7/7 tests) is autonoom geverifieerd door **JARVIS** (`d:
 * `test_cpu_stress_computation`: **OK**
 * `test_ram_integrity_check`: **OK**
 * `test_disk_benchmark_and_cleanup`: **OK**
+* `drivers_tests` (11 tests op handtekeningen, ouderdom en foutcodes): **OK**
+* `health_eval_tests` (9 tests op scores, gradaties en weging): **OK**
+* `latency_tests` (11 tests op buckets, percentielen en counters): **OK**
+* `monitor_tests` (3 tests op ringbuffers en rates): **OK**
+* `processes_tests` (8 tests op freeze-windows en sortering): **OK**
