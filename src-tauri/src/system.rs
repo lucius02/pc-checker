@@ -8,6 +8,7 @@ use crate::models::{CpuCoreInfo, CpuInfo, DiskInfo, GpuInfo, MotherboardInfo, Ra
 use crate::watchdog::ensure_watchdog_started;
 
 static HARDWARE_CACHE: Mutex<Option<(Vec<GpuInfo>, MotherboardInfo)>> = Mutex::new(None);
+static SESSION_START_CACHE: Mutex<Option<(chrono::NaiveDateTime, String)>> = Mutex::new(None);
 
 fn get_static_hardware() -> (Vec<GpuInfo>, MotherboardInfo) {
     if let Ok(guard) = HARDWARE_CACHE.lock() {
@@ -98,6 +99,17 @@ fn get_static_hardware() -> (Vec<GpuInfo>, MotherboardInfo) {
 }
 
 pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
+    let now = Local::now().naive_local();
+
+    // Check if session start was already calculated once (persists for the entire app session)
+    if let Ok(guard) = SESSION_START_CACHE.lock() {
+        if let Some((dt, ref started_at)) = *guard {
+            let diff = now.signed_duration_since(dt);
+            let secs = if diff.num_seconds() > 0 { diff.num_seconds() as u64 } else { kernel_uptime };
+            return (secs, started_at.clone());
+        }
+    }
+
     let output = Command::new("powershell")
         .args(&[
             "-NoProfile",
@@ -110,7 +122,6 @@ pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
         let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
         if !text.is_empty() {
             if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(&text, "%Y-%m-%d %H:%M:%S") {
-                let now = Local::now().naive_local();
                 let diff = now.signed_duration_since(dt);
                 if diff.num_seconds() > 0 {
                     let secs = diff.num_seconds() as u64;
@@ -119,13 +130,20 @@ pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
                     } else {
                         dt.format("%d-%m om %H:%M").to_string()
                     };
+                    if let Ok(mut guard) = SESSION_START_CACHE.lock() {
+                        *guard = Some((dt, started_at.clone()));
+                    }
                     return (secs, started_at);
                 }
             }
         }
     }
 
-    (kernel_uptime, "Sinds koude systeemstart".to_string())
+    let default_str = "Sinds koude systeemstart".to_string();
+    if let Ok(mut guard) = SESSION_START_CACHE.lock() {
+        *guard = Some((now - chrono::Duration::seconds(kernel_uptime as i64), default_str.clone()));
+    }
+    (kernel_uptime, default_str)
 }
 
 #[tauri::command]

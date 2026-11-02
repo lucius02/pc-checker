@@ -310,7 +310,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             onClick={() => setActiveTab("disk")}
             className={cn(
               "w-full text-left p-4 bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl space-y-2 cursor-pointer transition-colors",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
             )}
           >
             <div className="flex items-center justify-between">
@@ -340,7 +340,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             onClick={() => setActiveTab("cooling")}
             className={cn(
               "w-full text-left p-4 bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-xl space-y-2 cursor-pointer transition-colors",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
             )}
           >
             <div className="flex items-center justify-between">

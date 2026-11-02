@@ -54,7 +54,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
                   disabled={isTestingCpu}
                   className={cn(
                     "px-3 py-1.5 rounded-lg font-medium transition-colors cursor-pointer",
-                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
+                    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
                     cpuDuration === sec
                       ? "bg-cyan-500 text-slate-950 font-bold"
                       : "text-slate-400 hover:text-white"
@@ -70,8 +70,8 @@ export const CpuTab: React.FC<CpuTabProps> = ({
               onClick={handleCpuStress}
               disabled={isTestingCpu}
               className={cn(
-                "px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2 cursor-pointer",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300",
+                "px-5 py-2.5 rounded-xl bg-linear-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-sm shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2 cursor-pointer",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300",
                 isTestingCpu && "opacity-50 cursor-not-allowed"
               )}
             >

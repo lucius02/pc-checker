@@ -11,6 +11,12 @@ import {
   ListTree,
   Timer,
   Puzzle,
+  Keyboard,
+  Monitor,
+  MousePointer,
+  Volume2,
+  Camera,
+  Wifi,
 } from "lucide-react";
 import { TabType, FreezeDiagnosticReport } from "../types";
 import { cn } from "../utils/cn";
@@ -118,6 +124,48 @@ export const Navigation: React.FC<NavigationProps> = ({
       activeClass: "border-cyan-400 text-cyan-400 font-semibold",
       focusClass: "focus-visible:outline-cyan-400",
     },
+    {
+      id: "keyboard",
+      label: "Toetsenbord",
+      icon: Keyboard,
+      activeClass: "border-emerald-400 text-emerald-400 font-semibold",
+      focusClass: "focus-visible:outline-emerald-400",
+    },
+    {
+      id: "screen",
+      label: "Beeldscherm",
+      icon: Monitor,
+      activeClass: "border-teal-400 text-teal-400 font-semibold",
+      focusClass: "focus-visible:outline-teal-400",
+    },
+    {
+      id: "touchpad",
+      label: "Touchpad & Muis",
+      icon: MousePointer,
+      activeClass: "border-violet-400 text-violet-400 font-semibold",
+      focusClass: "focus-visible:outline-violet-400",
+    },
+    {
+      id: "audio",
+      label: "Audio & Mic",
+      icon: Volume2,
+      activeClass: "border-pink-400 text-pink-400 font-semibold",
+      focusClass: "focus-visible:outline-pink-400",
+    },
+    {
+      id: "camera",
+      label: "Webcam",
+      icon: Camera,
+      activeClass: "border-rose-400 text-rose-400 font-semibold",
+      focusClass: "focus-visible:outline-rose-400",
+    },
+    {
+      id: "network",
+      label: "Netwerk & Wi-Fi",
+      icon: Wifi,
+      activeClass: "border-blue-400 text-blue-400 font-semibold",
+      focusClass: "focus-visible:outline-blue-400",
+    },
   ];
 
   return (
@@ -133,7 +181,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             onClick={() => setActiveTab(item.id)}
             className={cn(
               "py-3 px-3.5 text-sm font-medium border-b-2 flex items-center gap-2 transition-all shrink-0 cursor-pointer",
-              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+              "focus-visible:outline-2 focus-visible:outline-offset-2",
               isActive
                 ? cn(item.activeClass, item.focusClass)
                 : "border-transparent text-slate-400 hover:text-slate-200 focus-visible:outline-slate-400"

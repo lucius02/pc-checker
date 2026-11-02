@@ -23,7 +23,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
 }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      <div className="p-6 bg-gradient-to-r from-rose-950/40 via-slate-900/80 to-slate-900 border border-rose-900/50 rounded-2xl space-y-4">
+      <div className="p-6 bg-linear-to-r from-rose-950/40 via-slate-900/80 to-slate-900 border border-rose-900/50 rounded-2xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -48,7 +48,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
               disabled={isScanningFreeze}
               className={cn(
                 "px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 transition-all cursor-pointer",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300",
                 isScanningFreeze && "opacity-50 cursor-not-allowed"
               )}
             >

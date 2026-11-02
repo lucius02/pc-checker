@@ -26,12 +26,12 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+        <div className="w-10 h-10 rounded-xl bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
           <Activity className="w-5 h-5 text-slate-950 font-bold" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            <h1 className="text-lg font-bold tracking-tight bg-linear-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
               PC CHECKER
             </h1>
             <span className="px-2 py-0.5 text-xs font-semibold bg-cyan-950/80 border border-cyan-800 text-cyan-400 rounded-full">
@@ -73,7 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => setAutoRefresh(!autoRefresh)}
           className={cn(
             "px-3 py-1.5 text-xs font-medium rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400",
             autoRefresh
               ? "bg-emerald-950/50 border-emerald-800/80 text-emerald-400"
               : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
@@ -94,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
           disabled={isLoading}
           className={cn(
             "p-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
             isLoading && "opacity-50 cursor-not-allowed"
           )}
           title="Nu vernieuwen"
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={exportReport}
           className={cn(
             "px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-cyan-600/20 transition-colors cursor-pointer",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
+            "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300"
           )}
         >
           <FileDown className="w-3.5 h-3.5" />

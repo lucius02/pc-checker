@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
@@ -12,6 +12,8 @@ import {
   DriverReport,
   LatencyTestResult,
   TabType,
+  PeripheralTestResults,
+  HardwarePowerCheckReport,
 } from "./types";
 import { formatBytes, formatUptime } from "./utils/formatters";
 import { useHardwareTests } from "./hooks/useHardwareTests";
@@ -29,6 +31,12 @@ import { LiveTab } from "./components/tabs/LiveTab";
 import { ProcessesTab } from "./components/tabs/ProcessesTab";
 import { DriversTab } from "./components/tabs/DriversTab";
 import { LatencyTab } from "./components/tabs/LatencyTab";
+import { KeyboardTab } from "./components/tabs/KeyboardTab";
+import { ScreenTab } from "./components/tabs/ScreenTab";
+import { TouchpadTab } from "./components/tabs/TouchpadTab";
+import { AudioTab } from "./components/tabs/AudioTab";
+import { CameraTab } from "./components/tabs/CameraTab";
+import { NetworkTab } from "./components/tabs/NetworkTab";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -37,10 +45,12 @@ export default function App() {
   const [coolingData, setCoolingData] = useState<CoolingOverview | null>(null);
   const [freezeData, setFreezeData] = useState<FreezeDiagnosticReport | null>(null);
   const [batteryReport, setBatteryReport] = useState<BatteryHealthReport | null>(null);
+  const [powerDeliveryReport, setPowerDeliveryReport] = useState<HardwarePowerCheckReport | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isScanningFreeze, setIsScanningFreeze] = useState(false);
   const [isTestingBattery, setIsTestingBattery] = useState(false);
+  const [isTestingPowerDelivery, setIsTestingPowerDelivery] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const [driverReport, setDriverReport] = useState<DriverReport | null>(null);
@@ -50,9 +60,15 @@ export default function App() {
   const [isTestingLatency, setIsTestingLatency] = useState(false);
   const [latencyDuration, setLatencyDuration] = useState(10);
 
+  const [peripherals, setPeripherals] = useState<PeripheralTestResults>({});
+
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
+  const isFetchingRef = useRef(false);
+
   const fetchOverview = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
     try {
       const [overviewRes, powerRes, coolingRes] = await Promise.all([
         invoke<SystemOverview>("get_system_overview"),
@@ -66,6 +82,7 @@ export default function App() {
     } catch (err) {
       console.error("Fout bij ophalen systeeminformatie:", err);
     } finally {
+      isFetchingRef.current = false;
       setIsLoading(false);
     }
   }, []);
@@ -91,6 +108,18 @@ export default function App() {
       console.error("Fout bij uitvoeren batterijtest:", err);
     } finally {
       setIsTestingBattery(false);
+    }
+  };
+
+  const runPowerDeliveryCheck = async () => {
+    setIsTestingPowerDelivery(true);
+    try {
+      const report = await invoke<HardwarePowerCheckReport>("check_hardware_power_delivery");
+      setPowerDeliveryReport(report);
+    } catch (err) {
+      console.error("Fout bij uitvoeren hardware vermogenstest:", err);
+    } finally {
+      setIsTestingPowerDelivery(false);
     }
   };
 
@@ -126,9 +155,23 @@ export default function App() {
     scanFreezeDiagnostic();
 
     if (!autoRefresh) return;
-    const interval = setInterval(fetchOverview, 3000);
+
+    // Tab-gebaseerde polling optimalisatie:
+    // Pauzeer zware achtergrond-polling wanneer de gebruiker in een interactieve test zit
+    const isPeripheralTesting = [
+      "keyboard",
+      "screen",
+      "touchpad",
+      "audio",
+      "camera",
+      "network",
+    ].includes(activeTab);
+
+    if (isPeripheralTesting) return;
+
+    const interval = setInterval(fetchOverview, 4000);
     return () => clearInterval(interval);
-  }, [fetchOverview, autoRefresh]);
+  }, [fetchOverview, autoRefresh, activeTab]);
 
   const {
     isTestingCpu,
@@ -162,6 +205,7 @@ export default function App() {
       },
       power: powerData,
       batteryReport,
+      hardwarePowerDelivery: powerDeliveryReport,
       cooling: coolingData,
       freezeDiagnostics: freezeData,
       drivers: driverReport,
@@ -189,6 +233,14 @@ export default function App() {
         cpuTest: cpuResult,
         ramTest: ramResult,
         diskTest: diskResult,
+        peripheralTests: {
+          keyboard: peripherals.keyboard || "Niet getest",
+          screen: peripherals.screen || "Niet getest",
+          touchpadAndMouse: peripherals.touchpad || "Niet getest",
+          audioAndMic: peripherals.audio || "Niet getest",
+          webcam: peripherals.camera || "Niet getest",
+          networkAndPing: peripherals.network || "Niet getest",
+        },
       },
     };
 
@@ -283,6 +335,9 @@ export default function App() {
                 batteryReport={batteryReport}
                 isTestingBattery={isTestingBattery}
                 runBatteryTest={runBatteryTest}
+                powerDeliveryReport={powerDeliveryReport}
+                isTestingPowerDelivery={isTestingPowerDelivery}
+                runPowerDeliveryCheck={runPowerDeliveryCheck}
               />
             )}
 
@@ -328,6 +383,55 @@ export default function App() {
                 setDiskSizeMb={setDiskSizeMb}
                 handleDiskBenchmark={handleDiskBenchmark}
                 diskResult={diskResult}
+              />
+            )}
+
+            {activeTab === "keyboard" && (
+              <KeyboardTab
+                isLaptop={powerData?.is_laptop ?? false}
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, keyboard: res }))
+                }
+              />
+            )}
+
+            {activeTab === "screen" && (
+              <ScreenTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, screen: res }))
+                }
+              />
+            )}
+
+            {activeTab === "touchpad" && (
+              <TouchpadTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, touchpad: res }))
+                }
+              />
+            )}
+
+            {activeTab === "audio" && (
+              <AudioTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, audio: res }))
+                }
+              />
+            )}
+
+            {activeTab === "camera" && (
+              <CameraTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, camera: res }))
+                }
+              />
+            )}
+
+            {activeTab === "network" && (
+              <NetworkTab
+                onUpdateResult={(res) =>
+                  setPeripherals((prev) => ({ ...prev, network: res }))
+                }
               />
             )}
           </>
