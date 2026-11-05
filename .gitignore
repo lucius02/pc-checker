@@ -50,3 +50,5 @@ $RECYCLE.BIN/
 *.sw?
 
 \.vscode
+# ts-rs standaardmap (bindings horen in src/types/generated)
+src-tauri/bindings/
