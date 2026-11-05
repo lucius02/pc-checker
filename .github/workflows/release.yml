@@ -1,0 +1,70 @@
+name: Release
+
+# Bouwt installers voor Windows en Linux en zet ze als concept-release op GitHub.
+# Start: push een tag `v*` (bijv. `git tag v0.2.0 && git push origin v0.2.0`) of handmatig.
+#
+# Code signing (optioneel, zie RELEASING.md):
+#   WINDOWS_CERTIFICATE           base64 van het .pfx-certificaat
+#   WINDOWS_CERTIFICATE_PASSWORD  wachtwoord van het .pfx-bestand
+# Zonder deze secrets worden de installers ongetekend gebouwd (SmartScreen-waarschuwing).
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+          - platform: ubuntu-22.04
+    runs-on: ${{ matrix.platform }}
+    env:
+      HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev libssl-dev build-essential
+      - name: Import Windows code-signing certificate
+        if: runner.os == 'Windows' && env.HAS_WINDOWS_CERT == 'true'
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          $bytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+          [IO.File]::WriteAllBytes("cert.pfx", $bytes)
+          $pwd = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath cert.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pwd
+          Remove-Item cert.pfx
+          $conf = @{ bundle = @{ windows = @{ certificateThumbprint = $cert.Thumbprint; digestAlgorithm = "sha256"; timestampUrl = "http://timestamp.digicert.com" } } } | ConvertTo-Json -Depth 5
+          $path = Join-Path $env:GITHUB_WORKSPACE "signing.conf.json"
+          Set-Content -Path $path -Value $conf -Encoding utf8
+          "TAURI_EXTRA_ARGS=--config $path" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: "PC Checker ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false
+          args: ${{ env.TAURI_EXTRA_ARGS }}
