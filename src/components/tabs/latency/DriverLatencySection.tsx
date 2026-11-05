@@ -4,6 +4,7 @@ import { useT } from "../../../i18n";
 import { useDiagnosticsStore } from "../../../store/diagnosticsStore";
 import { useStatusLabel } from "../../../i18n/status";
 import { cn } from "../../../utils/cn";
+import { AdviceCard } from "../../AdviceCard";
 
 const DURATIONS = [10, 30, 60];
 
@@ -95,6 +96,7 @@ export const DriverLatencySection: React.FC = () => {
             <p className="text-sm text-slate-300">{report.summary}</p>
           </div>
           {report.error && <p className="text-xs text-red-400 font-mono">{report.error}</p>}
+          {report.fix && <AdviceCard tone={report.verdict === "Slecht" ? "critical" : "medium"} advice={report.fix} />}
           {report.events_lost > 0 && (
             <p className="text-xs text-amber-300 flex items-center gap-2">
               <AlertTriangle className="w-3.5 h-3.5" /> {t("driverLatency.eventsLost", { n: report.events_lost })}

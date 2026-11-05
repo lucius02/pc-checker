@@ -445,7 +445,23 @@ pub struct LatencyTestResult {
     pub summary: String,
     pub suspected_drivers: Vec<String>,
     pub advice: Vec<String>,
+    /// Waarom het oordeel zo uitvalt: gemeten waarden tegenover de grenzen (ernstigste eerst).
+    pub reasons: Vec<LatencyFinding>,
+    /// Stappenplan dat past bij de bevindingen.
+    pub fix: Advice,
     pub error: Option<String>,
+}
+
+/// Eén verklaring bij het latency-oordeel.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct LatencyFinding {
+    /// "Slecht" | "Matig" | "Goed" | "Info"
+    pub severity: String,
+    /// Wat er gemeten is, met de waarde en de grens.
+    pub title: String,
+    /// Wat dat betekent en waar het meestal door komt.
+    pub detail: String,
 }
 
 // ===== Gezondheidsscore =====
@@ -641,5 +657,7 @@ pub struct DriverLatencyReport {
     pub summary: String,
     /// Gesorteerd op hoogste uitvoertijd (DPC of ISR), aflopend.
     pub drivers: Vec<DriverLatencyEntry>,
+    /// Uitleg en stappen voor de grootste veroorzaker (alleen bij "Matig"/"Slecht").
+    pub fix: Option<Advice>,
     pub error: Option<String>,
 }

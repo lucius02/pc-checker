@@ -436,6 +436,8 @@ fn build_result(
             .to_string(),
             suspected_drivers: Vec::new(),
             advice: Vec::new(),
+            reasons: Vec::new(),
+            fix: Default::default(),
             error: Some(
                 crate::tr!(
                     "Geen timer-metingen verzameld",
@@ -447,6 +449,30 @@ fn build_result(
     }
     let verdict = overall_verdict(stats.max_us(), stats.gaps_over_1ms(), c);
     let report = report.filter(|r| r.is_available);
+    let flagged_drivers = report
+        .map(|r| {
+            r.entries
+                .iter()
+                .filter(|e| {
+                    ["NET", "MEDIA", "DISPLAY", "SCSIADAPTER", "HDC", "USB"]
+                        .iter()
+                        .any(|s| s.eq_ignore_ascii_case(e.device_class.trim()))
+                        && !e.status.eq_ignore_ascii_case("OK")
+                })
+                .count()
+        })
+        .unwrap_or(0);
+    let measured = crate::latency_explain::Measured {
+        max_us: stats.max_us(),
+        p99_us: stats.percentile_us(99.0),
+        gaps_over_1ms: stats.gaps_over_1ms(),
+        counters: c,
+        elevated,
+        driver_check_done: report.is_some(),
+        flagged_drivers,
+    };
+    let reasons = crate::latency_explain::explain(&measured);
+    let fix = crate::latency_explain::fix_plan(verdict, &measured);
     let suspected_drivers = match (verdict, report) {
         ("Goed", _) | (_, None) => Vec::new(),
         (_, Some(r)) => suspected_from_report(r),
@@ -468,6 +494,8 @@ fn build_result(
         summary: build_summary(verdict, stats, c, elevated),
         suspected_drivers,
         advice: build_advice(verdict, c, report.is_some()),
+        reasons,
+        fix,
         error: None,
     }
 }

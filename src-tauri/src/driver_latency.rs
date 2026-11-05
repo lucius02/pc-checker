@@ -262,6 +262,22 @@ pub fn build_report(
         ),
     };
 
+    // Grootste veroorzaker: de driver die zijn grens (DPC of ISR) het verst overschrijdt.
+    let fix = if verdict == VERDICT_WARN || verdict == VERDICT_BAD {
+        let dpc_ratio = highest_dpc_us / DPC_WARN_US;
+        let isr_ratio = highest_isr_us / ISR_WARN_US;
+        let (name, is_isr) = if isr_ratio > dpc_ratio {
+            (&top_isr_name, true)
+        } else {
+            (&top_dpc_name, false)
+        };
+        name.as_ref()
+            .and_then(|n| drivers.iter().find(|d| &d.driver == n))
+            .map(|top| crate::latency_explain::driver_fix(top, is_isr))
+    } else {
+        None
+    };
+
     drivers.truncate(TOP_DRIVERS);
     DriverLatencyReport {
         is_available: true,
@@ -277,6 +293,7 @@ pub fn build_report(
         verdict: verdict.to_string(),
         summary,
         drivers,
+        fix,
         error: None,
     }
 }
@@ -655,6 +672,9 @@ mod tests {
         assert_eq!(r.highest_isr_driver.as_deref(), Some("ndis.sys"));
         assert_eq!(r.verdict, VERDICT_BAD);
         assert!(r.summary.contains("nvlddmkm.sys"));
+        let fix = r.fix.expect("uitleg bij slechte meting");
+        assert!(fix.title.contains("nvlddmkm.sys"));
+        assert!(!fix.steps.is_empty());
     }
 
     #[test]

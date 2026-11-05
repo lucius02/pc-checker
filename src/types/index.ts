@@ -24,6 +24,7 @@ export type { HealthInputs } from "./generated/HealthInputs";
 export type { HealthScore } from "./generated/HealthScore";
 export type { HistoryData } from "./generated/HistoryData";
 export type { LatencyBucket } from "./generated/LatencyBucket";
+export type { LatencyFinding } from "./generated/LatencyFinding";
 export type { LatencyTestResult } from "./generated/LatencyTestResult";
 export type { MetricsHistory } from "./generated/MetricsHistory";
 export type { MetricsSample } from "./generated/MetricsSample";

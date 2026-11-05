@@ -36,6 +36,8 @@ export const latencyNl = {
   "latency.noDriverData": "Geen drivergegevens beschikbaar. Voer eerst de Driver Check uit en herhaal deze test.",
   "latency.noMatches": "De Driver Check vond geen netwerk-, audio-, GPU-, opslag- of USB-drivers om aan te wijzen.",
   "latency.advice": "Advies",
+  "latency.whyTitle": "Waarom dit resultaat?",
+  "latency.whyIntro": "Wat er gemeten is, vergeleken met de grenzen, en wat dat betekent. Het ernstigste staat bovenaan.",
 
   "driverLatency.title": "Per-driver DPC/ISR-meting (ETW)",
   "driverLatency.intro": "Volgt met Event Tracing for Windows elke DPC en interrupt (ISR) en koppelt die aan de driver die hem uitvoert, zoals LatencyMon. Zo zie je precies wélke driver de haperingen veroorzaakt.",
@@ -92,6 +94,8 @@ export const latencyEn: Record<keyof typeof latencyNl, string> = {
   "latency.noDriverData": "No driver data available. Run the Driver Check first and repeat this test.",
   "latency.noMatches": "The Driver Check found no network, audio, GPU, storage or USB drivers to point to.",
   "latency.advice": "Advice",
+  "latency.whyTitle": "Why this result?",
+  "latency.whyIntro": "What was measured, compared with the limits, and what it means. The most serious item is at the top.",
 
   "driverLatency.title": "Per-driver DPC/ISR measurement (ETW)",
   "driverLatency.intro": "Uses Event Tracing for Windows to follow every DPC and interrupt (ISR) and attribute it to the driver that runs it, like LatencyMon. This shows exactly which driver causes the stutters.",

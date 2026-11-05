@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   XCircle,
   Cpu,
-  Lightbulb,
   HardDrive,
   Info,
   BarChart3,
@@ -18,6 +17,7 @@ import { intlLocale, useT, type MessageKey } from "../../i18n";
 import { useStatusLabel } from "../../i18n/status";
 import { useDiagnosticsStore } from "../../store/diagnosticsStore";
 import { DriverLatencySection } from "./latency/DriverLatencySection";
+import { LatencyExplanation } from "./latency/LatencyExplanation";
 
 interface LatencyTabProps {
   latencyResult: LatencyTestResult | null;
@@ -329,6 +329,8 @@ export const LatencyTab: React.FC<LatencyTabProps> = ({
             </div>
           </div>
 
+          <LatencyExplanation result={r} />
+
           {/* Histogram */}
           <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-4">
             <div>
@@ -343,7 +345,7 @@ export const LatencyTab: React.FC<LatencyTabProps> = ({
             <Histogram buckets={r.histogram} total={r.timer_samples} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {/* Verdachte drivers */}
             <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
               <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
@@ -390,24 +392,6 @@ export const LatencyTab: React.FC<LatencyTabProps> = ({
               )}
             </div>
 
-            {/* Advies */}
-            <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-              <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-cyan-400" />
-                {t("latency.advice")}
-              </h3>
-              <ul className="space-y-1.5">
-                {r.advice.map((a) => (
-                  <li
-                    key={a}
-                    className="p-2.5 bg-cyan-950/20 border border-cyan-900/50 rounded-lg text-xs text-cyan-200 flex gap-2"
-                  >
-                    <span className="text-cyan-500 shrink-0">•</span>
-                    <span>{a}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
         </div>
       )}

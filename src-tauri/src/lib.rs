@@ -9,6 +9,7 @@ pub mod health;
 pub mod history;
 pub mod i18n;
 pub mod latency;
+pub mod latency_explain;
 pub mod models;
 pub mod monitor;
 pub mod power;
