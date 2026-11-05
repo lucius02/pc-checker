@@ -190,50 +190,116 @@ pub fn problem_code_meaning(code: u32) -> &'static str {
     }
 }
 
-/// Klassespecifiek advies voor het bijwerken van een driver.
-pub fn class_advice(class: &str) -> &'static str {
-    match class {
-        "DISPLAY" => {
-            crate::tr!(
-                "Doe een schone installatie: verwijder de huidige driver met DDU (Display Driver Uninstaller) in Veilige modus en installeer daarna de nieuwste driver van NVIDIA, AMD of Intel. Verouderde/beschadigde GPU-drivers zijn een bekende oorzaak van TDR-freezes (scherm bevriest enkele seconden).",
-                "Do a clean install: remove the current driver with DDU (Display Driver Uninstaller) in Safe Mode, then install the latest driver from NVIDIA, AMD or Intel. Outdated/corrupted GPU drivers are a known cause of TDR freezes (the screen freezes for a few seconds)."
-            )
-        }
-        "SCSIADAPTER" | "HDC" => {
-            crate::tr!(
-                "Update de chipset-, AHCI- of NVMe-driver via de supportpagina van je moederbord- of laptopfabrikant (of Intel RST / AMD chipset / Samsung NVMe). Verouderde opslagcontroller-drivers veroorzaken schijf-time-outs (storahci/stornvme) en freezes van enkele seconden.",
-                "Update the chipset, AHCI or NVMe driver from your motherboard or laptop manufacturer's support page (or Intel RST / AMD chipset / Samsung NVMe). Outdated storage controller drivers cause disk timeouts (storahci/stornvme) and freezes of a few seconds."
-            )
-        }
-        "SYSTEM" => {
-            crate::tr!(
-                "Installeer het nieuwste chipset-/platformpakket van Intel of AMD, of via de supportpagina/tool van je moederbord- of laptopfabrikant (bijv. Lenovo Vantage, Dell SupportAssist, MSI Center).",
-                "Install the latest chipset/platform package from Intel or AMD, or via your motherboard or laptop manufacturer's support page/tool (e.g. Lenovo Vantage, Dell SupportAssist, MSI Center)."
-            )
-        }
-        "NET" => {
-            crate::tr!(
-                "Download de nieuwste netwerkdriver van Intel, Realtek, Killer of de laptopfabrikant. Oude netwerkdrivers veroorzaken vaak hoge DPC-latency (ndis.sys) en haperingen; schakel bij stotteringen ook 'Energy Efficient Ethernet' en energiebesparing van de adapter uit.",
-                "Download the latest network driver from Intel, Realtek, Killer or the laptop manufacturer. Old network drivers often cause high DPC latency (ndis.sys) and stutters; if you get stutters, also disable 'Energy Efficient Ethernet' and the adapter's power saving."
-            )
-        }
-        "MEDIA" | "AUDIOENDPOINT" => {
-            crate::tr!(
-                "Update de audiodriver (Realtek, Intel Smart Sound, NVIDIA/AMD HDMI-audio) via de fabrikant. Audiodrivers zijn een bekende bron van DPC-latency, krakend geluid en micro-stutters.",
-                "Update the audio driver (Realtek, Intel Smart Sound, NVIDIA/AMD HDMI audio) from the manufacturer. Audio drivers are a known source of DPC latency, crackling sound and micro-stutters."
-            )
-        }
-        "USB" => {
-            crate::tr!(
-                "Update de USB-/Thunderbolt-controllerdriver via het chipsetpakket van de fabrikant en schakel 'Selectief onderbreken van USB' uit in Energiebeheer bij haperingen of wegvallende apparaten.",
-                "Update the USB/Thunderbolt controller driver via the manufacturer's chipset package, and disable 'USB selective suspend' in Power Options if devices stutter or drop out."
-            )
-        }
-        _ => {
-            crate::tr!(
-                "Zoek een recentere driver bij de fabrikant van het apparaat of via Windows Update (optionele updates).",
-                "Look for a newer driver from the device manufacturer or via Windows Update (optional updates)."
-            )
-        }
-    }
+/// Klassespecifiek advies voor het bijwerken van een driver: waarom het ertoe doet en de stappen.
+pub struct ClassGuidance {
+    pub why: Option<String>,
+    pub steps: Vec<String>,
+}
+
+fn s(nl: &str, en: &str) -> String {
+    crate::tr!(nl, en).to_string()
+}
+
+pub fn class_guidance(class: &str) -> ClassGuidance {
+    let (why, steps) = match class {
+        "DISPLAY" => (
+            Some(s(
+                "Verouderde of beschadigde videodrivers zijn een bekende oorzaak van TDR-freezes: het scherm bevriest een paar seconden.",
+                "Outdated or corrupted graphics drivers are a known cause of TDR freezes: the screen freezes for a few seconds.",
+            )),
+            vec![
+                s(
+                    "Download de nieuwste driver van de officiële site van NVIDIA, AMD of Intel.",
+                    "Download the latest driver from the official NVIDIA, AMD or Intel website.",
+                ),
+                s(
+                    "Start Windows in Veilige modus en verwijder de huidige driver met DDU (Display Driver Uninstaller).",
+                    "Start Windows in Safe Mode and remove the current driver with DDU (Display Driver Uninstaller).",
+                ),
+                s(
+                    "Start normaal op en installeer de gedownloade driver.",
+                    "Restart normally and install the downloaded driver.",
+                ),
+            ],
+        ),
+        "SCSIADAPTER" | "HDC" => (
+            Some(s(
+                "Verouderde opslagcontroller-drivers veroorzaken schijf-time-outs (storahci/stornvme) en freezes van enkele seconden.",
+                "Outdated storage controller drivers cause disk timeouts (storahci/stornvme) and freezes of a few seconds.",
+            )),
+            vec![
+                s(
+                    "Ga naar de supportpagina van je moederbord- of laptopfabrikant.",
+                    "Go to your motherboard or laptop manufacturer's support page.",
+                ),
+                s(
+                    "Installeer de nieuwste chipset-, AHCI- of NVMe-driver (of Intel RST, AMD chipset of Samsung NVMe).",
+                    "Install the latest chipset, AHCI or NVMe driver (or Intel RST, AMD chipset or Samsung NVMe).",
+                ),
+            ],
+        ),
+        "SYSTEM" => (
+            Some(s(
+                "Chipsetdrivers regelen het energiebeheer en de communicatie tussen de processor en de rest van de pc.",
+                "Chipset drivers handle power management and communication between the processor and the rest of the PC.",
+            )),
+            vec![
+                s(
+                    "Installeer het nieuwste chipset-/platformpakket van Intel of AMD.",
+                    "Install the latest chipset/platform package from Intel or AMD.",
+                ),
+                s(
+                    "Of gebruik de tool van je fabrikant, zoals Lenovo Vantage, Dell SupportAssist of MSI Center.",
+                    "Or use your manufacturer's tool, such as Lenovo Vantage, Dell SupportAssist or MSI Center.",
+                ),
+            ],
+        ),
+        "NET" => (
+            Some(s(
+                "Oude netwerkdrivers veroorzaken vaak hoge DPC-latency (ndis.sys) en haperingen.",
+                "Old network drivers often cause high DPC latency (ndis.sys) and stutters.",
+            )),
+            vec![
+                s(
+                    "Download de nieuwste netwerkdriver van Intel, Realtek, Killer of je laptopfabrikant.",
+                    "Download the latest network driver from Intel, Realtek, Killer or your laptop manufacturer.",
+                ),
+                s(
+                    "Hapert het daarna nog? Zet 'Energy Efficient Ethernet' en de energiebesparing van de adapter uit (Apparaatbeheer → adapter → Geavanceerd / Energiebeheer).",
+                    "Still stuttering? Turn off 'Energy Efficient Ethernet' and the adapter's power saving (Device Manager → adapter → Advanced / Power Management).",
+                ),
+            ],
+        ),
+        "MEDIA" | "AUDIOENDPOINT" => (
+            Some(s(
+                "Audiodrivers zijn een bekende bron van DPC-latency, krakend geluid en micro-stutters.",
+                "Audio drivers are a known source of DPC latency, crackling sound and micro-stutters.",
+            )),
+            vec![s(
+                "Update de audiodriver via de fabrikant (Realtek, Intel Smart Sound of NVIDIA/AMD HDMI-audio).",
+                "Update the audio driver from the manufacturer (Realtek, Intel Smart Sound or NVIDIA/AMD HDMI audio).",
+            )],
+        ),
+        "USB" => (
+            None,
+            vec![
+                s(
+                    "Update de USB-/Thunderbolt-controllerdriver via het chipsetpakket van de fabrikant.",
+                    "Update the USB/Thunderbolt controller driver via the manufacturer's chipset package.",
+                ),
+                s(
+                    "Vallen apparaten weg of hapert het? Zet 'Selectief onderbreken van USB' uit in Energiebeheer.",
+                    "Devices dropping out or stuttering? Turn off 'USB selective suspend' in Power Options.",
+                ),
+            ],
+        ),
+        _ => (
+            None,
+            vec![s(
+                "Zoek een recentere driver bij de fabrikant van het apparaat, of via Windows Update → Geavanceerde opties → Optionele updates.",
+                "Look for a newer driver from the device manufacturer, or via Windows Update → Advanced options → Optional updates.",
+            )],
+        ),
+    };
+    ClassGuidance { why, steps }
 }

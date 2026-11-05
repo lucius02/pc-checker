@@ -353,7 +353,25 @@ pub struct DriverEntry {
     /// "OK" | "Verouderd" | "Probleem" | "Niet ondertekend"
     pub status: String,
     pub problem_code: Option<u32>,
+    /// Hele advies als één tekst (voor het rapport en oudere weergaven).
     pub advice: String,
+    /// Hetzelfde advies, opgesplitst voor een overzichtelijke weergave.
+    pub advice_detail: DriverAdvice,
+}
+
+/// Gestructureerd driveradvies: wat er mis is, waarom het ertoe doet en wat je moet doen.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct DriverAdvice {
+    /// Korte kop: wat er aan de hand is.
+    pub title: String,
+    /// Waarom dit ertoe doet (optioneel).
+    pub why: Option<String>,
+    /// Concrete stappen, in volgorde.
+    pub steps: Vec<String>,
+    /// Kop voor het vervolgplan als de stappen niet helpen (bijv. "Blijft de fout?").
+    pub fallback_title: Option<String>,
+    pub fallback_steps: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, TS, Clone, Debug)]

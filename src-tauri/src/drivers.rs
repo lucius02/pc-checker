@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use chrono::{Datelike, NaiveDate};
 use serde_json::Value;
 
-use crate::models::{DriverEntry, DriverReport};
+use crate::models::{DriverAdvice, DriverEntry, DriverReport};
 
 #[path = "drivers_helpers.rs"]
 mod drivers_helpers;
@@ -441,74 +441,176 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
     let inbox = is_microsoft_inbox(d);
     let is_basic_display = d.class == "DISPLAY" && d.name.to_lowercase().contains("basic display");
 
-    let (status, advice) = if let Some(code) = problem_code {
-        let meaning = problem_code_meaning(code);
-        let action = match code {
-            22 => crate::tr!("Heb je dit apparaat bewust uitgeschakeld, dan is er geen actie nodig. Zo niet: schakel het weer in via Apparaatbeheer.", "If you disabled this device on purpose, no action is needed. If not: re-enable it in Device Manager.").to_string(),
-            14 | 38 => crate::tr!("Herstart de computer en scan opnieuw.", "Restart the computer and scan again.").to_string(),
-            28 | 18 | 39 | 31 | 37 | 10 | 43 | 52 => crate::tr!(format!(
-                "Veilige oplossing: open Apparaatbeheer, klik met de rechtermuisknop op dit apparaat en kies 'Apparaat verwijderen' (laat 'stuurprogramma verwijderen' UIT). Klik daarna op 'Actie' -> 'Zoeken naar gewijzigde apparaten' zodat Windows de schone driver lokaal herstelt (geen downloads nodig). Blijft de fout? Update via Windows Update (Optionele updates) of de officiële fabrikantsite. {}",
-                class_advice(&d.class)
-            ), format!("Safe fix: open Device Manager, right-click this device and choose 'Uninstall device' (leave 'delete the driver software' UNCHECKED). Then click 'Action' -> 'Scan for hardware changes' so Windows restores the clean driver locally (no downloads needed). Still failing? Update via Windows Update (Optional updates) or the official manufacturer site. {}",
-                class_advice(&d.class)
-            )),
-            _ => class_advice(&d.class).to_string(),
-        };
-        ("Probleem", format!("{} {}", meaning, action))
+    let t = |nl: &str, en: &str| crate::tr!(nl, en).to_string();
+    let guide = class_guidance(&d.class);
+
+    let (status, detail) = if let Some(code) = problem_code {
+        let title = problem_code_meaning(code).to_string();
+        match code {
+            22 => (
+                "Probleem",
+                DriverAdvice {
+                    title,
+                    steps: vec![
+                        t(
+                            "Heb je dit apparaat bewust uitgeschakeld? Dan hoef je niets te doen.",
+                            "Did you disable this device on purpose? Then there is nothing to do.",
+                        ),
+                        t(
+                            "Zo niet: open Apparaatbeheer, klik met rechts op het apparaat en kies 'Apparaat inschakelen'.",
+                            "If not: open Device Manager, right-click the device and choose 'Enable device'.",
+                        ),
+                    ],
+                    ..Default::default()
+                },
+            ),
+            14 | 38 => (
+                "Probleem",
+                DriverAdvice {
+                    title,
+                    steps: vec![
+                        t("Herstart de computer.", "Restart the computer."),
+                        t(
+                            "Voer de driver-scan opnieuw uit.",
+                            "Run the driver scan again.",
+                        ),
+                    ],
+                    ..Default::default()
+                },
+            ),
+            28 | 18 | 39 | 31 | 37 | 10 | 43 | 52 => (
+                "Probleem",
+                DriverAdvice {
+                    title,
+                    why: Some(t(
+                        "De juiste driver staat meestal al op je pc. Zo laat je Windows hem veilig opnieuw installeren, zonder iets te downloaden:",
+                        "The right driver is usually already on your PC. This lets Windows reinstall it safely, without downloading anything:",
+                    )),
+                    steps: vec![
+                        t(
+                            "Open Apparaatbeheer (knop hieronder).",
+                            "Open Device Manager (button below).",
+                        ),
+                        t(
+                            "Klik met rechts op dit apparaat en kies 'Apparaat verwijderen'. Laat het vinkje 'Stuurprogramma verwijderen' UIT staan.",
+                            "Right-click this device and choose 'Uninstall device'. Leave 'Delete the driver software' UNCHECKED.",
+                        ),
+                        t(
+                            "Klik bovenin op 'Actie' → 'Zoeken naar gewijzigde apparaten'. Windows installeert de driver opnieuw.",
+                            "Click 'Action' → 'Scan for hardware changes' at the top. Windows reinstalls the driver.",
+                        ),
+                    ],
+                    fallback_title: Some(t(
+                        "Blijft de fout daarna? Werk de driver bij:",
+                        "Still failing after that? Update the driver:",
+                    )),
+                    fallback_steps: guide.steps,
+                },
+            ),
+            _ => (
+                "Probleem",
+                DriverAdvice {
+                    title,
+                    why: guide.why,
+                    steps: guide.steps,
+                    ..Default::default()
+                },
+            ),
+        }
     } else if d.is_signed == Some(false) {
         (
             "Niet ondertekend",
-            crate::tr!("Deze driver is niet digitaal ondertekend. Niet-ondertekende kernel-drivers kunnen instabiliteit, blauwe schermen en freezes veroorzaken; verwijder de bijbehorende software of vervang de driver door een ondertekende versie van de fabrikant.", "This driver is not digitally signed. Unsigned kernel drivers can cause instability, blue screens and freezes; remove the related software or replace the driver with a signed version from the manufacturer.").to_string(),
+            DriverAdvice {
+                title: t(
+                    "Deze driver is niet digitaal ondertekend.",
+                    "This driver is not digitally signed.",
+                ),
+                why: Some(t(
+                    "Niet-ondertekende kernel-drivers kunnen instabiliteit, blauwe schermen en freezes veroorzaken.",
+                    "Unsigned kernel drivers can cause instability, blue screens and freezes.",
+                )),
+                steps: vec![
+                    t(
+                        "Zoek uit bij welke software deze driver hoort (de leverancier staat hierboven).",
+                        "Find out which software this driver belongs to (the vendor is shown above).",
+                    ),
+                    t(
+                        "Verwijder die software, of vervang de driver door een ondertekende versie van de fabrikant.",
+                        "Uninstall that software, or replace the driver with a signed version from the manufacturer.",
+                    ),
+                ],
+                ..Default::default()
+            },
         )
     } else if is_basic_display {
         (
             "Verouderd",
-            crate::tr!("Windows gebruikt de generieke 'Microsoft Basic Display Adapter': er is geen echte videokaartdriver geïnstalleerd. Dit geeft schokkerig beeld en geen hardwareversnelling. Installeer de driver van NVIDIA, AMD of Intel (bij problemen eerst opschonen met DDU).", "Windows is using the generic 'Microsoft Basic Display Adapter': no real graphics driver is installed. This causes choppy video and no hardware acceleration. Install the driver from NVIDIA, AMD or Intel (if there are problems, clean up with DDU first).").to_string(),
+            DriverAdvice {
+                title: t(
+                    "Er is geen echte videokaartdriver geïnstalleerd.",
+                    "No real graphics driver is installed.",
+                ),
+                why: Some(t(
+                    "Windows gebruikt nu de generieke 'Microsoft Basic Display Adapter'. Dat geeft schokkerig beeld en geen hardwareversnelling.",
+                    "Windows is using the generic 'Microsoft Basic Display Adapter'. That causes choppy video and no hardware acceleration.",
+                )),
+                steps: guide.steps,
+                ..Default::default()
+            },
         )
     } else if let (false, Some(a), Some(max)) = (inbox, age, max_age_for_class(&d.class)) {
         if a > max {
             (
                 "Verouderd",
-                crate::tr!(
-                    format!(
-                        "Mogelijk verouderd: deze driver is {:.1} jaar oud (drempel voor deze klasse: {} jaar). {}",
-                        a,
-                        max,
-                        class_advice(&d.class)
+                DriverAdvice {
+                    title: crate::tr!(
+                        format!(
+                            "Mogelijk verouderd: deze driver is {:.1} jaar oud (grens voor dit type: {} jaar).",
+                            a, max
+                        ),
+                        format!(
+                            "Possibly outdated: this driver is {:.1} years old (limit for this type: {} years).",
+                            a, max
+                        )
                     ),
-                    format!(
-                        "Possibly outdated: this driver is {:.1} years old (threshold for this class: {} years). {}",
-                        a,
-                        max,
-                        class_advice(&d.class)
-                    )
-                ),
+                    why: guide.why,
+                    steps: guide.steps,
+                    ..Default::default()
+                },
             )
         } else {
             (
                 "OK",
-                crate::tr!("Geen actie nodig.", "No action needed.").to_string(),
+                DriverAdvice {
+                    title: t("Geen actie nodig.", "No action needed."),
+                    ..Default::default()
+                },
             )
         }
     } else if inbox {
         (
             "OK",
-            if is_storage_class(&d.class) {
-                crate::tr!("Microsoft standaard-driver (bijv. stornvme/storahci), wordt bijgewerkt via Windows Update. Meestal stabiel; overweeg alleen bij schijf-freezes de driver van de fabrikant.", "Microsoft inbox driver (e.g. stornvme/storahci), updated via Windows Update. Usually stable; only consider the manufacturer's driver if you get disk freezes.").to_string()
-            } else {
-                crate::tr!(
-                    "Microsoft standaard-driver, wordt bijgewerkt via Windows Update.",
-                    "Microsoft inbox driver, updated via Windows Update."
-                )
-                .to_string()
+            DriverAdvice {
+                title: t("Microsoft-standaarddriver, wordt bijgewerkt via Windows Update.", "Microsoft inbox driver, updated via Windows Update."),
+                why: is_storage_class(&d.class).then(|| {
+                    t(
+                        "Meestal stabiel. Alleen bij schijf-freezes is de driver van de fabrikant het proberen waard.",
+                        "Usually stable. Only if you get disk freezes is the manufacturer's driver worth trying.",
+                    )
+                }),
+                ..Default::default()
             },
         )
     } else {
         (
             "OK",
-            crate::tr!("Geen actie nodig.", "No action needed.").to_string(),
+            DriverAdvice {
+                title: t("Geen actie nodig.", "No action needed."),
+                ..Default::default()
+            },
         )
     };
+    let advice = flatten_advice(&detail);
 
     DriverEntry {
         device_name: if d.name.is_empty() {
@@ -525,7 +627,25 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
         status: status.to_string(),
         problem_code,
         advice,
+        advice_detail: detail,
     }
+}
+
+/// Platte tekstversie van het advies (rapport, tests, oudere weergaven).
+pub fn flatten_advice(a: &DriverAdvice) -> String {
+    let mut parts = vec![a.title.clone()];
+    parts.extend(a.why.clone());
+    parts.extend(
+        a.steps
+            .iter()
+            .enumerate()
+            .map(|(i, s)| format!("{}. {}", i + 1, s)),
+    );
+    if !a.fallback_steps.is_empty() {
+        parts.extend(a.fallback_title.clone());
+        parts.extend(a.fallback_steps.iter().map(|s| format!("- {}", s)));
+    }
+    parts.join(" ")
 }
 
 #[cfg(test)]

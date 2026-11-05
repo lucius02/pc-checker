@@ -26,6 +26,7 @@ import { cn } from "../../utils/cn";
 import { intlLocale, useT, type MessageKey } from "../../i18n";
 import { RichText } from "../../i18n/RichText";
 import { useStatusLabel } from "../../i18n/status";
+import { DriverAdviceView } from "./drivers/DriverAdviceView";
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -404,29 +405,12 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                         </div>
                       </div>
 
-                      {entry.status !== "OK" || !/^(Geen actie nodig|No action needed)\.$/.test(entry.advice) ? (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                          <div
-                            className={cn(
-                              "flex items-start gap-2 text-xs leading-relaxed flex-1",
-                              entry.status === "OK" ? "text-slate-400" : "text-slate-300"
-                            )}
-                          >
-                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
-                            <span>{entry.advice}</span>
-                          </div>
-                          {entry.status === "Probleem" && (
-                            <button
-                              type="button"
-                              onClick={handleOpenDeviceManager}
-                              className="px-3 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 self-start sm:self-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
-                              title={t("drivers.openInDmTitle")}
-                            >
-                              <Wrench className="w-3.5 h-3.5 text-rose-400" />
-                              {t("drivers.openInDm")}
-                            </button>
-                          )}
-                        </div>
+                      {entry.status !== "OK" || entry.advice_detail.why || !/^(Geen actie nodig|No action needed)\.$/.test(entry.advice_detail.title) ? (
+                        <DriverAdviceView
+                          status={entry.status}
+                          advice={entry.advice_detail}
+                          onOpenDeviceManager={entry.status === "Probleem" ? handleOpenDeviceManager : undefined}
+                        />
                       ) : null}
                     </div>
                   );

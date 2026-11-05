@@ -42,6 +42,11 @@ fn drivers_problem_device_is_probleem() {
     assert_eq!(hub.status, "Probleem");
     assert_eq!(hub.problem_code, Some(43));
     assert!(hub.advice.contains("Code 43"));
+    // Gestructureerd: kop = foutcode, drie herstelstappen, daarna een vervolgplan.
+    assert!(hub.advice_detail.title.starts_with("Code 43"));
+    assert_eq!(hub.advice_detail.steps.len(), 3);
+    assert!(hub.advice_detail.fallback_title.is_some());
+    assert!(!hub.advice_detail.fallback_steps.is_empty());
     // Niet-gematcht probleemapparaat (code 28) komt ook in de lijst.
     let unk = find(&r, "Onbekend apparaat").expect("code 28 ontbreekt");
     assert_eq!(unk.status, "Probleem");
@@ -191,4 +196,19 @@ fn drivers_live_scan() {
         );
     }
     assert!(super::last_report().is_some());
+}
+
+#[test]
+fn advice_is_structured_into_title_and_steps() {
+    use crate::i18n::with_language;
+    let d = with_language(false, || {
+        flatten_advice(&crate::models::DriverAdvice {
+            title: "Kop.".into(),
+            why: Some("Waarom.".into()),
+            steps: vec!["Een".into(), "Twee".into()],
+            fallback_title: Some("Blijft het?".into()),
+            fallback_steps: vec!["Drie".into()],
+        })
+    });
+    assert_eq!(d, "Kop. Waarom. 1. Een 2. Twee Blijft het? - Drie");
 }

@@ -194,6 +194,7 @@ fn entry(name: &str, class: &str, status: &str) -> DriverEntry {
         status: status.into(),
         problem_code: None,
         advice: String::new(),
+        advice_detail: Default::default(),
     }
 }
 
