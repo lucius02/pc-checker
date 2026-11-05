@@ -52,3 +52,7 @@ $RECYCLE.BIN/
 \.vscode
 # ts-rs standaardmap (bindings horen in src/types/generated)
 src-tauri/bindings/
+
+# Updater-sleutels: nooit committen (signer generate maakte ooit een map "~" in de repo)
+/~/
+*.key

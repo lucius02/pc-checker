@@ -174,7 +174,7 @@ Op Linux bestaat geen SmartScreen; `.deb`/`.AppImage`-bestanden worden doorgaans
 
 ---
 
-## 4. Automatische updates (nog niet ingeschakeld)
+## 4. Automatische updates
 
 ### Wat het doet
 
@@ -199,39 +199,55 @@ Het zijn twee verschillende sloten op twee verschillende deuren:
 
 Zonder de updater-handtekening zou iedereen die jouw GitHub-account of de download-URL weet te kapen, kwaadaardige "updates" kunnen uitdelen die automatisch op alle pc's worden geïnstalleerd. De handtekening voorkomt dat: alleen wie de privésleutel heeft, kan een update maken die de app accepteert.
 
-### Waarom is het nog niet aangezet?
+### Hoe het in dit project is ingesteld
 
-De updater-plugin heeft bij het opstarten een geldige publieke sleutel nodig, en dit project kan geen sleutel voor je verzinnen: jij moet hem maken en de privésleutel veilig bewaren. Een half ingestelde updater zou de app laten crashen of een update-check doen die altijd faalt. Daarom staat hij uit tot je hem bewust inschakelt.
+Dit staat aan. Zo hangt het in elkaar:
 
-### Inschakelen
+**1. Sleutelpaar (eenmalig, al gedaan).** Gemaakt met:
 
-**1. Maak een sleutelpaar:**
-
-```bash
-npm run tauri signer generate -- -w ~/.tauri/pc-checker.key
+```powershell
+npm run tauri signer generate -- -w "$HOME\.tauri\pc-checker.key"
 ```
 
-Je krijgt twee dingen:
-- `pc-checker.key`: de **privésleutel**. Geheim houden, nooit committen, en maak een back-up (bijv. in een wachtwoordmanager).
-- `pc-checker.key.pub`: de **publieke sleutel**. Die mag iedereen zien; hij komt in je app.
+Gebruik op Windows `$HOME` en niet `~`. PowerShell geeft `~` letterlijk door aan npm; dan komt de sleutel in een map die echt `~` heet, **in de repo**. Daarom staan `/~/` en `*.key` in `.gitignore`.
+
+- `pc-checker.key`: de **privésleutel**. Geheim, nooit committen, maak een back-up (bijv. in een wachtwoordmanager).
+- `pc-checker.key.pub`: de **publieke sleutel**. Die mag iedereen zien; hij staat in `tauri.conf.json`.
 
 > ⚠️ **Raak je de privésleutel kwijt, dan kun je bestaande installaties nooit meer bijwerken.** Ze accepteren alleen updates die met die ene sleutel zijn getekend. Gebruikers moeten dan handmatig opnieuw installeren. Bewaar hem dus goed.
 
-**2. Zet de privésleutel als secrets in GitHub:** `TAURI_SIGNING_PRIVATE_KEY` (de inhoud van het `.key`-bestand) en `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Geef ze in `release.yml` mee als `env` aan de `tauri-action`-stap. Tauri tekent dan elke update tijdens het bouwen.
+**2. Secrets in GitHub** (*Settings → Secrets and variables → Actions*): `TAURI_SIGNING_PRIVATE_KEY` (de inhoud van `pc-checker.key`) en `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. In `release.yml` worden ze als `env` aan de `tauri-action`-stap meegegeven:
 
-**3. Voeg de plugin toe aan de app:**
-- Rust: `tauri-plugin-updater` in `Cargo.toml` en `.plugin(tauri_plugin_updater::Builder::new().build())` in `lib.rs`.
-- Frontend: `@tauri-apps/plugin-updater`, om bij het opstarten `check()` aan te roepen en een "Update beschikbaar"-melding te tonen.
+```yaml
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+```
 
-**4. Configureer `tauri.conf.json`:**
-- `"createUpdaterArtifacts": true` onder `bundle`, zodat de build `latest.json` en de handtekeningbestanden maakt.
-- Onder `plugins.updater`: de `pubkey` (inhoud van `pc-checker.key.pub`) en als endpoint
+*Waarom zo?* Een workflowstap ziet secrets niet vanzelf; je geeft ze per stap door. `${{ secrets.X }}` wordt tijdens het draaien vervangen door de waarde, en in de log toont GitHub `***`. De Tauri-build zoekt precies deze twee namen en tekent daarmee de updatebestanden.
+
+> Ontbreekt de sleutel terwijl `createUpdaterArtifacts` aan staat, dan **faalt de release-build**. Dat is bewust: liever geen release dan een update die niemand kan installeren.
+
+**3. De plugins in de app:**
+- Rust: `tauri-plugin-updater` en `tauri-plugin-process` in `Cargo.toml`, geregistreerd in `lib.rs`. De process-plugin is nodig om de app na de update te herstarten.
+- Frontend: `src/components/UpdateNotice.tsx` roept bij het opstarten `check()` aan. Is er een nieuwere versie, dan verschijnt een balk met *Installeren en herstarten* (met voortgang) en een kruisje voor *Later*. Later onthoudt die versie; bij de volgende versie verschijnt de balk weer. Tijdens `tauri dev` en in de browser wordt niet gecontroleerd. Mislukt de check (geen internet, nog geen release met `latest.json`), dan gebeurt er niets.
+
+**4. `tauri.conf.json`:**
+- `"createUpdaterArtifacts": true` onder `bundle`: de build maakt dan `latest.json` en de `.sig`-handtekeningbestanden, en `tauri-action` zet ze bij de release.
+- Onder `plugins.updater`: de `pubkey` en als endpoint
   `https://github.com/lucius02/pc-checker/releases/latest/download/latest.json`.
   Die URL wijst altijd naar de nieuwste **gepubliceerde** release. Concepten tellen niet mee; nog een reden om eerst te controleren en dan pas te publiceren.
+- `"windows": { "installMode": "passive" }`: Windows toont alleen een voortgangsbalk, zonder vragen.
 
-**5. Geef toestemming:** voeg `updater:default` toe aan `src-tauri/capabilities/default.json`.
+**5. Toestemming:** `updater:default` en `process:allow-restart` in `src-tauri/capabilities/default.json`.
 
-*Waarom die laatste stap?* Tauri v2 werkt met **capabilities**: de webpagina in de app mag standaard niets met het systeem, tenzij je het per functie expliciet toestaat. Mocht er ooit kwaadaardige code in de frontend terechtkomen, dan kan die alleen de functies gebruiken die jij hebt vrijgegeven. Daarom staan in `default.json` ook al `dialog:allow-save` en `fs:allow-write-text-file` (nodig voor het exporteren van rapporten), en verder niets.
+**Goed om te weten:**
+- De eerste release met de updater kan zichzelf nog niet bijwerken: die heeft de updater pas *na* installatie. Vanaf de daaropvolgende release werkt het automatisch.
+- Op Linux werkt de updater alleen met de **AppImage**. Wie de `.deb` installeerde, update via een nieuwe `.deb`.
+
+*Waarom die laatste stap?* Tauri v2 werkt met **capabilities**: de webpagina in de app mag standaard niets met het systeem, tenzij je het per functie expliciet toestaat. Mocht er ooit kwaadaardige code in de frontend terechtkomen, dan kan die alleen de functies gebruiken die jij hebt vrijgegeven. Daarom staan in `default.json` alleen `dialog:allow-save` en `fs:allow-write-text-file` (nodig voor het exporteren van rapporten), de twee updater-rechten hierboven, en verder niets.
 
 ---
 
@@ -265,4 +281,4 @@ Je krijgt twee dingen:
 4. Concept-release controleren: installer testen, release notes schrijven.
 5. **Publish release**.
 
-Eenmalig, optioneel: code-signing-secrets toevoegen (hoofdstuk 3) en de updater inschakelen (hoofdstuk 4).
+Eenmalig, optioneel: code-signing-secrets toevoegen (hoofdstuk 3). De updater staat al aan (hoofdstuk 4).

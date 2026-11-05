@@ -7,6 +7,10 @@ name: Release
 #   WINDOWS_CERTIFICATE           base64 van het .pfx-certificaat
 #   WINDOWS_CERTIFICATE_PASSWORD  wachtwoord van het .pfx-bestand
 # Zonder deze secrets worden de installers ongetekend gebouwd (SmartScreen-waarschuwing).
+#
+# Updater-handtekening (verplicht sinds createUpdaterArtifacts aan staat, zie RELEASING.md):
+#   TAURI_SIGNING_PRIVATE_KEY           inhoud van pc-checker.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  wachtwoord van die sleutel
 
 on:
   push:
@@ -62,6 +66,9 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tekent de updatebestanden; de app installeert alleen updates met een geldige handtekening.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           releaseName: "PC Checker ${{ github.ref_name }}"

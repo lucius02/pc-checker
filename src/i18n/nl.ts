@@ -73,6 +73,11 @@ export const coreNl = {
 
   "toast.dismiss": "Sluiten",
   "advice.howToFix": "Zo los je het op",
+  "update.available": "Versie {v} is beschikbaar (je hebt {c})",
+  "update.install": "Installeren en herstarten",
+  "update.installing": "Downloaden… {p}%",
+  "update.later": "Later (tot de volgende versie)",
+  "update.failed": "Update installeren mislukt",
   "error.overview": "Systeeminformatie ophalen mislukt",
   "error.freeze": "Freeze-diagnose mislukt",
   "error.battery": "Batterijtest mislukt",

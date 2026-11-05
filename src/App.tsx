@@ -10,6 +10,7 @@ import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
 import { Footer } from "./components/Footer";
 import { Toaster } from "./components/Toaster";
+import { UpdateNotice } from "./components/UpdateNotice";
 import { OverviewTab } from "./components/tabs/OverviewTab";
 import { PowerTab } from "./components/tabs/PowerTab";
 import { CoolingTab } from "./components/tabs/CoolingTab";
@@ -86,6 +87,7 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none">
       <Header />
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} freezeData={s.freezeData} />
+      <UpdateNotice />
 
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
         {s.isLoading && !data ? (

@@ -41,6 +41,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        // Automatische updates: controleert latest.json op GitHub en accepteert alleen getekende updates.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Voor de herstart na het installeren van een update.
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             if let Ok(dir) = app.path().app_data_dir() {
                 history::init(dir);

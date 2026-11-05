@@ -71,6 +71,11 @@ const coreEn: Record<keyof typeof coreNl, string> = {
 
   "toast.dismiss": "Dismiss",
   "advice.howToFix": "How to fix it",
+  "update.available": "Version {v} is available (you have {c})",
+  "update.install": "Install and restart",
+  "update.installing": "Downloading… {p}%",
+  "update.later": "Later (until the next version)",
+  "update.failed": "Failed to install the update",
   "error.overview": "Failed to fetch system information",
   "error.freeze": "Freeze diagnosis failed",
   "error.battery": "Battery test failed",
