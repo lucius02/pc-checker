@@ -21,6 +21,8 @@ fn all_good() -> HealthInputs {
         cpu_stress_ok: Some(true),
         ram_test_ok: Some(true),
         disk_test_ok: Some(true),
+        storage_smart_warning_count: Some(0),
+        storage_smart_critical_count: Some(0),
     }
 }
 
@@ -211,6 +213,8 @@ fn health_score_and_grade_always_in_range() {
             cpu_stress_ok: Some(false),
             ram_test_ok: Some(false),
             disk_test_ok: Some(false),
+            storage_smart_warning_count: Some(usize::MAX),
+            storage_smart_critical_count: Some(usize::MAX),
         },
         HealthInputs {
             is_throttling_suspected: true,
@@ -254,4 +258,25 @@ fn health_is_deterministic() {
     let b = compute_health_score(all_good());
     assert_eq!(a.score, b.score);
     assert_eq!(a.top_issues, b.top_issues);
+}
+
+#[test]
+fn smart_critical_caps_storage_category() {
+    let h = compute_health_score(HealthInputs {
+        storage_smart_critical_count: Some(1),
+        ..all_good()
+    });
+    let storage = cat(&h, "storage").unwrap();
+    assert_eq!(storage.status, STATUS_CRIT);
+    assert!(storage.score <= 25);
+    assert!(h.top_issues.iter().any(|t| t.contains("SMART")));
+}
+
+#[test]
+fn smart_warning_lowers_storage_to_warn() {
+    let h = compute_health_score(HealthInputs {
+        storage_smart_warning_count: Some(2),
+        ..all_good()
+    });
+    assert_eq!(cat(&h, "storage").unwrap().status, STATUS_WARN);
 }

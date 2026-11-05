@@ -241,9 +241,7 @@ fn worst(a: &'static str, b: &'static str) -> &'static str {
 pub fn timer_verdict(max_us: f64, gaps_over_1ms: u64) -> &'static str {
     if max_us < MAX_GAP_GOOD_US {
         "Goed"
-    } else if max_us < MAX_GAP_BAD_US {
-        "Matig"
-    } else if gaps_over_1ms <= 1 && max_us < SINGLE_SPIKE_BAD_US {
+    } else if max_us < MAX_GAP_BAD_US || (gaps_over_1ms <= 1 && max_us < SINGLE_SPIKE_BAD_US) {
         "Matig"
     } else {
         "Slecht"
@@ -434,7 +432,7 @@ fn build_result(
     }
 }
 
-fn run_latency_test_blocking(duration_secs: u64) -> LatencyTestResult {
+pub fn run_latency_test_blocking(duration_secs: u64) -> LatencyTestResult {
     let secs = duration_secs.clamp(MIN_DURATION_SECS, MAX_DURATION_SECS);
     // Counters eerst starten (PowerShell heeft ~1 s opstarttijd), daarna de spin-loop.
     let counter_thread = std::thread::spawn(move || collect_counters(secs));
@@ -452,26 +450,6 @@ fn run_latency_test_blocking(duration_secs: u64) -> LatencyTestResult {
     let counters = counter_thread.join().unwrap_or_default();
     let report = crate::drivers::last_report();
     build_result(&stats, elapsed, elevated, &counters, report.as_ref())
-}
-
-#[tauri::command]
-pub async fn run_latency_test(duration_secs: u64) -> LatencyTestResult {
-    match tauri::async_runtime::spawn_blocking(move || run_latency_test_blocking(duration_secs))
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            let mut r = build_result(
-                &GapStats::new(),
-                Duration::ZERO,
-                false,
-                &CounterStats::default(),
-                None,
-            );
-            r.error = Some(format!("Latency-test mislukt: {}", e));
-            r
-        }
-    }
 }
 
 #[cfg(test)]

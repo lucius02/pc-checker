@@ -1,31 +1,32 @@
+pub mod commands;
 pub mod cooling;
 pub mod drivers;
+pub mod elevation;
 pub mod freeze;
 pub mod health;
+pub mod history;
 pub mod latency;
 pub mod models;
 pub mod monitor;
 pub mod power;
 pub mod power_delivery;
 pub mod processes;
+pub mod shell;
+pub mod storage;
 pub mod stress;
 pub mod system;
 pub mod watchdog;
 
-// Re-export models and commands for clean public API and test access
+// Blokkerende implementaties (o.a. voor tests); de Tauri-commando's staan in `commands`.
 pub use cooling::get_cooling_and_fan_info;
-pub use drivers::{open_device_manager, open_windows_update, scan_drivers};
 pub use freeze::scan_freeze_diagnostic;
-pub use health::compute_health_score;
-pub use latency::run_latency_test;
 pub use models::*;
-pub use monitor::get_metrics_history;
 pub use power::{get_power_and_battery_info, run_battery_health_check};
-pub use power_delivery::check_hardware_power_delivery;
-pub use processes::{get_freeze_process_context, get_process_snapshot};
 pub use stress::{run_cpu_stress_test, run_disk_benchmark, run_ram_stress_test};
 pub use system::get_system_overview;
 pub use watchdog::ensure_watchdog_started;
+
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -33,28 +34,42 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            if let Ok(dir) = app.path().app_data_dir() {
+                history::init(dir);
+                // Freezes die vóór de initialisatie al door de Watchdog zijn gezien.
+                for rec in watchdog::get_freeze_records() {
+                    history::record_freeze(rec);
+                }
+            }
             monitor::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_system_overview,
-            get_power_and_battery_info,
-            run_battery_health_check,
-            get_cooling_and_fan_info,
-            scan_freeze_diagnostic,
-            run_cpu_stress_test,
-            run_ram_stress_test,
-            run_disk_benchmark,
-            get_metrics_history,
-            get_process_snapshot,
-            get_freeze_process_context,
-            scan_drivers,
-            open_device_manager,
-            open_windows_update,
-            run_latency_test,
-            compute_health_score,
-            check_hardware_power_delivery
+            commands::get_system_overview,
+            commands::get_power_and_battery_info,
+            commands::run_battery_health_check,
+            commands::get_cooling_and_fan_info,
+            commands::scan_freeze_diagnostic,
+            commands::run_cpu_stress_test,
+            commands::run_ram_stress_test,
+            commands::run_disk_benchmark,
+            commands::get_metrics_history,
+            commands::get_process_snapshot,
+            commands::get_freeze_process_context,
+            commands::scan_drivers,
+            commands::open_device_manager,
+            commands::open_windows_update,
+            commands::run_latency_test,
+            commands::compute_health_score,
+            commands::check_hardware_power_delivery,
+            commands::scan_storage_health,
+            commands::get_history,
+            commands::clear_history,
+            commands::get_elevation_status,
+            commands::restart_as_admin
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -133,11 +133,11 @@ impl Sampler {
             disks.refresh_specifics(true, DiskRefreshKind::nothing().with_io_usage());
         }
         self.tick = self.tick.wrapping_add(1);
-        if self.tick % TEMP_REFRESH_EVERY_TICKS == 0 {
-            if let Some(components) = self.components.as_mut() {
-                components.refresh(false);
-                self.last_temp = max_temperature(components);
-            }
+        if self.tick.is_multiple_of(TEMP_REFRESH_EVERY_TICKS)
+            && let Some(components) = self.components.as_mut()
+        {
+            components.refresh(false);
+            self.last_temp = max_temperature(components);
         }
 
         let now = Instant::now();
@@ -344,7 +344,6 @@ pub fn recent_samples() -> Vec<MetricsSample> {
     lock(&SAMPLES).iter().cloned().collect()
 }
 
-#[tauri::command]
 pub fn get_metrics_history() -> MetricsHistory {
     MetricsHistory {
         interval_ms: SAMPLE_INTERVAL_MS,

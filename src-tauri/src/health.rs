@@ -103,7 +103,6 @@ pub fn label_for(grade: &str) -> &'static str {
 mod health_eval;
 use health_eval::*;
 
-#[tauri::command]
 pub fn compute_health_score(inputs: HealthInputs) -> HealthScore {
     let i = &inputs;
 
@@ -135,7 +134,7 @@ pub fn compute_health_score(inputs: HealthInputs) -> HealthScore {
 
     // Harde plafonds voor kritieke bevindingen.
     let max_temp = finite_f32(i.max_temp_celsius);
-    if max_temp.map_or(false, |t| t >= 95.0) {
+    if max_temp.is_some_and(|t| t >= 95.0) {
         score = score.min(CAP_E);
     }
     if i.driver_problem_count.unwrap_or(0) > 0

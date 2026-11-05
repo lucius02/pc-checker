@@ -83,7 +83,7 @@ fn latency_p99_relative_error_bounded() {
     let s = stats_from(&gaps);
     let p99_ns = s.percentile_us(99.0) * 1000.0;
     assert!(
-        p99_ns >= 99_000.0 && p99_ns <= 99_000.0 * 1.125,
+        (99_000.0..=99_000.0 * 1.125).contains(&p99_ns),
         "p99 = {p99_ns}"
     );
     assert_eq!(GapStats::new().percentile_us(99.0), 0.0);

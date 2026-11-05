@@ -68,7 +68,6 @@ pub fn sort_and_limit(mut list: Vec<ProcessInfo>, key: SortKey, limit: usize) ->
     list
 }
 
-#[tauri::command]
 pub fn get_process_snapshot(sort_by: Option<String>, limit: Option<usize>) -> ProcessSnapshot {
     let key = SortKey::parse(sort_by.as_deref());
     let limit = limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
@@ -163,7 +162,6 @@ pub(crate) fn capture_new_freeze_contexts() {
     }
 }
 
-#[tauri::command]
 pub fn get_freeze_process_context() -> Vec<FreezeProcessContext> {
     let records = get_freeze_records();
     if records.is_empty() {

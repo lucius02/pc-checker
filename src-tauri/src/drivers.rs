@@ -8,7 +8,6 @@
 //! probleemcode) als JSON teruggeeft. Op Linux/macOS (geen PowerShell) degradeert de scan
 //! netjes naar `is_available: false`.
 
-use std::process::Command;
 use std::sync::Mutex;
 
 use chrono::{Datelike, NaiveDate};
@@ -58,41 +57,28 @@ pub fn last_report() -> Option<DriverReport> {
         .clone()
 }
 
-/// Async zodat de WMI-scan (3-4 s) niet de UI-thread blokkeert.
-#[tauri::command]
-pub async fn scan_drivers() -> DriverReport {
-    tauri::async_runtime::spawn_blocking(scan_drivers_blocking)
-        .await
-        .unwrap_or_else(|_| {
-            unavailable_report(
-                chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-                "Driver-scan is onverwacht afgebroken.",
-            )
-        })
+/// Opent een Windows-beheerprogramma of instellingenpagina (no-op op andere platformen).
+fn open_windows_target(target: &str, what: &str) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        crate::shell::hidden_command("cmd")
+            .args(["/c", "start", "", target])
+            .spawn()
+            .map_err(|e| format!("Kon {} niet openen: {}", what, e))?;
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (target, what);
+    }
+    Ok(())
 }
 
-#[tauri::command]
 pub fn open_device_manager() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        Command::new("cmd")
-            .args(["/c", "start", "devmgmt.msc"])
-            .spawn()
-            .map_err(|e| format!("Kon Apparaatbeheer niet openen: {}", e))?;
-    }
-    Ok(())
+    open_windows_target("devmgmt.msc", "Apparaatbeheer")
 }
 
-#[tauri::command]
 pub fn open_windows_update() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        Command::new("cmd")
-            .args(["/c", "start", "ms-settings:windowsupdate"])
-            .spawn()
-            .map_err(|e| format!("Kon Windows Update niet openen: {}", e))?;
-    }
-    Ok(())
+    open_windows_target("ms-settings:windowsupdate", "Windows Update")
 }
 
 pub fn scan_drivers_blocking() -> DriverReport {
@@ -111,23 +97,9 @@ pub fn scan_drivers_blocking() -> DriverReport {
     report
 }
 
-/// Voert het script uit via `powershell` en valt terug op `powershell.exe` (WSL-interop).
-/// Geeft `None` als geen van beide gestart kan worden.
+/// Voert het script uit via de gedeelde PowerShell-helper (verborgen venster, time-out).
 fn run_powershell(script: &str) -> Option<String> {
-    for exe in ["powershell", "powershell.exe"] {
-        let mut cmd = Command::new(exe);
-        cmd.args(["-NoProfile", "-NonInteractive", "-Command", script]);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-        if let Ok(out) = cmd.output() {
-            return Some(String::from_utf8_lossy(&out.stdout).into_owned());
-        }
-    }
-    None
+    crate::shell::run_powershell(script, std::time::Duration::from_secs(60))
 }
 
 fn unavailable_report(scanned_at: String, summary: &str) -> DriverReport {

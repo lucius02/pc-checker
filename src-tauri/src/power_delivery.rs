@@ -1,11 +1,8 @@
 use serde_json::Value;
-use std::process::Command;
-
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
 
 use crate::models::{HardwarePowerCheckReport, PowerComponentCheck};
 use crate::power::{WinSystemPowerStatus, get_system_power_status};
+use crate::shell::run_ps_json;
 use crate::watchdog::ensure_watchdog_started;
 
 /// Evalueert de stroomtoevoer op basis van WMI/EventLog telemetrie en Windows Power API.
@@ -260,8 +257,7 @@ pub fn evaluate_hardware_power(
     }
 }
 
-/// Tauri-commando voor het uitvoeren van de hardware-stroomtoevoercontrole.
-#[tauri::command]
+/// Hardware-stroomtoevoercontrole (blokkerend; via `commands.rs` op een worker-thread).
 pub fn check_hardware_power_delivery() -> HardwarePowerCheckReport {
     ensure_watchdog_started();
 
@@ -292,23 +288,10 @@ $usbSurge = @(Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Mi
 } | ConvertTo-Json -Compress
 "#;
 
-    let mut cmd = Command::new("powershell");
-    cmd.arg("-NoProfile")
-        .arg("-NonInteractive")
-        .arg("-Command")
-        .arg(ps_script);
-
-    #[cfg(target_os = "windows")]
-    {
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
-
-    let parsed_data = match cmd.output() {
-        Ok(out) => {
-            let json_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            serde_json::from_str::<Value>(&json_str).unwrap_or(Value::Null)
-        }
-        Err(_) => Value::Null,
+    let parsed_data = if cfg!(windows) {
+        run_ps_json(ps_script).unwrap_or(Value::Null)
+    } else {
+        Value::Null
     };
 
     evaluate_hardware_power(&parsed_data, power_status)

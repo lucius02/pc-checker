@@ -38,18 +38,21 @@ pub fn ensure_watchdog_started() {
                         }
                         list.push(alert);
                     }
+                    let record = FreezeRecord {
+                        // Begin van de freeze, niet het moment van detectie
+                        at_epoch_ms: (now.timestamp_millis().max(0) as u64)
+                            .saturating_sub(freeze_ms as u64),
+                        duration_ms: freeze_ms as u64,
+                        timestamp: timestamp.clone(),
+                    };
                     if let Ok(mut records) = WATCHDOG_RECORDS.lock() {
                         if records.len() >= 50 {
                             records.remove(0);
                         }
-                        records.push(FreezeRecord {
-                            // Begin van de freeze, niet het moment van detectie
-                            at_epoch_ms: (now.timestamp_millis().max(0) as u64)
-                                .saturating_sub(freeze_ms as u64),
-                            duration_ms: freeze_ms as u64,
-                            timestamp: timestamp.clone(),
-                        });
+                        records.push(record.clone());
                     }
+                    // Persistente historie (no-op zolang de app-datamap nog niet bekend is).
+                    crate::history::record_freeze(record);
                 }
             }
         });

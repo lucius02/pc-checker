@@ -1,0 +1,5 @@
+[env]
+# ts-rs: TypeScript-bindings worden bij `cargo test` gegenereerd in src/types/generated.
+TS_RS_EXPORT_DIR = { value = "../src/types/generated", relative = true }
+# u64/u128 als `number` i.p.v. `bigint` (Tauri serialiseert ze als JSON-getallen).
+TS_RS_LARGE_INT = "number"

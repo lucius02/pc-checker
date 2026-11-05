@@ -1,14 +1,94 @@
-use std::process::Command;
 use std::time::{Duration, Instant};
 
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-
 use crate::models::{FreezeDiagnosticReport, FreezeEventEntry};
+use crate::shell::{json_items, run_ps_json};
 use crate::watchdog::{ensure_watchdog_started, get_watchdog_alerts};
 
-/// Voert de Windows Freeze Detective diagnose uit om eventuele freezes of driver crashes op te sporen.
-#[tauri::command]
+const PS_EVENT_SCRIPT: &str = r#"Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='storahci','disk','nvme','stornvme','Display','nvlddmkm','amdkmdag','Microsoft-Windows-WHEA-Logger'; Level=1,2,3} -MaxEvents 30 | Select-Object @{n='TimeCreated';e={$_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')}}, ProviderName, Id, LevelDisplayName, Message | ConvertTo-Json -Compress"#;
+
+/// Koppelt een Windows event-provider aan een categorie en concreet advies.
+pub fn classify_provider(provider: &str) -> (String, String) {
+    let (c, s) = if provider.contains("storahci")
+        || provider.contains("disk")
+        || provider.contains("nvme")
+    {
+        (
+            "Opslag / Schijf Time-out",
+            "DIT VEROORZAAKT VAAK DE FREEZE: De schijf ontwaakte te traag uit slaapstand of SATA reset. Schakel 'AHCI Link Power Management' (HIPM/DIPM) uit in Energiebeheer, vervang de SATA-kabel of controleer de SSD gezondheid.",
+        )
+    } else if provider.contains("Display")
+        || provider.contains("nvlddmkm")
+        || provider.contains("amdkmdag")
+    {
+        (
+            "Videokaart Driver Crash (TDR)",
+            "De GPU reageerde niet op tijd (TDR time-out); Windows heeft de driver herstart. Voer een schone driver-installatie uit met DDU of controleer PCIe voedingskabels.",
+        )
+    } else if provider.contains("WHEA") {
+        (
+            "Hardware Bus / Pariteitsfout",
+            "Hardwarefout (WHEA) op de PCIe bus of CPU cache. Controleer RAM XMP profiel of moederbord spanning.",
+        )
+    } else {
+        (
+            "Systeem Waarschuwing",
+            "Inspecteer het stuurprogramma of achtergrondservice.",
+        )
+    };
+    (c.to_string(), s.to_string())
+}
+
+/// Linux: herkent relevante kernel-foutregels (`journalctl -k -o short-iso`).
+pub fn classify_linux_kernel_line(line: &str) -> Option<FreezeEventEntry> {
+    let lower = line.to_lowercase();
+    let provider = if lower.contains("nvme")
+        || (lower.contains(" ata") || lower.contains(":ata"))
+            && (lower.contains("reset") || lower.contains("failed"))
+        || lower.contains("i/o error")
+        || lower.contains("blk_update_request")
+    {
+        "disk"
+    } else if lower.contains("amdgpu")
+        || lower.contains("nvrm")
+        || lower.contains("nouveau")
+        || lower.contains("i915")
+        || lower.contains("gpu hang")
+        || lower.contains("ring timeout")
+    {
+        "Display"
+    } else if lower.contains("mce")
+        || lower.contains("machine check")
+        || lower.contains("aer:")
+        || lower.contains("hardware error")
+    {
+        "WHEA"
+    } else {
+        return None;
+    };
+    // Formaat: "2026-11-05T10:12:13+0100 host kernel: bericht"
+    let timestamp = line
+        .split_whitespace()
+        .next()
+        .unwrap_or("Onlangs")
+        .replace('T', " ");
+    let message = line
+        .split_once("kernel:")
+        .map(|(_, m)| m.trim())
+        .unwrap_or(line)
+        .to_string();
+    let (category, suggestion) = classify_provider(provider);
+    Some(FreezeEventEntry {
+        timestamp: timestamp.chars().take(19).collect(),
+        provider: format!("kernel ({})", provider),
+        event_id: 0,
+        level: "Fout".to_string(),
+        message,
+        category,
+        suggestion,
+    })
+}
+
+/// Voert de Freeze Detective diagnose uit om eventuele freezes of driver crashes op te sporen.
 pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
     ensure_watchdog_started();
 
@@ -27,85 +107,45 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
 
     let mut culprits: Vec<FreezeEventEntry> = Vec::new();
 
-    // 2. Query Windows Event Logboek via veilige directe PowerShell executie (zonder cmd /c wrapper)
-    let ps_filter_script = r#"Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='storahci','disk','nvme','Display','nvlddmkm','amdkmdag','Microsoft-Windows-WHEA-Logger'; Level=1,2,3} -MaxEvents 30 -ErrorAction SilentlyContinue | Select-Object TimeCreated, ProviderName, Id, LevelDisplayName, Message | ConvertTo-Json -Compress"#;
-
-    let mut cmd = Command::new("powershell");
-    cmd.arg("-NoProfile")
-        .arg("-NonInteractive")
-        .arg("-Command")
-        .arg(ps_filter_script);
-
-    #[cfg(target_os = "windows")]
+    // 2. Windows: Event Logboek via PowerShell (verborgen venster, harde time-out).
+    if cfg!(windows)
+        && let Some(parsed) = run_ps_json(PS_EVENT_SCRIPT)
     {
-        // 0x08000000 = CREATE_NO_WINDOW (voorkomt knipperende consoles)
-        cmd.creation_flags(0x08000000);
+        for it in json_items(&parsed) {
+            let provider = it["ProviderName"].as_str().unwrap_or("").to_string();
+            let (category, suggestion) = classify_provider(&provider);
+            culprits.push(FreezeEventEntry {
+                timestamp: it["TimeCreated"].as_str().unwrap_or("Onlangs").to_string(),
+                provider,
+                event_id: it["Id"].as_u64().unwrap_or(0) as u32,
+                level: it["LevelDisplayName"]
+                    .as_str()
+                    .unwrap_or("Waarschuwing")
+                    .to_string(),
+                message: it["Message"].as_str().unwrap_or("").trim().to_string(),
+                category,
+                suggestion,
+            });
+        }
     }
 
-    let output = cmd.output();
-
-    if let Ok(out) = output {
-        let json_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if !json_str.is_empty() && (json_str.starts_with('[') || json_str.starts_with('{')) {
-            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&json_str) {
-                let items: Vec<serde_json::Value> = if let Some(arr) = parsed.as_array() {
-                    arr.clone()
-                } else if parsed.is_object() {
-                    vec![parsed]
-                } else {
-                    vec![]
-                };
-
-                for it in items {
-                    let provider = it["ProviderName"].as_str().unwrap_or("").to_string();
-                    let id = it["Id"].as_u64().unwrap_or(0) as u32;
-                    let level = it["LevelDisplayName"]
-                        .as_str()
-                        .unwrap_or("Waarschuwing")
-                        .to_string();
-                    let msg = it["Message"].as_str().unwrap_or("").trim().to_string();
-                    let time = it["TimeCreated"].as_str().unwrap_or("Onlangs").to_string();
-
-                    let (category, suggestion) = if provider.contains("storahci")
-                        || provider.contains("disk")
-                        || provider.contains("nvme")
-                    {
-                        (
-                            "Opslag / Schijf Time-out".to_string(),
-                            "DIT VEROORZAAKT VAAK DE FREEZE: De schijf ontwaakte te traag uit slaapstand of SATA reset. Schakel 'AHCI Link Power Management' (HIPM/DIPM) uit in Energiebeheer, vervang de SATA-kabel of controleer de SSD gezondheid.".to_string(),
-                        )
-                    } else if provider.contains("Display")
-                        || provider.contains("nvlddmkm")
-                        || provider.contains("amdkmdag")
-                    {
-                        (
-                            "Videokaart Driver Crash (TDR)".to_string(),
-                            "De GPU reageerde niet op tijd (TDR time-out); Windows heeft de driver herstart. Voer een schone driver-installatie uit met DDU of controleer PCIe voedingskabels.".to_string(),
-                        )
-                    } else if provider.contains("WHEA") {
-                        (
-                            "Hardware Bus / Pariteitsfout".to_string(),
-                            "Hardwarefout (WHEA) op de PCIe bus of CPU cache. Controleer RAM XMP profiel of moederbord spanning.".to_string(),
-                        )
-                    } else {
-                        (
-                            "Systeem Waarschuwing".to_string(),
-                            "Inspecteer het stuurprogramma of achtergrondservice.".to_string(),
-                        )
-                    };
-
-                    culprits.push(FreezeEventEntry {
-                        timestamp: time,
-                        provider,
-                        event_id: id,
-                        level,
-                        message: msg,
-                        category,
-                        suggestion,
-                    });
-                }
-            }
-        }
+    // 2b. Linux: kernel-log (journalctl) op opslag-, GPU- en hardwarefouten.
+    #[cfg(target_os = "linux")]
+    if let Ok(out) = crate::shell::hidden_command("journalctl")
+        .args([
+            "-k",
+            "-p",
+            "3",
+            "-n",
+            "200",
+            "--no-pager",
+            "-o",
+            "short-iso",
+        ])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&out.stdout);
+        culprits.extend(text.lines().filter_map(classify_linux_kernel_line).take(30));
     }
 
     let mut actions: Vec<String> = Vec::new();
@@ -156,5 +196,39 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
         system_freeze_risk: risk,
         diagnosis_summary,
         recommended_actions: actions,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn providers_are_classified() {
+        assert!(classify_provider("stornvme").0.contains("Opslag"));
+        assert!(classify_provider("nvlddmkm").0.contains("TDR"));
+        assert!(
+            classify_provider("Microsoft-Windows-WHEA-Logger")
+                .0
+                .contains("Hardware")
+        );
+        assert_eq!(classify_provider("foo").0, "Systeem Waarschuwing");
+    }
+
+    #[test]
+    fn linux_kernel_lines_are_classified() {
+        let e = classify_linux_kernel_line("2026-11-05T10:12:13+0100 box kernel: nvme nvme0: I/O 12 QID 3 timeout, reset controller").unwrap();
+        assert!(e.category.contains("Opslag"));
+        assert_eq!(e.timestamp, "2026-11-05 10:12:13");
+        assert!(e.message.starts_with("nvme nvme0"));
+        let g = classify_linux_kernel_line(
+            "2026-11-05T10:12:13+0100 box kernel: amdgpu 0000:03:00.0: ring gfx timeout",
+        )
+        .unwrap();
+        assert!(g.category.contains("TDR"));
+        assert!(
+            classify_linux_kernel_line("2026-11-05T10:12:13+0100 box kernel: usb 1-1: new device")
+                .is_none()
+        );
     }
 }

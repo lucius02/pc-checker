@@ -314,7 +314,11 @@ pub fn eval_latency(i: &HealthInputs) -> Eval {
 pub fn eval_storage(i: &HealthInputs) -> Eval {
     let (key, label, w) = ("storage", "Opslag", W_STORAGE);
     let free = finite_f32(i.min_disk_free_percent).map(|f| f.clamp(0.0, 100.0));
-    if free.is_none() && i.disk_test_ok.is_none() {
+    let smart_crit = i.storage_smart_critical_count.unwrap_or(0);
+    let smart_warn = i.storage_smart_warning_count.unwrap_or(0);
+    let smart_scanned =
+        i.storage_smart_critical_count.is_some() || i.storage_smart_warning_count.is_some();
+    if free.is_none() && i.disk_test_ok.is_none() && !smart_scanned {
         return untested(key, label, w, "Geen schijfgegevens beschikbaar.");
     }
 
@@ -329,7 +333,12 @@ pub fn eval_storage(i: &HealthInputs) -> Eval {
     if disk_failed {
         score = score.min(35.0);
     }
-    let status = if disk_failed {
+    if smart_crit > 0 {
+        score = score.min(25.0);
+    } else if smart_warn > 0 {
+        score = score.min(65.0);
+    }
+    let status = if disk_failed || smart_crit > 0 {
         STATUS_CRIT
     } else {
         status_from_score(score)
@@ -344,15 +353,35 @@ pub fn eval_storage(i: &HealthInputs) -> Eval {
         Some(false) => parts.push("schijftest mislukt".to_string()),
         None => parts.push("schijftest niet uitgevoerd".to_string()),
     }
+    if smart_scanned {
+        if smart_crit.saturating_add(smart_warn) == 0 {
+            parts.push("SMART-status in orde".to_string());
+        } else {
+            parts.push(format!(
+                "SMART: {} kritiek, {} waarschuwing",
+                smart_crit, smart_warn
+            ));
+        }
+    }
     let detail = format!("{}.", parts.join(", "));
 
-    let issue = if disk_failed {
+    let issue = if smart_crit > 0 {
+        Some(format!(
+            "{} schijf/schijven melden een kritieke SMART-status (fouten of einde levensduur); maak direct een back-up en vervang de schijf.",
+            smart_crit
+        ))
+    } else if disk_failed {
         Some(
             "De schijftest is mislukt (schrijf-/leesfout of verificatiefout); controleer de schijf met CrystalDiskInfo en maak een back-up."
                 .to_string(),
         )
+    } else if smart_warn > 0 {
+        Some(format!(
+            "{} schijf/schijven tonen SMART-waarschuwingen (slijtage, temperatuur of gecorrigeerde fouten); houd ze in de gaten.",
+            smart_warn
+        ))
     } else {
-        free.map(|f| {
+        free.filter(|f| *f < 20.0).map(|f| {
             format!(
                 "Een schijf heeft nog maar {:.0}% vrije ruimte; weinig ruimte vertraagt Windows en de paginabestand-swap.",
                 f
