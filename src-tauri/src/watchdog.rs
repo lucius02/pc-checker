@@ -1,6 +1,6 @@
 use chrono::Local;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::models::FreezeRecord;
@@ -10,7 +10,10 @@ static WATCHDOG_RECORDS: Mutex<Vec<FreezeRecord>> = Mutex::new(Vec::new());
 static WATCHDOG_STARTED: AtomicBool = AtomicBool::new(false);
 
 pub fn ensure_watchdog_started() {
-    if WATCHDOG_STARTED.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+    if WATCHDOG_STARTED
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_ok()
+    {
         std::thread::spawn(|| {
             let sleep_step = Duration::from_millis(100);
             loop {
@@ -41,7 +44,8 @@ pub fn ensure_watchdog_started() {
                         }
                         records.push(FreezeRecord {
                             // Begin van de freeze, niet het moment van detectie
-                            at_epoch_ms: (now.timestamp_millis().max(0) as u64).saturating_sub(freeze_ms as u64),
+                            at_epoch_ms: (now.timestamp_millis().max(0) as u64)
+                                .saturating_sub(freeze_ms as u64),
                             duration_ms: freeze_ms as u64,
                             timestamp: timestamp.clone(),
                         });

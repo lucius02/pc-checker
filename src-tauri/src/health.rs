@@ -66,11 +66,7 @@ pub fn worst_status(a: &'static str, b: &'static str) -> &'static str {
             _ => 0,
         }
     }
-    if rank(b) > rank(a) {
-        b
-    } else {
-        a
-    }
+    if rank(b) > rank(a) { b } else { a }
 }
 
 pub fn severity(status: &str) -> u8 {
@@ -129,7 +125,10 @@ pub fn compute_health_score(inputs: HealthInputs) -> HealthScore {
         .iter()
         .filter(|e| e.cat.status != STATUS_UNTESTED)
         .fold((0.0f64, 0.0f64), |(s, ws), e| {
-            (s + e.cat.score as f64 * e.cat.weight as f64, ws + e.cat.weight as f64)
+            (
+                s + e.cat.score as f64 * e.cat.weight as f64,
+                ws + e.cat.weight as f64,
+            )
         });
     // Praktisch onbereikbaar (geheugen is altijd getest), maar nooit NaN casten.
     let mut score = if wsum > 0.0 { to_u8(sum / wsum) } else { 50 };

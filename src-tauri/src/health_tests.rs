@@ -89,7 +89,13 @@ fn health_untested_excluded_from_average() {
         let tested: Vec<_> = a.categories.iter().collect();
         let s: f64 = tested
             .iter()
-            .map(|c| if c.key == "cpu" { 0.0 } else { c.score as f64 * c.weight as f64 })
+            .map(|c| {
+                if c.key == "cpu" {
+                    0.0
+                } else {
+                    c.score as f64 * c.weight as f64
+                }
+            })
             .sum();
         let w: f64 = tested.iter().map(|c| c.weight as f64).sum();
         (s / w).round() as u8
@@ -116,7 +122,11 @@ fn health_only_basics_is_preliminary() {
         ..Default::default()
     });
     assert!(h.label.contains("voorlopig"), "{}", h.label);
-    assert!(h.top_issues.iter().any(|t| t.contains("nauwkeurigere score")));
+    assert!(
+        h.top_issues
+            .iter()
+            .any(|t| t.contains("nauwkeurigere score"))
+    );
     assert!(h.score <= CAP_B && GRADES.contains(&h.grade.as_str()));
     assert_eq!(h.grade, "B");
     // Ook na de (automatische) freeze-scan blijft het voorlopig.
@@ -126,7 +136,11 @@ fn health_only_basics_is_preliminary() {
         min_disk_free_percent: Some(50.0),
         ..Default::default()
     });
-    assert!(h2.label.contains("voorlopig") && h2.score <= CAP_B, "{:?}", h2);
+    assert!(
+        h2.label.contains("voorlopig") && h2.score <= CAP_B,
+        "{:?}",
+        h2
+    );
     for key in ["stability", "drivers", "latency", "cpu", "thermal"] {
         assert_eq!(cat(&h, key).unwrap().status, "Niet getest", "{}", key);
     }
@@ -227,7 +241,11 @@ fn health_issues_ordered_by_severity() {
         ..all_good()
     });
     assert!(h.top_issues[0].contains("RAM-test"), "{:?}", h.top_issues);
-    assert!(h.top_issues[1].contains("verouderde driver"), "{:?}", h.top_issues);
+    assert!(
+        h.top_issues[1].contains("verouderde driver"),
+        "{:?}",
+        h.top_issues
+    );
 }
 
 #[test]

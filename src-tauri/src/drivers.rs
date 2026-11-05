@@ -160,17 +160,21 @@ fn parse_report(raw: &str, today: NaiveDate, scanned_at: String) -> DriverReport
             return unavailable_report(
                 scanned_at,
                 "Driver-informatie kon niet worden verwerkt (ongeldige JSON van PowerShell).",
-            )
+            );
         }
     };
 
     // Normaal: {"Signed":[...],"Problems":[...]}. Wees tolerant voor een losse
     // driver-array of een los driver-object.
-    let (signed_vals, problem_vals) = if parsed.get("Signed").is_some() || parsed.get("Problems").is_some() {
-        (as_list(parsed.get("Signed")), as_list(parsed.get("Problems")))
-    } else {
-        (as_list(Some(&parsed)), Vec::new())
-    };
+    let (signed_vals, problem_vals) =
+        if parsed.get("Signed").is_some() || parsed.get("Problems").is_some() {
+            (
+                as_list(parsed.get("Signed")),
+                as_list(parsed.get("Problems")),
+            )
+        } else {
+            (as_list(Some(&parsed)), Vec::new())
+        };
 
     let drivers: Vec<RawDriver> = signed_vals.iter().map(parse_raw_driver).collect();
     let problems: Vec<RawProblem> = problem_vals
@@ -206,9 +210,9 @@ fn build_report(
     let mut entries: Vec<DriverEntry> = Vec::new();
 
     for d in &real_drivers {
-        let problem_idx = problems
-            .iter()
-            .position(|p| !p.device_id.is_empty() && p.device_id.eq_ignore_ascii_case(&d.device_id));
+        let problem_idx = problems.iter().position(|p| {
+            !p.device_id.is_empty() && p.device_id.eq_ignore_ascii_case(&d.device_id)
+        });
         let problem_code = problem_idx.map(|i| {
             matched_problem[i] = true;
             problems[i].code
@@ -227,7 +231,11 @@ fn build_report(
             continue;
         }
         let d = RawDriver {
-            name: if p.name.is_empty() { p.device_id.clone() } else { p.name.clone() },
+            name: if p.name.is_empty() {
+                p.device_id.clone()
+            } else {
+                p.name.clone()
+            },
             class: p.class.clone(),
             device_id: p.device_id.clone(),
             ..Default::default()
@@ -239,14 +247,27 @@ fn build_report(
         status_rank(&a.status)
             .cmp(&status_rank(&b.status))
             .then(class_rank(&a.device_class).cmp(&class_rank(&b.device_class)))
-            .then(a.device_name.to_lowercase().cmp(&b.device_name.to_lowercase()))
+            .then(
+                a.device_name
+                    .to_lowercase()
+                    .cmp(&b.device_name.to_lowercase()),
+            )
     });
 
     let problem_count = entries.iter().filter(|e| e.status == "Probleem").count();
     let outdated_count = entries.iter().filter(|e| e.status == "Verouderd").count();
-    let unsigned_count = entries.iter().filter(|e| e.status == "Niet ondertekend").count();
+    let unsigned_count = entries
+        .iter()
+        .filter(|e| e.status == "Niet ondertekend")
+        .count();
 
-    let summary = build_summary(total_drivers, problem_count, outdated_count, unsigned_count, &entries);
+    let summary = build_summary(
+        total_drivers,
+        problem_count,
+        outdated_count,
+        unsigned_count,
+        &entries,
+    );
 
     DriverReport {
         is_available: true,
@@ -291,7 +312,9 @@ fn build_summary(
         .any(|e| is_storage_class(&e.device_class) && e.status != "OK");
     let mut s = format!("{} drivers gescand: {}.", total, parts.join(", "));
     if gpu_flag {
-        s.push_str(" Let op: de videokaartdriver is gemarkeerd — een bekende oorzaak van freezes (TDR).");
+        s.push_str(
+            " Let op: de videokaartdriver is gemarkeerd — een bekende oorzaak van freezes (TDR).",
+        );
     }
     if storage_flag {
         s.push_str(" Let op: een opslagcontroller-driver is gemarkeerd — kan schijf-time-outs en freezes van enkele seconden veroorzaken.");
@@ -346,7 +369,10 @@ fn is_relevant(d: &RawDriver) -> bool {
         if d.class == "DISPLAY" {
             return true;
         }
-        let hw_class = matches!(d.class.as_str(), "SCSIADAPTER" | "HDC" | "USB" | "NET" | "MEDIA");
+        let hw_class = matches!(
+            d.class.as_str(),
+            "SCSIADAPTER" | "HDC" | "USB" | "NET" | "MEDIA"
+        );
         return hw_class && d.device_id.to_uppercase().starts_with("PCI\\");
     }
     true
@@ -402,8 +428,7 @@ fn class_rank(class: &str) -> u8 {
 fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> DriverEntry {
     let age = age_years(&d.date, today);
     let inbox = is_microsoft_inbox(d);
-    let is_basic_display = d.class == "DISPLAY"
-        && d.name.to_lowercase().contains("basic display");
+    let is_basic_display = d.class == "DISPLAY" && d.name.to_lowercase().contains("basic display");
 
     let (status, advice) = if let Some(code) = problem_code {
         let meaning = problem_code_meaning(code);
@@ -433,7 +458,9 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
                 "Verouderd",
                 format!(
                     "Mogelijk verouderd: deze driver is {:.1} jaar oud (drempel voor deze klasse: {} jaar). {}",
-                    a, max, class_advice(&d.class)
+                    a,
+                    max,
+                    class_advice(&d.class)
                 ),
             )
         } else {
@@ -453,7 +480,11 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
     };
 
     DriverEntry {
-        device_name: if d.name.is_empty() { "(onbekend apparaat)".to_string() } else { d.name.clone() },
+        device_name: if d.name.is_empty() {
+            "(onbekend apparaat)".to_string()
+        } else {
+            d.name.clone()
+        },
         device_class: d.class.clone(),
         provider: d.provider.clone(),
         version: d.version.clone(),

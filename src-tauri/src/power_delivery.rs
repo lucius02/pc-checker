@@ -1,20 +1,29 @@
-use std::process::Command;
 use serde_json::Value;
+use std::process::Command;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
 use crate::models::{HardwarePowerCheckReport, PowerComponentCheck};
-use crate::power::{get_system_power_status, WinSystemPowerStatus};
+use crate::power::{WinSystemPowerStatus, get_system_power_status};
 use crate::watchdog::ensure_watchdog_started;
 
 /// Evalueert de stroomtoevoer op basis van WMI/EventLog telemetrie en Windows Power API.
-pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStatus) -> HardwarePowerCheckReport {
-    let cpu_name = ps_data["CpuName"].as_str().unwrap_or("Processor").to_string();
+pub fn evaluate_hardware_power(
+    ps_data: &Value,
+    power_status: WinSystemPowerStatus,
+) -> HardwarePowerCheckReport {
+    let cpu_name = ps_data["CpuName"]
+        .as_str()
+        .unwrap_or("Processor")
+        .to_string();
     let cpu_clock = ps_data["CpuClock"].as_u64().unwrap_or(0);
     let cpu_max = ps_data["CpuMax"].as_u64().unwrap_or(0);
 
-    let gpu_names = ps_data["GpuNames"].as_str().unwrap_or("Videokaart").to_string();
+    let gpu_names = ps_data["GpuNames"]
+        .as_str()
+        .unwrap_or("Videokaart")
+        .to_string();
     let gpu_statuses = ps_data["GpuStatuses"].as_str().unwrap_or("OK").to_string();
 
     let usb_count = ps_data["UsbCount"].as_u64().unwrap_or(0);
@@ -28,7 +37,8 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let usb_surge_count = ps_data["UsbSurgeCount"].as_u64().unwrap_or(0) as u32;
 
     let ac_connected = power_status.ac_line_status == 1;
-    let is_laptop = (power_status.battery_flag & 128) == 0 && power_status.battery_life_percent <= 100;
+    let is_laptop =
+        (power_status.battery_flag & 128) == 0 && power_status.battery_life_percent <= 100;
     let is_discharging = (power_status.battery_flag & 1) != 0;
 
     let mut checks = Vec::new();
@@ -36,7 +46,8 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let mut recommendations = Vec::new();
 
     // 1. CPU Voeding & Throttling
-    let cpu_is_throttled = kpp37_count > 0 || (cpu_max > 0 && cpu_clock > 0 && cpu_clock < (cpu_max * 35 / 100));
+    let cpu_is_throttled =
+        kpp37_count > 0 || (cpu_max > 0 && cpu_clock > 0 && cpu_clock < (cpu_max * 35 / 100));
     let (cpu_status, cpu_ok, cpu_details) = if cpu_is_throttled {
         penalty += 25;
         recommendations.push(
@@ -62,12 +73,15 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
         name: "Processor (CPU) Voedingslijnen & VRM".to_string(),
         status: cpu_status,
         is_sufficient: cpu_ok,
-        metric: format!("{cpu_clock} MHz / {cpu_max} MHz basisklok • {kpp37_count} throttling events"),
+        metric: format!(
+            "{cpu_clock} MHz / {cpu_max} MHz basisklok • {kpp37_count} throttling events"
+        ),
         details: cpu_details,
     });
 
     // 2. GPU & PCIe Stroom
-    let gpu_has_error = gpu_statuses.to_uppercase().contains("ERROR") || gpu_statuses.to_uppercase().contains("DEGRADED");
+    let gpu_has_error = gpu_statuses.to_uppercase().contains("ERROR")
+        || gpu_statuses.to_uppercase().contains("DEGRADED");
     let (gpu_status, gpu_ok, gpu_details) = if gpu_has_error {
         penalty += 20;
         recommendations.push(
@@ -82,7 +96,9 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
         (
             "OK".to_string(),
             true,
-            format!("PCIe-voedingsrail naar GPU ({gpu_names}) functioneert normaal. Geen spanningsdips gedetecteerd."),
+            format!(
+                "PCIe-voedingsrail naar GPU ({gpu_names}) functioneert normaal. Geen spanningsdips gedetecteerd."
+            ),
         )
     };
     checks.push(PowerComponentCheck {
@@ -94,7 +110,9 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     });
 
     // 3. USB Hubs & Overstroombeveiliging
-    let usb_has_surge = usb_surge_count > 0 || usb_statuses.to_uppercase().contains("ERROR") || usb_statuses.to_uppercase().contains("DEGRADED");
+    let usb_has_surge = usb_surge_count > 0
+        || usb_statuses.to_uppercase().contains("ERROR")
+        || usb_statuses.to_uppercase().contains("DEGRADED");
     let (usb_status, usb_ok, usb_details) = if usb_has_surge {
         penalty += 20;
         recommendations.push(
@@ -111,7 +129,9 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
         (
             "OK".to_string(),
             true,
-            format!("{usb_count} USB-hubs en poortcircuits actief. Geen overbelasting van de 5V/9V/20V spanningsrails."),
+            format!(
+                "{usb_count} USB-hubs en poortcircuits actief. Geen overbelasting van de 5V/9V/20V spanningsrails."
+            ),
         )
     };
     checks.push(PowerComponentCheck {
@@ -128,7 +148,11 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let (disk_status, disk_ok, disk_details) = if disk_has_error {
         penalty += 25;
         recommendations.push("Een opslagmedium meldt hardwarefouten door mogelijke spanningsuitval. Maak direct een back-up.".to_string());
-        ("Kritiek".to_string(), false, format!("Opslagschijven melden fout: {disk_statuses}."))
+        (
+            "Kritiek".to_string(),
+            false,
+            format!("Opslagschijven melden fout: {disk_statuses}."),
+        )
     } else if has_dirty_powercuts {
         penalty += 15;
         recommendations.push(
@@ -145,7 +169,9 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
         (
             "OK".to_string(),
             true,
-            format!("Alle {disk_count} opslagstations (NVMe/SATA) ontvangen stabiele spanning zonder stroomonderbrekingen."),
+            format!(
+                "Alle {disk_count} opslagstations (NVMe/SATA) ontvangen stabiele spanning zonder stroomonderbrekingen."
+            ),
         )
     };
     checks.push(PowerComponentCheck {
@@ -181,7 +207,10 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
             "OK".to_string(),
             true,
             "Op Batterijvoeding".to_string(),
-            format!("Laptop draait op accu ({}%). Klokfrequenties kunnen gematigd worden om piekbelasting te beperken.", power_status.battery_life_percent),
+            format!(
+                "Laptop draait op accu ({}%). Klokfrequenties kunnen gematigd worden om piekbelasting te beperken.",
+                power_status.battery_life_percent
+            ),
         )
     } else {
         (
@@ -195,7 +224,10 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
         name: "Netstroomadapter & Voedingscapaciteit".to_string(),
         status: psu_status,
         is_sufficient: psu_ok,
-        metric: format!("{psu_verdict} (AC: {})", if ac_connected { "Ja" } else { "Nee" }),
+        metric: format!(
+            "{psu_verdict} (AC: {})",
+            if ac_connected { "Ja" } else { "Nee" }
+        ),
         details: psu_details,
     });
 
@@ -209,7 +241,8 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     };
 
     if recommendations.is_empty() {
-        recommendations.push("Stroomtoevoer is optimaal. Geen hardware-ingrepen vereist.".to_string());
+        recommendations
+            .push("Stroomtoevoer is optimaal. Geen hardware-ingrepen vereist.".to_string());
     }
 
     HardwarePowerCheckReport {

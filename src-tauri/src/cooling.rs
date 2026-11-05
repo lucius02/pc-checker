@@ -79,7 +79,10 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
                     };
 
                     for it in items {
-                        let name = it["Name"].as_str().unwrap_or("ACPI Thermal Zone").to_string();
+                        let name = it["Name"]
+                            .as_str()
+                            .unwrap_or("ACPI Thermal Zone")
+                            .to_string();
                         if let Some(raw_kelvin) = it["HighPrecisionTemperature"].as_u64() {
                             let celsius = (raw_kelvin as f32 - 2732.0) / 10.0;
                             if celsius > 0.0 && celsius < 125.0 {
@@ -114,16 +117,38 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
                     if let Some(arr) = val.as_array() {
                         for item in arr {
-                            let name = item["Name"].as_str().unwrap_or("Systeem Ventilator").to_string();
+                            let name = item["Name"]
+                                .as_str()
+                                .unwrap_or("Systeem Ventilator")
+                                .to_string();
                             let status = item["Status"].as_str().unwrap_or("Actief").to_string();
                             let rpm = item["DesiredSpeed"].as_u64().map(|n| n as u32);
-                            fans.push(FanInfo { name, status, speed_rpm: rpm });
+                            fans.push(FanInfo {
+                                name,
+                                status,
+                                speed_rpm: rpm,
+                            });
                         }
                     } else if let Some(obj) = val.as_object() {
-                        let name = obj.get("Name").and_then(|v| v.as_str()).unwrap_or("Systeem Ventilator").to_string();
-                        let status = obj.get("Status").and_then(|v| v.as_str()).unwrap_or("Actief").to_string();
-                        let rpm = obj.get("DesiredSpeed").and_then(|v| v.as_u64()).map(|n| n as u32);
-                        fans.push(FanInfo { name, status, speed_rpm: rpm });
+                        let name = obj
+                            .get("Name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Systeem Ventilator")
+                            .to_string();
+                        let status = obj
+                            .get("Status")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Actief")
+                            .to_string();
+                        let rpm = obj
+                            .get("DesiredSpeed")
+                            .and_then(|v| v.as_u64())
+                            .map(|n| n as u32);
+                        fans.push(FanInfo {
+                            name,
+                            status,
+                            speed_rpm: rpm,
+                        });
                     }
                 }
             }

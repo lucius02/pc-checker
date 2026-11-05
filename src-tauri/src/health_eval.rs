@@ -1,5 +1,8 @@
+use super::{
+    STATUS_CRIT, STATUS_GOOD, STATUS_UNTESTED, STATUS_WARN, severity, status_from_score,
+    worst_status,
+};
 use crate::models::{HealthCategoryScore, HealthInputs};
-use super::{severity, status_from_score, worst_status, STATUS_CRIT, STATUS_GOOD, STATUS_UNTESTED, STATUS_WARN};
 
 pub const W_STABILITY: f32 = 0.25;
 pub const W_DRIVERS: f32 = 0.15;
@@ -71,7 +74,11 @@ pub fn tested(
             status: status.to_string(),
             detail,
         },
-        issue: if sev > 0 { issue.map(|t| (sev, t)) } else { None },
+        issue: if sev > 0 {
+            issue.map(|t| (sev, t))
+        } else {
+            None
+        },
     }
 }
 
@@ -151,7 +158,10 @@ pub fn eval_stability(i: &HealthInputs) -> Eval {
     let detail = if fz == 0 && ev == 0 {
         "Geen freezes of kritieke events gevonden.".to_string()
     } else {
-        format!("{} freeze(s) gemeten, {} verdachte event(s) in het logboek.", fz, ev)
+        format!(
+            "{} freeze(s) gemeten, {} verdachte event(s) in het logboek.",
+            fz, ev
+        )
     };
 
     let issue = if fz > 0 && ev > 0 {
@@ -196,7 +206,10 @@ pub fn eval_drivers(i: &HealthInputs) -> Eval {
     let detail = if p == 0 && o == 0 {
         "Geen probleemapparaten of verouderde drivers.".to_string()
     } else {
-        format!("{} probleemapparaat/-apparaten, {} verouderde driver(s).", p, o)
+        format!(
+            "{} probleemapparaat/-apparaten, {} verouderde driver(s).",
+            p, o
+        )
     };
 
     let issue = if p > 0 {
@@ -218,7 +231,11 @@ pub fn eval_drivers(i: &HealthInputs) -> Eval {
 /// DPC-latency: score = minimum van de beschikbare deelscores.
 pub fn eval_latency(i: &HealthInputs) -> Eval {
     let (key, label, w) = ("latency", "DPC Latency", W_LATENCY);
-    let verdict = i.latency_verdict.as_deref().map(str::trim).filter(|v| !v.is_empty());
+    let verdict = i
+        .latency_verdict
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty());
     let gap = finite_f64(i.latency_max_gap_us);
     let dpc = finite_f64(i.dpc_time_percent_max);
     if verdict.is_none() && gap.is_none() {
@@ -413,7 +430,10 @@ pub fn eval_battery(health: f64) -> Eval {
     } else {
         STATUS_CRIT
     };
-    let detail = format!("Batterijgezondheid {:.0}% van de oorspronkelijke capaciteit.", h);
+    let detail = format!(
+        "Batterijgezondheid {:.0}% van de oorspronkelijke capaciteit.",
+        h
+    );
     let issue = Some(format!(
         "De batterij heeft nog {:.0}% van zijn oorspronkelijke capaciteit; overweeg vervanging.",
         h

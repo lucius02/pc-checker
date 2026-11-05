@@ -188,7 +188,9 @@ fn raise_thread_priority() -> bool {
         fn SetThreadPriority(h_thread: *mut c_void, n_priority: i32) -> i32;
     }
     const THREAD_PRIORITY_TIME_CRITICAL: i32 = 15;
-    let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    let cores = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1);
     if cores < 2 {
         return false;
     }
@@ -285,13 +287,19 @@ pub fn suspected_from_report(report: &DriverReport) -> Vec<String> {
     // Eerst drivers met een probleem/verouderd/niet ondertekend in de relevante klassen.
     for e in &report.entries {
         if in_class(&e.device_class, &SUSPECT_CLASSES) && !e.status.eq_ignore_ascii_case("OK") {
-            push(format!("{} ({}, {})", e.device_name, e.device_class, e.status), &mut out);
+            push(
+                format!("{} ({}, {})", e.device_name, e.device_class, e.status),
+                &mut out,
+            );
         }
     }
     // Daarna netwerk-, audio- en GPU-drivers die op zich OK lijken.
     for e in &report.entries {
         if in_class(&e.device_class, &PRIMARY_CLASSES) && e.status.eq_ignore_ascii_case("OK") {
-            push(format!("{} ({}, {})", e.device_name, e.device_class, e.status), &mut out);
+            push(
+                format!("{} ({}, {})", e.device_name, e.device_class, e.status),
+                &mut out,
+            );
         }
     }
     out
@@ -323,19 +331,18 @@ fn build_advice(verdict: &str, c: &CounterStats, report_available: bool) -> Vec<
     a.push("Kies het energiebeheerschema 'Hoge prestaties' of 'Ultieme prestaties' tijdens de test en schakel 'Selectieve USB-onderbreking' en PCIe Link State Power Management uit.".to_string());
     a.push("Controleer in het BIOS energiebesparende opties (C-states, ASPM, Intel SpeedStep/AMD Cool'n'Quiet) en update het BIOS/chipset-drivers.".to_string());
     a.push("Koppel USB-apparaten één voor één los (vooral hubs, dongles en webcams) en herhaal de test om een verdachte te isoleren.".to_string());
-    if c.dpc_avg.unwrap_or(0.0) >= DPC_AVG_WARN_PCT || c.irq_avg.unwrap_or(0.0) >= DPC_AVG_WARN_PCT {
+    if c.dpc_avg.unwrap_or(0.0) >= DPC_AVG_WARN_PCT || c.irq_avg.unwrap_or(0.0) >= DPC_AVG_WARN_PCT
+    {
         a.push("De CPU besteedt opvallend veel tijd aan DPC's/interrupts; dit wijst sterk op een driverprobleem in plaats van op normale belasting.".to_string());
     }
-    a.push("Gebruik LatencyMon (Resplendence) voor een exacte toewijzing van DPC/ISR-tijd per driver.".to_string());
+    a.push(
+        "Gebruik LatencyMon (Resplendence) voor een exacte toewijzing van DPC/ISR-tijd per driver."
+            .to_string(),
+    );
     a
 }
 
-fn build_summary(
-    verdict: &str,
-    stats: &GapStats,
-    c: &CounterStats,
-    elevated: bool,
-) -> String {
+fn build_summary(verdict: &str, stats: &GapStats, c: &CounterStats, elevated: bool) -> String {
     let mut s = match verdict {
         "Goed" => format!(
             "Goed: de langste onderbreking was {} – ruim onder de {} grens. Geen DPC/ISR-problemen gemeten.",
@@ -449,7 +456,9 @@ fn run_latency_test_blocking(duration_secs: u64) -> LatencyTestResult {
 
 #[tauri::command]
 pub async fn run_latency_test(duration_secs: u64) -> LatencyTestResult {
-    match tauri::async_runtime::spawn_blocking(move || run_latency_test_blocking(duration_secs)).await {
+    match tauri::async_runtime::spawn_blocking(move || run_latency_test_blocking(duration_secs))
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             let mut r = build_result(

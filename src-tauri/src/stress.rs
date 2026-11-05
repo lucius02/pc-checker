@@ -1,8 +1,8 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::models::StressTestResult;
@@ -161,7 +161,10 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
 }
 
 #[tauri::command]
-pub fn run_disk_benchmark(target_dir: Option<String>, file_size_mb: Option<usize>) -> StressTestResult {
+pub fn run_disk_benchmark(
+    target_dir: Option<String>,
+    file_size_mb: Option<usize>,
+) -> StressTestResult {
     let start = Instant::now();
     let size_mb = file_size_mb.unwrap_or(64).clamp(16, 512);
     let total_bytes = size_mb * 1024 * 1024;
@@ -204,7 +207,8 @@ pub fn run_disk_benchmark(target_dir: Option<String>, file_size_mb: Option<usize
         };
     }
     let write_duration = write_start.elapsed();
-    let write_speed_mbps = (total_bytes as f64 / (1024.0 * 1024.0)) / write_duration.as_secs_f64().max(0.001);
+    let write_speed_mbps =
+        (total_bytes as f64 / (1024.0 * 1024.0)) / write_duration.as_secs_f64().max(0.001);
 
     let read_start = Instant::now();
     let mut read_buffer = vec![0u8; chunk_size];
@@ -239,7 +243,8 @@ pub fn run_disk_benchmark(target_dir: Option<String>, file_size_mb: Option<usize
         };
     }
     let read_duration = read_start.elapsed();
-    let read_speed_mbps = (total_bytes as f64 / (1024.0 * 1024.0)) / read_duration.as_secs_f64().max(0.001);
+    let read_speed_mbps =
+        (total_bytes as f64 / (1024.0 * 1024.0)) / read_duration.as_secs_f64().max(0.001);
 
     if !verified {
         return StressTestResult {

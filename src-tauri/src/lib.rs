@@ -68,14 +68,23 @@ mod tests {
     fn test_system_overview_metrics() {
         let overview = get_system_overview();
         assert!(!overview.os_name.is_empty(), "OS name should not be empty");
-        assert!(overview.cpu.logical_cores > 0, "Logical cores should be > 0");
+        assert!(
+            overview.cpu.logical_cores > 0,
+            "Logical cores should be > 0"
+        );
         assert!(overview.ram.total_bytes > 0, "Total RAM should be > 0");
         assert!(!overview.session_started_at.is_empty());
         assert!(!overview.gpus.is_empty(), "GPUs should not be empty");
-        assert!(!overview.motherboard.manufacturer.is_empty(), "Motherboard should not be empty");
+        assert!(
+            !overview.motherboard.manufacturer.is_empty(),
+            "Motherboard should not be empty"
+        );
         println!(
             "Session uptime: {}s | GPU: {} | Moederbord: {} {}",
-            overview.session_uptime_secs, overview.gpus[0].name, overview.motherboard.manufacturer, overview.motherboard.product
+            overview.session_uptime_secs,
+            overview.gpus[0].name,
+            overview.motherboard.manufacturer,
+            overview.motherboard.product
         );
     }
 

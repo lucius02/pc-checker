@@ -96,31 +96,44 @@ pub fn get_power_and_battery_info() -> PowerInfo {
     let ac_connected = status.ac_line_status == 1;
     let battery_present = (status.battery_flag & 128) == 0 && status.battery_life_percent <= 100;
 
-    let (is_laptop, battery_percent, battery_status_desc, battery_life_time_secs) = if battery_present {
-        let pct = Some(status.battery_life_percent);
-        let desc = if (status.battery_flag & 8) != 0 {
-            format!("Opladen via Netstroom ({}%)", status.battery_life_percent)
-        } else if ac_connected {
-            format!("Netstroom aangesloten, batterij vol ({}%)", status.battery_life_percent)
+    let (is_laptop, battery_percent, battery_status_desc, battery_life_time_secs) =
+        if battery_present {
+            let pct = Some(status.battery_life_percent);
+            let desc = if (status.battery_flag & 8) != 0 {
+                format!("Opladen via Netstroom ({}%)", status.battery_life_percent)
+            } else if ac_connected {
+                format!(
+                    "Netstroom aangesloten, batterij vol ({}%)",
+                    status.battery_life_percent
+                )
+            } else {
+                format!("Draait op batterij ({}%)", status.battery_life_percent)
+            };
+            let life_secs = if status.battery_life_time != 0xFFFFFFFF {
+                Some(status.battery_life_time)
+            } else {
+                None
+            };
+            (true, pct, desc, life_secs)
         } else {
-            format!("Draait op batterij ({}%)", status.battery_life_percent)
+            (
+                false,
+                None,
+                "Vaste Netstroom (Desktop Workstation)".to_string(),
+                None,
+            )
         };
-        let life_secs = if status.battery_life_time != 0xFFFFFFFF {
-            Some(status.battery_life_time)
-        } else {
-            None
-        };
-        (true, pct, desc, life_secs)
-    } else {
-        (false, None, "Vaste Netstroom (Desktop Workstation)".to_string(), None)
-    };
 
     let power_plan_name = get_active_power_plan();
 
     let details = if is_laptop {
         format!(
             "Laptop mobiele voeding actief. AC Adapter: {}. Batterijlading: {}%. Resterend: {}",
-            if ac_connected { "Verbonden" } else { "Niet aangesloten" },
+            if ac_connected {
+                "Verbonden"
+            } else {
+                "Niet aangesloten"
+            },
             battery_percent.unwrap_or(0),
             battery_life_time_secs
                 .map(|s| format!("{}u {}m", s / 3600, (s % 3600) / 60))
@@ -151,12 +164,18 @@ pub fn run_powercfg_batteryreport() -> Result<String, String> {
     let temp_path_str = temp_xml.to_string_lossy().to_string();
 
     let output = Command::new("cmd")
-        .args(&["/c", &format!("powercfg /batteryreport /xml /output \"{}\"", temp_path_str)])
+        .args(&[
+            "/c",
+            &format!("powercfg /batteryreport /xml /output \"{}\"", temp_path_str),
+        ])
         .output()
         .map_err(|e| format!("Powercfg uitvoerfout: {}", e))?;
 
     if !output.status.success() {
-        return Err(format!("powercfg commando gaf exitcode: {:?}", output.status.code()));
+        return Err(format!(
+            "powercfg commando gaf exitcode: {:?}",
+            output.status.code()
+        ));
     }
 
     let mut xml_content = String::new();
@@ -217,14 +236,23 @@ pub fn parse_battery_report(xml_content: &str) -> BatteryHealthReport {
     if let Some(pos) = xml_content.find("<ActiveRuntime>") {
         if let Some(end) = xml_content[pos..].find("</ActiveRuntime>") {
             let rt_raw = &xml_content[pos + 15..pos + end];
-            let h = rt_raw.find('H').and_then(|idx| {
-                let start = rt_raw.find('T').map(|t| t + 1).unwrap_or(0);
-                rt_raw[start..idx].parse::<u32>().ok()
-            }).unwrap_or(0);
-            let m = rt_raw.find('M').and_then(|idx| {
-                let prev = rt_raw.find('H').map(|h_idx| h_idx + 1).unwrap_or_else(|| rt_raw.find('T').map(|t| t + 1).unwrap_or(0));
-                rt_raw[prev..idx].parse::<u32>().ok()
-            }).unwrap_or(0);
+            let h = rt_raw
+                .find('H')
+                .and_then(|idx| {
+                    let start = rt_raw.find('T').map(|t| t + 1).unwrap_or(0);
+                    rt_raw[start..idx].parse::<u32>().ok()
+                })
+                .unwrap_or(0);
+            let m = rt_raw
+                .find('M')
+                .and_then(|idx| {
+                    let prev = rt_raw
+                        .find('H')
+                        .map(|h_idx| h_idx + 1)
+                        .unwrap_or_else(|| rt_raw.find('T').map(|t| t + 1).unwrap_or(0));
+                    rt_raw[prev..idx].parse::<u32>().ok()
+                })
+                .unwrap_or(0);
             if h > 0 || m > 0 {
                 runtime_est = format!("{} uur {} min", h, m);
             }

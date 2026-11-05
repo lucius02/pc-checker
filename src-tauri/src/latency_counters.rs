@@ -81,15 +81,26 @@ pub fn base64_encode(data: &[u8]) -> String {
         let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
         out.push(T[(n >> 18) as usize & 63] as char);
         out.push(T[(n >> 12) as usize & 63] as char);
-        out.push(if chunk.len() > 1 { T[(n >> 6) as usize & 63] as char } else { '=' });
-        out.push(if chunk.len() > 2 { T[n as usize & 63] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            T[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            T[n as usize & 63] as char
+        } else {
+            '='
+        });
     }
     out
 }
 
 /// PowerShell `-EncodedCommand` verwacht base64 van UTF-16LE.
 pub fn encode_ps_command(script: &str) -> String {
-    let bytes: Vec<u8> = script.encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
+    let bytes: Vec<u8> = script
+        .encode_utf16()
+        .flat_map(|u| u.to_le_bytes())
+        .collect();
     base64_encode(&bytes)
 }
 
@@ -169,7 +180,10 @@ pub fn parse_counter_json(raw: &str) -> CounterStats {
     let mut irq = Vec::new();
     let mut dpcq = Vec::new();
     for s in &samples {
-        let (Some(k), Some(v)) = (s.get("k").and_then(|k| k.as_str()), s.get("v").and_then(|v| v.as_f64())) else {
+        let (Some(k), Some(v)) = (
+            s.get("k").and_then(|k| k.as_str()),
+            s.get("v").and_then(|v| v.as_f64()),
+        ) else {
             continue;
         };
         if !v.is_finite() {

@@ -4,7 +4,9 @@ use std::sync::Mutex;
 use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
-use crate::models::{CpuCoreInfo, CpuInfo, DiskInfo, GpuInfo, MotherboardInfo, RamInfo, SystemOverview};
+use crate::models::{
+    CpuCoreInfo, CpuInfo, DiskInfo, GpuInfo, MotherboardInfo, RamInfo, SystemOverview,
+};
 use crate::watchdog::ensure_watchdog_started;
 
 static HARDWARE_CACHE: Mutex<Option<(Vec<GpuInfo>, MotherboardInfo)>> = Mutex::new(None);
@@ -40,7 +42,11 @@ fn get_static_hardware() -> (Vec<GpuInfo>, MotherboardInfo) {
                     for it in arr {
                         let name = it["Name"].as_str().unwrap_or("").trim().to_string();
                         if !name.is_empty() {
-                            let driver_version = it["DriverVersion"].as_str().unwrap_or("").trim().to_string();
+                            let driver_version = it["DriverVersion"]
+                                .as_str()
+                                .unwrap_or("")
+                                .trim()
+                                .to_string();
                             let vram_bytes = it["AdapterRAM"].as_u64().unwrap_or(0);
                             gpus.push(GpuInfo {
                                 name,
@@ -105,7 +111,11 @@ pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
     if let Ok(guard) = SESSION_START_CACHE.lock() {
         if let Some((dt, ref started_at)) = *guard {
             let diff = now.signed_duration_since(dt);
-            let secs = if diff.num_seconds() > 0 { diff.num_seconds() as u64 } else { kernel_uptime };
+            let secs = if diff.num_seconds() > 0 {
+                diff.num_seconds() as u64
+            } else {
+                kernel_uptime
+            };
             return (secs, started_at.clone());
         }
     }
@@ -141,7 +151,10 @@ pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
 
     let default_str = "Sinds koude systeemstart".to_string();
     if let Ok(mut guard) = SESSION_START_CACHE.lock() {
-        *guard = Some((now - chrono::Duration::seconds(kernel_uptime as i64), default_str.clone()));
+        *guard = Some((
+            now - chrono::Duration::seconds(kernel_uptime as i64),
+            default_str.clone(),
+        ));
     }
     (kernel_uptime, default_str)
 }
@@ -187,7 +200,7 @@ pub fn get_system_overview() -> SystemOverview {
                     disks: vec![],
                     gpus,
                     motherboard,
-                }
+                };
             }
         },
     };
@@ -198,8 +211,14 @@ pub fn get_system_overview() -> SystemOverview {
 
     let cpus = sys.cpus();
     let global_usage = sys.global_cpu_usage();
-    let brand = cpus.first().map(|c| c.brand().to_string()).unwrap_or_else(|| "CPU".to_string());
-    let vendor_id = cpus.first().map(|c| c.vendor_id().to_string()).unwrap_or_default();
+    let brand = cpus
+        .first()
+        .map(|c| c.brand().to_string())
+        .unwrap_or_else(|| "CPU".to_string());
+    let vendor_id = cpus
+        .first()
+        .map(|c| c.vendor_id().to_string())
+        .unwrap_or_default();
 
     let cores = cpus
         .iter()

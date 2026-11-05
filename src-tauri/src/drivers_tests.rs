@@ -63,7 +63,12 @@ fn drivers_old_gpu_is_verouderd() {
     let iris = find(&r, "Intel(R) Iris(R) Xe Graphics").unwrap();
     assert_eq!(iris.status, "OK");
     // Realtek NIC uit 2021 (> 3 jaar) is verouderd.
-    assert_eq!(find(&r, "Realtek PCIe GbE Family Controller").unwrap().status, "Verouderd");
+    assert_eq!(
+        find(&r, "Realtek PCIe GbE Family Controller")
+            .unwrap()
+            .status,
+        "Verouderd"
+    );
     // Intel SST uit 2022 (4,4 jaar) is verouderd en het ®-teken blijft intact.
     let sst = find(&r, "Intel® Smart Sound Technology for Digital Microphones").unwrap();
     assert_eq!(sst.status, "Verouderd");
@@ -132,9 +137,19 @@ fn drivers_single_object_json() {
 
 #[test]
 fn drivers_empty_or_invalid_output_is_unavailable() {
-    for raw in ["", "   \r\n", "Get-CimInstance : Toegang geweigerd", "{not json", "{\"Signed\":[],\"Problems\":[]}"] {
+    for raw in [
+        "",
+        "   \r\n",
+        "Get-CimInstance : Toegang geweigerd",
+        "{not json",
+        "{\"Signed\":[],\"Problems\":[]}",
+    ] {
         let r = parse(raw);
-        assert!(!r.is_available, "verwacht is_available=false voor {:?}", raw);
+        assert!(
+            !r.is_available,
+            "verwacht is_available=false voor {:?}",
+            raw
+        );
         assert!(r.entries.is_empty());
         assert!(!r.summary.is_empty());
     }
@@ -161,10 +176,19 @@ fn drivers_live_scan() {
     let r = super::scan_drivers_blocking();
     println!(
         "available={} total={} entries={} problems={} outdated={} unsigned={}\n{}",
-        r.is_available, r.total_drivers, r.entries.len(), r.problem_count, r.outdated_count, r.unsigned_count, r.summary
+        r.is_available,
+        r.total_drivers,
+        r.entries.len(),
+        r.problem_count,
+        r.outdated_count,
+        r.unsigned_count,
+        r.summary
     );
     for e in &r.entries {
-        println!("[{}] {} | {} | {} | {} | {} | {:?}", e.status, e.device_class, e.device_name, e.provider, e.version, e.date, e.age_years);
+        println!(
+            "[{}] {} | {} | {} | {} | {} | {:?}",
+            e.status, e.device_class, e.device_name, e.provider, e.version, e.date, e.age_years
+        );
     }
     assert!(super::last_report().is_some());
 }

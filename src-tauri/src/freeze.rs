@@ -59,16 +59,25 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
                 for it in items {
                     let provider = it["ProviderName"].as_str().unwrap_or("").to_string();
                     let id = it["Id"].as_u64().unwrap_or(0) as u32;
-                    let level = it["LevelDisplayName"].as_str().unwrap_or("Waarschuwing").to_string();
+                    let level = it["LevelDisplayName"]
+                        .as_str()
+                        .unwrap_or("Waarschuwing")
+                        .to_string();
                     let msg = it["Message"].as_str().unwrap_or("").trim().to_string();
                     let time = it["TimeCreated"].as_str().unwrap_or("Onlangs").to_string();
 
-                    let (category, suggestion) = if provider.contains("storahci") || provider.contains("disk") || provider.contains("nvme") {
+                    let (category, suggestion) = if provider.contains("storahci")
+                        || provider.contains("disk")
+                        || provider.contains("nvme")
+                    {
                         (
                             "Opslag / Schijf Time-out".to_string(),
                             "DIT VEROORZAAKT VAAK DE FREEZE: De schijf ontwaakte te traag uit slaapstand of SATA reset. Schakel 'AHCI Link Power Management' (HIPM/DIPM) uit in Energiebeheer, vervang de SATA-kabel of controleer de SSD gezondheid.".to_string(),
                         )
-                    } else if provider.contains("Display") || provider.contains("nvlddmkm") || provider.contains("amdkmdag") {
+                    } else if provider.contains("Display")
+                        || provider.contains("nvlddmkm")
+                        || provider.contains("amdkmdag")
+                    {
                         (
                             "Videokaart Driver Crash (TDR)".to_string(),
                             "De GPU reageerde niet op tijd (TDR time-out); Windows heeft de driver herstart. Voer een schone driver-installatie uit met DDU of controleer PCIe voedingskabels.".to_string(),
@@ -105,8 +114,14 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
     if !watchdog_freezes.is_empty() || !culprits.is_empty() {
         risk = "Hoog".to_string();
         actions.push("1. Schakel 'Aggressive Link Power Management' (LPM) voor SATA schijven uit in Geavanceerd Energiebeheer.".to_string());
-        actions.push("2. Zet in Windows Energiebeheer: 'Harde schijf uitschakelen na' op NOOIT (0 minuten).".to_string());
-        actions.push("3. Schakel 'PCI Express Link State Power Management' uit (Zet op 'Uit' / Off).".to_string());
+        actions.push(
+            "2. Zet in Windows Energiebeheer: 'Harde schijf uitschakelen na' op NOOIT (0 minuten)."
+                .to_string(),
+        );
+        actions.push(
+            "3. Schakel 'PCI Express Link State Power Management' uit (Zet op 'Uit' / Off)."
+                .to_string(),
+        );
         actions.push("4. Vervang de SATA-datakabel van extra HDD's/SSD's of test met CrystalDiskInfo op CRC/Pending errors.".to_string());
         actions.push("5. Verwijder conflicterende RGB/monitoring achtergrondsoftware (zoals Asus Armoury Crate, Razer Synapse of iCUE).".to_string());
     } else if max_jitter_ms > 200.0 {
@@ -130,7 +145,8 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
             watchdog_freezes.len()
         )
     } else {
-        "Geen directe freeze-events aangetroffen in recente logs. Watchdog blijft live monitoren.".to_string()
+        "Geen directe freeze-events aangetroffen in recente logs. Watchdog blijft live monitoren."
+            .to_string()
     };
 
     FreezeDiagnosticReport {
