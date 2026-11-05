@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { useT } from "../../i18n";
+import { NetworkHealthSection } from "./network/NetworkHealthSection";
 import { RichText } from "../../i18n/RichText";
 
 interface NetworkTabProps {
@@ -187,6 +188,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
+      <NetworkHealthSection />
       {/* Header */}
       <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

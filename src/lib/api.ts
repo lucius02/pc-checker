@@ -13,6 +13,7 @@ import type {
   HistoryData,
   LatencyTestResult,
   MetricsHistory,
+  NetworkHealthReport,
   PowerInfo,
   ProcessSnapshot,
   StorageHealthReport,
@@ -44,6 +45,7 @@ export const api = {
   openDeviceManager: () => invoke<void>("open_device_manager"),
   openWindowsUpdate: () => invoke<void>("open_windows_update"),
   openEventViewer: () => invoke<void>("open_event_viewer"),
+  getNetworkHealth: () => invoke<NetworkHealthReport>("get_network_health"),
   runLatencyTest: (durationSecs: number) =>
     invoke<LatencyTestResult>("run_latency_test", { durationSecs }),
   computeHealthScore: (inputs: HealthInputs) =>

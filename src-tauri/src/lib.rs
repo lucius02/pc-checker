@@ -12,6 +12,7 @@ pub mod latency;
 pub mod latency_explain;
 pub mod models;
 pub mod monitor;
+pub mod network;
 pub mod power;
 pub mod power_delivery;
 pub mod processes;
@@ -67,6 +68,7 @@ pub fn run() {
             commands::open_device_manager,
             commands::open_windows_update,
             commands::open_event_viewer,
+            commands::get_network_health,
             commands::run_latency_test,
             commands::compute_health_score,
             commands::check_hardware_power_delivery,

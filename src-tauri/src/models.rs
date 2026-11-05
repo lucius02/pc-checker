@@ -661,3 +661,66 @@ pub struct DriverLatencyReport {
     pub fix: Option<Advice>,
     pub error: Option<String>,
 }
+
+// ===== Netwerkgezondheid =====
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct WifiInfo {
+    pub ssid: String,
+    /// 0-100 % (Windows-signaalkwaliteit).
+    pub signal_quality: u32,
+    /// Signaalsterkte in dBm (bijv. -55), indien beschikbaar.
+    pub rssi_dbm: Option<i32>,
+    pub frequency_mhz: Option<u32>,
+    pub channel: Option<u32>,
+    /// "2.4 GHz" | "5 GHz" | "6 GHz" | "?"
+    pub band: String,
+    /// Bijv. "Wi-Fi 6E (802.11ax)".
+    pub standard: String,
+    pub rx_rate_mbps: f64,
+    pub tx_rate_mbps: f64,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct NetworkAdapterHealth {
+    pub name: String,
+    pub description: String,
+    /// "wifi" | "ethernet" | "other"
+    pub kind: String,
+    pub link_speed_mbps: Option<f64>,
+    pub driver_version: String,
+    pub driver_date: String,
+    pub rx_packets: u64,
+    pub tx_packets: u64,
+    pub rx_errors: u64,
+    pub rx_discards: u64,
+    pub tx_errors: u64,
+    pub tx_discards: u64,
+    /// Ingeschakelde energiebesparende opties (weergavenaam), bijv. "Energy Efficient Ethernet".
+    pub power_saving: Vec<String>,
+    /// "Computer mag dit apparaat uitschakelen" (None = onbekend/niet ondersteund).
+    pub allow_turn_off: Option<bool>,
+    pub wifi: Option<WifiInfo>,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct NetworkIssue {
+    /// "Hoog" | "Middel"
+    pub severity: String,
+    /// Naam van de adapter waar het om gaat.
+    pub adapter: String,
+    pub advice: Advice,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct NetworkHealthReport {
+    pub is_available: bool,
+    pub scanned_at: String,
+    pub adapters: Vec<NetworkAdapterHealth>,
+    pub issues: Vec<NetworkIssue>,
+    pub summary: String,
+}

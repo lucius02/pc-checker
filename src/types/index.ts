@@ -40,6 +40,10 @@ export type { StressTestResult } from "./generated/StressTestResult";
 export type { SystemOverview } from "./generated/SystemOverview";
 export type { TemperatureSensorInfo } from "./generated/TemperatureSensorInfo";
 
+export type { NetworkAdapterHealth } from "./generated/NetworkAdapterHealth";
+export type { NetworkHealthReport } from "./generated/NetworkHealthReport";
+export type { NetworkIssue } from "./generated/NetworkIssue";
+export type { WifiInfo } from "./generated/WifiInfo";
 /**
  * Beschikbare navigatietabbladen in de applicatie.
  */

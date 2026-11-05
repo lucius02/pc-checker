@@ -9,8 +9,8 @@ use tauri::AppHandle;
 
 use crate::models::*;
 use crate::{
-    cooling, driver_latency, drivers, elevation, freeze, health, history, latency, monitor, power,
-    power_delivery, processes, storage, stress, system,
+    cooling, driver_latency, drivers, elevation, freeze, health, history, latency, monitor,
+    network, power, power_delivery, processes, storage, stress, system,
 };
 
 async fn blocking<T, F>(what: &str, f: F) -> Result<T, String>
@@ -238,4 +238,14 @@ pub async fn run_driver_latency_trace(duration_secs: u64) -> Result<DriverLatenc
 pub async fn set_language(lang: String) -> Result<(), String> {
     crate::i18n::set_language(&lang);
     Ok(())
+}
+
+/// Wifi-kwaliteit en gezondheid van de netwerkadapters.
+#[tauri::command]
+pub async fn get_network_health() -> Result<NetworkHealthReport, String> {
+    blocking(
+        crate::tr!("Netwerkgezondheid", "Network health"),
+        network::scan_network_health,
+    )
+    .await
 }
