@@ -35,6 +35,7 @@ import { buildHealthInputs } from "../../../utils/healthInputs";
 import { cn } from "../../../utils/cn";
 import { useI18nStore, useT } from "../../../i18n";
 import { useStatusLabel } from "../../../i18n/status";
+import { HealthTestButton } from "./HealthTestButton";
 
 export interface HealthScoreCardProps {
   data: SystemOverview;
@@ -286,12 +287,13 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
           <HeartPulse className="w-4 h-4 text-cyan-400" />
           <span>{t("hs.title")}</span>
+          {error && (
+            <span className="text-xs font-normal text-amber-300 truncate" title={error}>
+              {t("hs.lastFailed")}
+            </span>
+          )}
         </div>
-        {error && (
-          <span className="text-xs text-amber-300 truncate" title={error}>
-            {t("hs.lastFailed")}
-          </span>
-        )}
+        <HealthTestButton />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5">

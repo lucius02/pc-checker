@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { api, errorMessage } from "../lib/api";
 import { t, type MessageKey } from "../i18n";
 import { toast } from "./toastStore";
+import { planHealthTests, type HealthTestId, type HealthTestStep } from "../lib/healthTests";
 import type {
   BatteryHealthReport,
   CoolingOverview,
@@ -68,6 +69,9 @@ export interface DiagnosticsState {
 
   busy: Partial<Record<BusyKey, boolean>>;
 
+  /** Voortgang van "alles testen" vanaf de gezondheidsscore (null = niet actief). */
+  healthRun: { mode: "untested" | "all"; steps: HealthTestStep[]; index: number; stopping: boolean } | null;
+
   setAutoRefresh: (v: boolean) => void;
   setLatencyDuration: (v: number) => void;
   setCpuDuration: (v: number) => void;
@@ -92,6 +96,10 @@ export interface DiagnosticsState {
   runCpuStress: (durationSecs?: number) => Promise<StressTestResult>;
   runRamStress: (sizeMb?: number) => Promise<StressTestResult>;
   runDiskBenchmark: () => Promise<StressTestResult>;
+  /** Draait alle nog niet uitgevoerde gezondheidstests, of alles opnieuw als alles al gedaan is. */
+  runHealthTests: () => Promise<void>;
+  /** Stopt na de test die nu loopt. */
+  stopHealthTests: () => void;
 }
 
 function failedStress(name: string, unit: string, err: unknown): StressTestResult {
@@ -156,6 +164,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     diskSizeMb: 256,
 
     busy: {},
+    healthRun: null,
 
     setAutoRefresh: (autoRefresh) => set({ autoRefresh }),
     setLatencyDuration: (latencyDuration) => set({ latencyDuration }),
@@ -267,6 +276,33 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
       void get().fetchOverview();
       return res;
     },
+    runHealthTests: async () => {
+      if (get().healthRun) return;
+      const plan = planHealthTests(get());
+      set({ healthRun: { mode: plan.mode, steps: plan.steps, index: 0, stopping: false } });
+      const runners: Record<HealthTestId, () => Promise<unknown>> = {
+        freeze: () => get().scanFreezeDiagnostic(),
+        drivers: () => get().scanDrivers(),
+        storage: () => get().scanStorageHealth(),
+        battery: () => get().runBatteryTest(),
+        latency: () => get().runLatencyTest(),
+        disk: () => get().runDiskBenchmark(),
+        ram: () => get().runRamStress(),
+        cpu: () => get().runCpuStress(),
+      };
+      try {
+        for (let i = 0; i < plan.steps.length; i++) {
+          if (get().healthRun?.stopping) break;
+          set((s) => ({ healthRun: s.healthRun && { ...s.healthRun, index: i } }));
+          // Fouten worden al als melding getoond; ga gewoon door met de volgende test.
+          await runners[plan.steps[i].id]().catch(() => undefined);
+        }
+        if (!get().healthRun?.stopping) toast.success(t("hs.testDone"));
+      } finally {
+        set({ healthRun: null });
+      }
+    },
+    stopHealthTests: () => set((s) => ({ healthRun: s.healthRun && { ...s.healthRun, stopping: true } })),
     runDiskBenchmark: async () => {
       set({ diskResult: null });
       const res =
