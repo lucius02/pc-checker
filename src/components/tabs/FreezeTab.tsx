@@ -9,6 +9,16 @@ import {
 } from "lucide-react";
 import { FreezeDiagnosticReport } from "../../types";
 import { cn } from "../../utils/cn";
+import { AdviceCard, type AdviceTone } from "../AdviceCard";
+import { api, errorMessage } from "../../lib/api";
+import { toast } from "../../store/toastStore";
+
+const SEVERITY_TONE: Record<string, AdviceTone> = { Kritiek: "critical", Hoog: "high", Middel: "medium" };
+const SEVERITY_BADGE: Record<string, string> = {
+  Kritiek: "bg-rose-950 border-rose-800 text-rose-300",
+  Hoog: "bg-orange-950 border-orange-800 text-orange-300",
+  Middel: "bg-amber-950 border-amber-800 text-amber-300",
+};
 import { useT } from "../../i18n";
 import { RichText } from "../../i18n/RichText";
 import { useStatusLabel } from "../../i18n/status";
@@ -26,6 +36,9 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
 }) => {
   const t = useT();
   const status = useStatusLabel();
+  const openEventViewer = () => {
+    api.openEventViewer().catch((err) => toast.error(t("freeze.openEventViewerFailed"), errorMessage(err)));
+  };
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div className="p-6 bg-linear-to-r from-rose-950/40 via-slate-900/80 to-slate-900 border border-rose-900/50 rounded-2xl space-y-4">
@@ -139,23 +152,55 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
             {freezeData.event_log_culprits.map((culprit, idx) => (
               <div
                 key={idx}
-                className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2 text-xs"
+                className={cn(
+                  "p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3 text-xs",
+                  !culprit.is_recent && "opacity-80",
+                )}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <span className="px-2 py-0.5 rounded bg-rose-950 border border-rose-800 text-rose-400">
-                      {culprit.category}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2 font-semibold">
+                    <span className={cn("px-2 py-0.5 rounded border", SEVERITY_BADGE[culprit.severity] ?? SEVERITY_BADGE.Middel)}>
+                      {status(culprit.severity)}
                     </span>
-                    <span className="text-slate-200">{t("freeze.event", { p: culprit.provider, id: culprit.event_id })}</span>
+                    <span className="text-slate-100">{culprit.category}</span>
+                    {culprit.count > 1 && (
+                      <span
+                        className="px-1.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-200 font-mono"
+                        title={t("freeze.countTitle", { n: culprit.count })}
+                      >
+                        {t("freeze.count", { n: culprit.count })}
+                      </span>
+                    )}
+                    {!culprit.is_recent && (
+                      <span className="px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-400 font-normal" title={t("freeze.olderHint")}>
+                        {t("freeze.older")}
+                      </span>
+                    )}
                   </div>
-                  <span className="text-slate-500 font-mono">{culprit.timestamp}</span>
+                  <div className="text-slate-500 sm:text-right shrink-0">
+                    <div className="font-mono">{t("freeze.event", { p: culprit.provider, id: culprit.event_id })}</div>
+                    <div className="font-mono">
+                      {culprit.count > 1 && culprit.first_seen !== culprit.timestamp
+                        ? t("freeze.seenRange", { a: culprit.first_seen, b: culprit.timestamp })
+                        : t("freeze.seenOnce", { t: culprit.timestamp })}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-slate-300 font-mono text-xs bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/80">
-                  {culprit.message}
-                </p>
-                <div className="p-2.5 bg-cyan-950/30 border border-cyan-800/60 rounded-lg text-cyan-300">
-                  <RichText text={t("freeze.action", { s: culprit.suggestion })} />
-                </div>
+
+                <AdviceCard
+                  tone={SEVERITY_TONE[culprit.severity] ?? "medium"}
+                  advice={culprit.advice}
+                  action={{ label: t("freeze.openEventViewer"), onClick: openEventViewer }}
+                />
+
+                {culprit.message && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-slate-500 hover:text-slate-300 select-none">{t("freeze.showMessage")}</summary>
+                    <p className="mt-2 text-slate-300 font-mono text-xs bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/80 whitespace-pre-wrap break-words">
+                      {culprit.message}
+                    </p>
+                  </details>
+                )}
               </div>
             ))}
           </div>

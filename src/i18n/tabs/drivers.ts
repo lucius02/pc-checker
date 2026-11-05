@@ -50,7 +50,6 @@ export const driversNl = {
   "drivers.signed": "Digitaal ondertekend",
   "drivers.openInDmTitle": "Open Windows Apparaatbeheer om dit apparaat te beheren",
   "drivers.openInDm": "Open in Apparaatbeheer",
-  "drivers.howToFix": "Zo los je het op",
 } as const;
 
 export const driversEn: Record<keyof typeof driversNl, string> = {
@@ -105,5 +104,4 @@ export const driversEn: Record<keyof typeof driversNl, string> = {
   "drivers.signed": "Digitally signed",
   "drivers.openInDmTitle": "Open Windows Device Manager to manage this device",
   "drivers.openInDm": "Open in Device Manager",
-  "drivers.howToFix": "How to fix it",
 };

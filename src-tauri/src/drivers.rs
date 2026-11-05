@@ -13,7 +13,7 @@ use std::sync::Mutex;
 use chrono::{Datelike, NaiveDate};
 use serde_json::Value;
 
-use crate::models::{DriverAdvice, DriverEntry, DriverReport};
+use crate::models::{Advice, DriverEntry, DriverReport};
 
 #[path = "drivers_helpers.rs"]
 mod drivers_helpers;
@@ -83,6 +83,10 @@ pub fn open_device_manager() -> Result<(), String> {
         "devmgmt.msc",
         crate::tr!("Apparaatbeheer", "Device Manager"),
     )
+}
+
+pub fn open_event_viewer() -> Result<(), String> {
+    open_windows_target("eventvwr.msc", crate::tr!("Logboeken", "Event Viewer"))
 }
 
 pub fn open_windows_update() -> Result<(), String> {
@@ -449,7 +453,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
         match code {
             22 => (
                 "Probleem",
-                DriverAdvice {
+                Advice {
                     title,
                     steps: vec![
                         t(
@@ -466,7 +470,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
             ),
             14 | 38 => (
                 "Probleem",
-                DriverAdvice {
+                Advice {
                     title,
                     steps: vec![
                         t("Herstart de computer.", "Restart the computer."),
@@ -480,7 +484,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
             ),
             28 | 18 | 39 | 31 | 37 | 10 | 43 | 52 => (
                 "Probleem",
-                DriverAdvice {
+                Advice {
                     title,
                     why: Some(t(
                         "De juiste driver staat meestal al op je pc. Zo laat je Windows hem veilig opnieuw installeren, zonder iets te downloaden:",
@@ -509,7 +513,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
             ),
             _ => (
                 "Probleem",
-                DriverAdvice {
+                Advice {
                     title,
                     why: guide.why,
                     steps: guide.steps,
@@ -520,7 +524,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
     } else if d.is_signed == Some(false) {
         (
             "Niet ondertekend",
-            DriverAdvice {
+            Advice {
                 title: t(
                     "Deze driver is niet digitaal ondertekend.",
                     "This driver is not digitally signed.",
@@ -545,7 +549,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
     } else if is_basic_display {
         (
             "Verouderd",
-            DriverAdvice {
+            Advice {
                 title: t(
                     "Er is geen echte videokaartdriver geïnstalleerd.",
                     "No real graphics driver is installed.",
@@ -562,7 +566,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
         if a > max {
             (
                 "Verouderd",
-                DriverAdvice {
+                Advice {
                     title: crate::tr!(
                         format!(
                             "Mogelijk verouderd: deze driver is {:.1} jaar oud (grens voor dit type: {} jaar).",
@@ -581,7 +585,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
         } else {
             (
                 "OK",
-                DriverAdvice {
+                Advice {
                     title: t("Geen actie nodig.", "No action needed."),
                     ..Default::default()
                 },
@@ -590,7 +594,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
     } else if inbox {
         (
             "OK",
-            DriverAdvice {
+            Advice {
                 title: t("Microsoft-standaarddriver, wordt bijgewerkt via Windows Update.", "Microsoft inbox driver, updated via Windows Update."),
                 why: is_storage_class(&d.class).then(|| {
                     t(
@@ -604,7 +608,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
     } else {
         (
             "OK",
-            DriverAdvice {
+            Advice {
                 title: t("Geen actie nodig.", "No action needed."),
                 ..Default::default()
             },
@@ -632,20 +636,8 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
 }
 
 /// Platte tekstversie van het advies (rapport, tests, oudere weergaven).
-pub fn flatten_advice(a: &DriverAdvice) -> String {
-    let mut parts = vec![a.title.clone()];
-    parts.extend(a.why.clone());
-    parts.extend(
-        a.steps
-            .iter()
-            .enumerate()
-            .map(|(i, s)| format!("{}. {}", i + 1, s)),
-    );
-    if !a.fallback_steps.is_empty() {
-        parts.extend(a.fallback_title.clone());
-        parts.extend(a.fallback_steps.iter().map(|s| format!("- {}", s)));
-    }
-    parts.join(" ")
+pub fn flatten_advice(a: &Advice) -> String {
+    a.flatten()
 }
 
 #[cfg(test)]

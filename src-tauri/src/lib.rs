@@ -4,6 +4,7 @@ pub mod driver_latency;
 pub mod drivers;
 pub mod elevation;
 pub mod freeze;
+pub mod freeze_advice;
 pub mod health;
 pub mod history;
 pub mod i18n;
@@ -64,6 +65,7 @@ pub fn run() {
             commands::scan_drivers,
             commands::open_device_manager,
             commands::open_windows_update,
+            commands::open_event_viewer,
             commands::run_latency_test,
             commands::compute_health_score,
             commands::check_hardware_power_delivery,

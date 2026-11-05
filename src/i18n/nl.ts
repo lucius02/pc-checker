@@ -71,6 +71,7 @@ export const coreNl = {
   "footer.platforms": "Windows (volledig) • Linux (gedeeltelijk) • macOS (basis)",
 
   "toast.dismiss": "Sluiten",
+  "advice.howToFix": "Zo los je het op",
   "error.overview": "Systeeminformatie ophalen mislukt",
   "error.freeze": "Freeze-diagnose mislukt",
   "error.battery": "Batterijtest mislukt",

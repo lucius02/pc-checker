@@ -251,8 +251,18 @@ pub struct FreezeEventEntry {
     pub message: String,
     /// Categorie van de oorzaak (bijv. "Opslag / Schijf Time-out", "GPU Driver Crash (TDR)").
     pub category: String,
-    /// Concrete oplossingsrichting of instelling om de freeze te verhelpen.
+    /// Concrete oplossingsrichting als platte tekst (rapport).
     pub suggestion: String,
+    /// Hoe vaak dit event (zelfde bron + ID) in de afgelopen 30 dagen voorkwam.
+    pub count: u32,
+    /// Eerste keer in die periode (`timestamp` is de laatste keer).
+    pub first_seen: String,
+    /// "Kritiek" | "Hoog" | "Middel"
+    pub severity: String,
+    /// Laatste keer binnen de afgelopen 30 dagen? Oudere events wegen minder mee in het risico.
+    pub is_recent: bool,
+    /// Gestructureerd stappenplan.
+    pub advice: Advice,
 }
 
 /// Compleet diagnoserapport van de Freeze Detective.
@@ -356,13 +366,13 @@ pub struct DriverEntry {
     /// Hele advies als één tekst (voor het rapport en oudere weergaven).
     pub advice: String,
     /// Hetzelfde advies, opgesplitst voor een overzichtelijke weergave.
-    pub advice_detail: DriverAdvice,
+    pub advice_detail: Advice,
 }
 
-/// Gestructureerd driveradvies: wat er mis is, waarom het ertoe doet en wat je moet doen.
+/// Gestructureerd advies (drivers, freeze-oorzaken): wat er mis is, waarom het ertoe doet en wat je moet doen.
 #[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
 #[ts(export)]
-pub struct DriverAdvice {
+pub struct Advice {
     /// Korte kop: wat er aan de hand is.
     pub title: String,
     /// Waarom dit ertoe doet (optioneel).
@@ -372,6 +382,25 @@ pub struct DriverAdvice {
     /// Kop voor het vervolgplan als de stappen niet helpen (bijv. "Blijft de fout?").
     pub fallback_title: Option<String>,
     pub fallback_steps: Vec<String>,
+}
+
+impl Advice {
+    /// Platte tekstversie (rapport, tests, oudere weergaven).
+    pub fn flatten(&self) -> String {
+        let mut parts = vec![self.title.clone()];
+        parts.extend(self.why.clone());
+        parts.extend(
+            self.steps
+                .iter()
+                .enumerate()
+                .map(|(i, s)| format!("{}. {}", i + 1, s)),
+        );
+        if !self.fallback_steps.is_empty() {
+            parts.extend(self.fallback_title.clone());
+            parts.extend(self.fallback_steps.iter().map(|s| format!("- {}", s)));
+        }
+        parts.join(" ")
+    }
 }
 
 #[derive(Serialize, Deserialize, TS, Clone, Debug)]

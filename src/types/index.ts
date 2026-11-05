@@ -5,7 +5,7 @@ export type { CoolingOverview } from "./generated/CoolingOverview";
 export type { CpuCoreInfo } from "./generated/CpuCoreInfo";
 export type { CpuInfo } from "./generated/CpuInfo";
 export type { DiskInfo } from "./generated/DiskInfo";
-export type { DriverAdvice } from "./generated/DriverAdvice";
+export type { Advice } from "./generated/Advice";
 export type { DriverEntry } from "./generated/DriverEntry";
 export type { DriverLatencyEntry } from "./generated/DriverLatencyEntry";
 export type { DriverLatencyReport } from "./generated/DriverLatencyReport";

@@ -202,7 +202,7 @@ fn drivers_live_scan() {
 fn advice_is_structured_into_title_and_steps() {
     use crate::i18n::with_language;
     let d = with_language(false, || {
-        flatten_advice(&crate::models::DriverAdvice {
+        flatten_advice(&crate::models::Advice {
             title: "Kop.".into(),
             why: Some("Waarom.".into()),
             steps: vec!["Een".into(), "Twee".into()],

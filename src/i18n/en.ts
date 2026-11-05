@@ -69,6 +69,7 @@ const coreEn: Record<keyof typeof coreNl, string> = {
   "footer.platforms": "Windows (full) • Linux (partial) • macOS (basic)",
 
   "toast.dismiss": "Dismiss",
+  "advice.howToFix": "How to fix it",
   "error.overview": "Failed to fetch system information",
   "error.freeze": "Freeze diagnosis failed",
   "error.battery": "Battery test failed",

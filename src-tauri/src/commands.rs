@@ -144,6 +144,11 @@ pub async fn open_device_manager() -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn open_event_viewer() -> Result<(), String> {
+    drivers::open_event_viewer()
+}
+
+#[tauri::command]
 pub async fn open_windows_update() -> Result<(), String> {
     drivers::open_windows_update()
 }

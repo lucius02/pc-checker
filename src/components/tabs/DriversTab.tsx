@@ -26,7 +26,9 @@ import { cn } from "../../utils/cn";
 import { intlLocale, useT, type MessageKey } from "../../i18n";
 import { RichText } from "../../i18n/RichText";
 import { useStatusLabel } from "../../i18n/status";
-import { DriverAdviceView } from "./drivers/DriverAdviceView";
+import { AdviceCard, type AdviceTone } from "../AdviceCard";
+
+const DRIVER_TONE: Record<string, AdviceTone> = { Probleem: "critical", "Niet ondertekend": "high", Verouderd: "medium" };
 
 type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
@@ -406,10 +408,14 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                       </div>
 
                       {entry.status !== "OK" || entry.advice_detail.why || !/^(Geen actie nodig|No action needed)\.$/.test(entry.advice_detail.title) ? (
-                        <DriverAdviceView
-                          status={entry.status}
+                        <AdviceCard
+                          tone={DRIVER_TONE[entry.status] ?? "muted"}
                           advice={entry.advice_detail}
-                          onOpenDeviceManager={entry.status === "Probleem" ? handleOpenDeviceManager : undefined}
+                          action={
+                            entry.status === "Probleem"
+                              ? { label: t("drivers.openInDm"), title: t("drivers.openInDmTitle"), icon: Wrench, onClick: handleOpenDeviceManager }
+                              : undefined
+                          }
                         />
                       ) : null}
                     </div>
