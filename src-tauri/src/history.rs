@@ -34,12 +34,26 @@ fn read_file() -> HistoryData {
 
 fn write_file(data: &HistoryData) -> Result<(), String> {
     let Some(path) = PATH.get() else {
-        return Err("Historie is niet geïnitialiseerd.".into());
+        return Err(crate::tr!(
+            "Historie is niet geïnitialiseerd.",
+            "History is not initialised."
+        )
+        .into());
     };
     let json = serde_json::to_string(data).map_err(|e| e.to_string())?;
     let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, json).map_err(|e| format!("Kon historie niet opslaan: {e}"))?;
-    std::fs::rename(&tmp, path).map_err(|e| format!("Kon historie niet opslaan: {e}"))
+    std::fs::write(&tmp, json).map_err(|e| {
+        crate::tr!(
+            format!("Kon historie niet opslaan: {e}"),
+            format!("Could not save history: {e}")
+        )
+    })?;
+    std::fs::rename(&tmp, path).map_err(|e| {
+        crate::tr!(
+            format!("Kon historie niet opslaan: {e}"),
+            format!("Could not save history: {e}")
+        )
+    })
 }
 
 /// Voegt een freeze toe als hij nog niet bestaat (zelfde starttijd = zelfde freeze).

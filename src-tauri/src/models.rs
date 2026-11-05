@@ -555,3 +555,44 @@ pub struct ElevationStatus {
     pub can_elevate: bool,
     pub platform: String,
 }
+
+// ===== Per-driver DPC/ISR-latency (ETW) =====
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct DriverLatencyEntry {
+    /// Bestandsnaam van de driver, bijv. "nvlddmkm.sys".
+    pub driver: String,
+    /// Bekende omschrijving ("NVIDIA-videodriver"), indien bekend.
+    pub description: Option<String>,
+    pub dpc_count: u64,
+    pub dpc_max_us: f64,
+    pub dpc_total_ms: f64,
+    pub isr_count: u64,
+    pub isr_max_us: f64,
+    pub isr_total_ms: f64,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct DriverLatencyReport {
+    /// `false` als ETW niet beschikbaar is (niet-Windows) of de trace niet kon starten.
+    pub is_available: bool,
+    /// De meting vereist beheerdersrechten (kernel-trace).
+    pub requires_admin: bool,
+    pub duration_ms: u64,
+    pub dpc_count: u64,
+    pub isr_count: u64,
+    /// Door ETW weggegooide events (buffers vol); > 0 betekent een onvolledige meting.
+    pub events_lost: u32,
+    pub highest_dpc_us: f64,
+    pub highest_isr_us: f64,
+    pub highest_dpc_driver: Option<String>,
+    pub highest_isr_driver: Option<String>,
+    /// "Goed" | "Matig" | "Slecht" | "Niet getest"
+    pub verdict: String,
+    pub summary: String,
+    /// Gesorteerd op hoogste uitvoertijd (DPC of ISR), aflopend.
+    pub drivers: Vec<DriverLatencyEntry>,
+    pub error: Option<String>,
+}

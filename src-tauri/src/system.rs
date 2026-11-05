@@ -20,10 +20,10 @@ fn get_static_hardware() -> (Vec<GpuInfo>, MotherboardInfo) {
 
     let mut gpus = Vec::new();
     let mut motherboard = MotherboardInfo {
-        manufacturer: "Generiek Moederbord".to_string(),
-        product: "Systeemkaart".to_string(),
+        manufacturer: crate::tr!("Generiek Moederbord", "Generic motherboard").to_string(),
+        product: crate::tr!("Systeemkaart", "System board").to_string(),
         bios_vendor: "UEFI / BIOS".to_string(),
-        bios_version: "Onbekend".to_string(),
+        bios_version: crate::tr!("Onbekend", "Unknown").to_string(),
     };
 
     #[cfg(windows)]
@@ -33,7 +33,11 @@ fn get_static_hardware() -> (Vec<GpuInfo>, MotherboardInfo) {
 
     if gpus.is_empty() {
         gpus.push(GpuInfo {
-            name: "Geïntegreerde Grafische Adapter".to_string(),
+            name: crate::tr!(
+                "Geïntegreerde Grafische Adapter",
+                "Integrated graphics adapter"
+            )
+            .to_string(),
             driver_version: "".to_string(),
             vram_bytes: 0,
         });
@@ -178,9 +182,13 @@ pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
         if diff.num_seconds() > 0 {
             let secs = diff.num_seconds() as u64;
             let started_at = if dt.date() == now.date() {
-                format!("Vandaag om {}", dt.format("%H:%M"))
+                crate::tr!(
+                    format!("Vandaag om {}", dt.format("%H:%M")),
+                    format!("Today at {}", dt.format("%H:%M"))
+                )
             } else {
-                dt.format("%d-%m om %H:%M").to_string()
+                dt.format(crate::tr!("%d-%m om %H:%M", "%d-%m at %H:%M"))
+                    .to_string()
             };
             if let Ok(mut guard) = SESSION_START_CACHE.lock() {
                 *guard = Some((dt, started_at.clone()));
@@ -189,7 +197,7 @@ pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
         }
     }
 
-    let default_str = "Sinds koude systeemstart".to_string();
+    let default_str = crate::tr!("Sinds koude systeemstart", "Since cold boot").to_string();
     if let Ok(mut guard) = SESSION_START_CACHE.lock() {
         *guard = Some((
             now - chrono::Duration::seconds(kernel_uptime as i64),

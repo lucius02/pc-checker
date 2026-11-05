@@ -45,19 +45,30 @@ pub fn ps_single_quote(s: &str) -> String {
 /// (de aanroeper sluit dan deze instantie af), `Ok(false)` = gebruiker heeft UAC geweigerd.
 pub fn relaunch_elevated() -> Result<bool, String> {
     if !cfg!(windows) {
-        return Err(
-            "Herstarten als beheerder wordt alleen op Windows ondersteund. Start de app met sudo."
-                .into(),
-        );
+        return Err(crate::tr!(
+            "Herstarten als beheerder wordt alleen op Windows ondersteund. Start de app met sudo.",
+            "Restarting as administrator is only supported on Windows. Start the app with sudo."
+        )
+        .into());
     }
-    let exe =
-        std::env::current_exe().map_err(|e| format!("Kon pad van de app niet bepalen: {e}"))?;
+    let exe = std::env::current_exe().map_err(|e| {
+        crate::tr!(
+            format!("Kon pad van de app niet bepalen: {e}"),
+            format!("Could not determine the app's path: {e}")
+        )
+    })?;
     let script = format!(
         "try {{ Start-Process -FilePath {} -Verb RunAs -ErrorAction Stop; 'ok' }} catch {{ 'cancel' }}",
         ps_single_quote(&exe.to_string_lossy())
     );
     let out = crate::shell::run_powershell(&script, std::time::Duration::from_secs(120))
-        .ok_or_else(|| "PowerShell kon niet worden gestart.".to_string())?;
+        .ok_or_else(|| {
+            crate::tr!(
+                "PowerShell kon niet worden gestart.",
+                "PowerShell could not be started."
+            )
+            .to_string()
+        })?;
     Ok(out.trim() == "ok")
 }
 

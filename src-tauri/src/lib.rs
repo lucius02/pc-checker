@@ -1,10 +1,12 @@
 pub mod commands;
 pub mod cooling;
+pub mod driver_latency;
 pub mod drivers;
 pub mod elevation;
 pub mod freeze;
 pub mod health;
 pub mod history;
+pub mod i18n;
 pub mod latency;
 pub mod models;
 pub mod monitor;
@@ -69,7 +71,9 @@ pub fn run() {
             commands::get_history,
             commands::clear_history,
             commands::get_elevation_status,
-            commands::restart_as_admin
+            commands::restart_as_admin,
+            commands::run_driver_latency_trace,
+            commands::set_language
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

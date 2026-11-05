@@ -57,7 +57,10 @@ fn query_cooling_wmi() -> (Vec<TemperatureSensorInfo>, Vec<FanInfo>, Option<u32>
             .and_then(decikelvin_to_celsius)
         {
             zones.push(TemperatureSensorInfo {
-                label: format!("CPU / Moederbord Zone ({})", name),
+                label: crate::tr!(
+                    format!("CPU / Moederbord Zone ({})", name),
+                    format!("CPU / motherboard zone ({})", name)
+                ),
                 temperature_celsius: c,
                 max_celsius: Some(100.0),
                 critical_celsius: Some(105.0),
@@ -69,8 +72,12 @@ fn query_cooling_wmi() -> (Vec<TemperatureSensorInfo>, Vec<FanInfo>, Option<u32>
     }
     for f in con.query::<Fan>().unwrap_or_default() {
         fans.push(FanInfo {
-            name: f.name.unwrap_or_else(|| "Systeem Ventilator".to_string()),
-            status: f.status.unwrap_or_else(|| "Actief".to_string()),
+            name: f
+                .name
+                .unwrap_or_else(|| crate::tr!("Systeem Ventilator", "System fan").to_string()),
+            status: f
+                .status
+                .unwrap_or_else(|| crate::tr!("Actief", "Active").to_string()),
             speed_rpm: f.desired_speed.map(|n| n.min(u32::MAX as u64) as u32),
         });
     }
@@ -95,9 +102,9 @@ fn query_cooling_wmi() -> (Vec<TemperatureSensorInfo>, Vec<FanInfo>, Option<u32>
                         fans.push(FanInfo {
                             name: format!("{} fan{}", chip, i),
                             status: if rpm > 0 {
-                                "Actief".into()
+                                crate::tr!("Actief", "Active").into()
                             } else {
-                                "Stil".into()
+                                crate::tr!("Stil", "Idle").into()
                             },
                             speed_rpm: Some(rpm),
                         });
@@ -172,8 +179,15 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
     // If no RPM fan is directly exposed via WMI, add the Embedded Controller fan curve status
     if fans.is_empty() {
         fans.push(FanInfo {
-            name: "Systeem Ventilator & Koelprofiel (Moederbord EC/BIOS)".to_string(),
-            status: format!("{}% Koelcapaciteit Actief", passive_limit),
+            name: crate::tr!(
+                "Systeem Ventilator & Koelprofiel (Moederbord EC/BIOS)",
+                "System fan & cooling profile (motherboard EC/BIOS)"
+            )
+            .to_string(),
+            status: crate::tr!(
+                format!("{}% Koelcapaciteit Actief", passive_limit),
+                format!("{}% cooling capacity active", passive_limit)
+            ),
             speed_rpm: None,
         });
     }
@@ -181,11 +195,17 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
     let is_throttling_suspected = temps.iter().any(|t| t.temperature_celsius >= 90.0);
 
     let summary = if is_throttling_suspected {
-        "⚠️ WAARSCHUWING: Temperatuur overschrijdt 90°C! Dit kan CPU thermal throttling en prestatiedips veroorzaken.".to_string()
+        crate::tr!("⚠️ WAARSCHUWING: Temperatuur overschrijdt 90°C! Dit kan CPU thermal throttling en prestatiedips veroorzaken.", "⚠️ WARNING: temperature exceeds 90°C! This can cause CPU thermal throttling and performance drops.").to_string()
     } else {
-        format!(
-            "Koeling actief en stabiel. {} temperatuursensor(en) live gemonitord.",
-            temps.len()
+        crate::tr!(
+            format!(
+                "Koeling actief en stabiel. {} temperatuursensor(en) live gemonitord.",
+                temps.len()
+            ),
+            format!(
+                "Cooling active and stable. {} temperature sensor(s) monitored live.",
+                temps.len()
+            )
         )
     };
 

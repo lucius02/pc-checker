@@ -29,7 +29,7 @@
 //! - probleemapparaat / RAM-fouten / schijftest mislukt / >= 3 freezes -> max 69 (D)
 //! - >= 1 freeze, throttling of een categorie "Kritiek" -> max 79 (C)
 //! - alleen basisgegevens (geen driver-/latency-/stresstest gedraaid) -> max 89 (B):
-//!   zonder tests kan het systeem niet "Uitstekend" heten; label krijgt "(voorlopig)".
+//!   zonder tests kan het systeem niet crate::tr!("Uitstekend", "Excellent") heten; label krijgt "(voorlopig)".
 //!
 //! Cijfergrenzen: A >= 90, B >= 80, C >= 70, D >= 60, E >= 50, F < 50.
 //! Categoriestatus: "Goed" (>= 80), "Let op" (>= 50), "Kritiek" (< 50),
@@ -90,12 +90,12 @@ pub fn grade_for(score: u8) -> &'static str {
 
 pub fn label_for(grade: &str) -> &'static str {
     match grade {
-        "A" => "Uitstekend",
-        "B" => "Goed",
-        "C" => "Redelijk",
-        "D" => "Aandacht nodig",
-        "E" => "Slecht",
-        _ => "Kritiek",
+        "A" => crate::tr!("Uitstekend", "Excellent"),
+        "B" => crate::tr!("Goed", "Good"),
+        "C" => crate::tr!("Redelijk", "Reasonable"),
+        "D" => crate::tr!("Aandacht nodig", "Needs attention"),
+        "E" => crate::tr!("Slecht", "Poor"),
+        _ => crate::tr!("Kritiek", "Critical"),
     }
 }
 
@@ -192,21 +192,30 @@ pub fn compute_health_score(inputs: HealthInputs) -> HealthScore {
         .collect();
 
     if top_issues.len() < 3 && !untested_labels.is_empty() {
-        top_issues.push(format!(
-            "Nog niet getest: {}. Voer deze tests uit voor een nauwkeurigere score.",
-            untested_labels.join(", ")
+        top_issues.push(crate::tr!(
+            format!(
+                "Nog niet getest: {}. Voer deze tests uit voor een nauwkeurigere score.",
+                untested_labels.join(", ")
+            ),
+            format!(
+                "Not yet tested: {}. Run these tests for a more accurate score.",
+                untested_labels.join(", ")
+            )
         ));
     } else if only_basics {
         // Altijd melden, desnoods ten koste van de minst ernstige bevinding.
         top_issues.truncate(2);
         top_issues.push(
-            "Score is gebaseerd op basisgegevens; voer de freeze-, driver- en latency-tests uit voor een nauwkeurigere score."
+            crate::tr!("Score is gebaseerd op basisgegevens; voer de freeze-, driver- en latency-tests uit voor een nauwkeurigere score.", "The score is based on basic data only; run the freeze, driver and latency tests for a more accurate score.")
                 .to_string(),
         );
     }
 
     let label = if only_basics {
-        format!("{} (voorlopig)", label_for(grade))
+        crate::tr!(
+            format!("{} (voorlopig)", label_for(grade)),
+            format!("{} (provisional)", label_for(grade))
+        )
     } else {
         label_for(grade).to_string()
     };

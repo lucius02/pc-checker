@@ -31,6 +31,14 @@ ts-rs = { version = "12", features = ["no-serde-warnings"] }
 
 [target.'cfg(windows)'.dependencies]
 wmi = "0.18"
+# ETW (per-driver DPC/ISR-meting), driverlijst en QPC-klok. Zelfde versie als `wmi` gebruikt.
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_System_Diagnostics_Etw",
+  "Win32_System_Time",
+  "Win32_System_ProcessStatus",
+  "Win32_System_Performance",
+] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

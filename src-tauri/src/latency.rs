@@ -314,27 +314,27 @@ fn fmt_us(us: f64) -> String {
 fn build_advice(verdict: &str, c: &CounterStats, report_available: bool) -> Vec<String> {
     let mut a = Vec::new();
     if verdict == "Goed" {
-        a.push("Geen actie nodig: de systeemlatency is laag genoeg voor audio, gaming en video zonder haperingen.".to_string());
+        a.push(crate::tr!("Geen actie nodig: de systeemlatency is laag genoeg voor audio, gaming en video zonder haperingen.", "No action needed: system latency is low enough for audio, gaming and video without stutters.").to_string());
         if !c.any() {
-            a.push("De Windows-prestatiemeteritems waren niet beschikbaar; herhaal de test eventueel als beheerder voor DPC-/interrupt-percentages.".to_string());
+            a.push(crate::tr!("De Windows-prestatiemeteritems waren niet beschikbaar; herhaal de test eventueel als beheerder voor DPC-/interrupt-percentages.", "The Windows performance counters were not available; repeat the test as administrator to get DPC/interrupt percentages.").to_string());
         }
         return a;
     }
     if !report_available {
-        a.push("Voer eerst de Driver Check uit en herhaal daarna deze test, zodat verdachte drivers (netwerk, audio, GPU, opslag, USB) kunnen worden aangewezen.".to_string());
+        a.push(crate::tr!("Voer eerst de Driver Check uit en herhaal daarna deze test, zodat verdachte drivers (netwerk, audio, GPU, opslag, USB) kunnen worden aangewezen.", "Run the Driver Check first and then repeat this test, so suspect drivers (network, audio, GPU, storage, USB) can be identified.").to_string());
     }
-    a.push("Werk netwerkdrivers bij (vooral Wi-Fi) via de website van de fabrikant; test eventueel met Wi-Fi uitgeschakeld of met een kabel.".to_string());
-    a.push("Werk audiodrivers bij (Realtek/Intel SST/USB-audio) en schakel ongebruikte audioapparaten uit in Apparaatbeheer.".to_string());
-    a.push("Installeer de nieuwste GPU-driver (schone installatie, bijv. met DDU) en schakel ongebruikte overlays uit.".to_string());
-    a.push("Kies het energiebeheerschema 'Hoge prestaties' of 'Ultieme prestaties' tijdens de test en schakel 'Selectieve USB-onderbreking' en PCIe Link State Power Management uit.".to_string());
-    a.push("Controleer in het BIOS energiebesparende opties (C-states, ASPM, Intel SpeedStep/AMD Cool'n'Quiet) en update het BIOS/chipset-drivers.".to_string());
-    a.push("Koppel USB-apparaten één voor één los (vooral hubs, dongles en webcams) en herhaal de test om een verdachte te isoleren.".to_string());
+    a.push(crate::tr!("Werk netwerkdrivers bij (vooral Wi-Fi) via de website van de fabrikant; test eventueel met Wi-Fi uitgeschakeld of met een kabel.", "Update network drivers (especially Wi-Fi) from the manufacturer's website; if needed, test with Wi-Fi disabled or with a cable.").to_string());
+    a.push(crate::tr!("Werk audiodrivers bij (Realtek/Intel SST/USB-audio) en schakel ongebruikte audioapparaten uit in Apparaatbeheer.", "Update audio drivers (Realtek/Intel SST/USB audio) and disable unused audio devices in Device Manager.").to_string());
+    a.push(crate::tr!("Installeer de nieuwste GPU-driver (schone installatie, bijv. met DDU) en schakel ongebruikte overlays uit.", "Install the latest GPU driver (clean install, e.g. with DDU) and disable unused overlays.").to_string());
+    a.push(crate::tr!("Kies het energiebeheerschema 'Hoge prestaties' of 'Ultieme prestaties' tijdens de test en schakel 'Selectieve USB-onderbreking' en PCIe Link State Power Management uit.", "Choose the 'High performance' or 'Ultimate performance' power plan during the test, and disable 'USB selective suspend' and PCIe Link State Power Management.").to_string());
+    a.push(crate::tr!("Controleer in het BIOS energiebesparende opties (C-states, ASPM, Intel SpeedStep/AMD Cool'n'Quiet) en update het BIOS/chipset-drivers.", "Check power-saving options in the BIOS (C-states, ASPM, Intel SpeedStep/AMD Cool'n'Quiet) and update the BIOS/chipset drivers.").to_string());
+    a.push(crate::tr!("Koppel USB-apparaten één voor één los (vooral hubs, dongles en webcams) en herhaal de test om een verdachte te isoleren.", "Disconnect USB devices one at a time (especially hubs, dongles and webcams) and repeat the test to isolate a suspect.").to_string());
     if c.dpc_avg.unwrap_or(0.0) >= DPC_AVG_WARN_PCT || c.irq_avg.unwrap_or(0.0) >= DPC_AVG_WARN_PCT
     {
-        a.push("De CPU besteedt opvallend veel tijd aan DPC's/interrupts; dit wijst sterk op een driverprobleem in plaats van op normale belasting.".to_string());
+        a.push(crate::tr!("De CPU besteedt opvallend veel tijd aan DPC's/interrupts; dit wijst sterk op een driverprobleem in plaats van op normale belasting.", "The CPU spends a striking amount of time on DPCs/interrupts; this strongly points to a driver problem rather than normal load.").to_string());
     }
     a.push(
-        "Gebruik LatencyMon (Resplendence) voor een exacte toewijzing van DPC/ISR-tijd per driver."
+        crate::tr!("Start de per-driver DPC/ISR-meting (ETW, als beheerder) hieronder voor een exacte toewijzing van DPC/ISR-tijd per driver.", "Start the per-driver DPC/ISR measurement (ETW, as administrator) below for an exact attribution of DPC/ISR time per driver.")
             .to_string(),
     );
     a
@@ -342,25 +342,52 @@ fn build_advice(verdict: &str, c: &CounterStats, report_available: bool) -> Vec<
 
 fn build_summary(verdict: &str, stats: &GapStats, c: &CounterStats, elevated: bool) -> String {
     let mut s = match verdict {
-        "Goed" => format!(
-            "Goed: de langste onderbreking was {} – ruim onder de {} grens. Geen DPC/ISR-problemen gemeten.",
-            fmt_us(stats.max_us()),
-            fmt_us(MAX_GAP_GOOD_US)
+        "Goed" => crate::tr!(
+            format!(
+                "Goed: de langste onderbreking was {} – ruim onder de {} grens. Geen DPC/ISR-problemen gemeten.",
+                fmt_us(stats.max_us()),
+                fmt_us(MAX_GAP_GOOD_US)
+            ),
+            format!(
+                "Good: the longest interruption was {} – well below the {} limit. No DPC/ISR problems measured.",
+                fmt_us(stats.max_us()),
+                fmt_us(MAX_GAP_GOOD_US)
+            )
         ),
-        "Matig" => format!(
-            "Matig: de langste onderbreking was {} ({} keer ≥ 1 ms). Lichte kans op audio-crackles of micro-stutters.",
-            fmt_us(stats.max_us()),
-            stats.gaps_over_1ms()
+        "Matig" => crate::tr!(
+            format!(
+                "Matig: de langste onderbreking was {} ({} keer ≥ 1 ms). Lichte kans op audio-crackles of micro-stutters.",
+                fmt_us(stats.max_us()),
+                stats.gaps_over_1ms()
+            ),
+            format!(
+                "Fair: the longest interruption was {} ({} times ≥ 1 ms). Slight chance of audio crackles or micro-stutters.",
+                fmt_us(stats.max_us()),
+                stats.gaps_over_1ms()
+            )
         ),
-        _ => format!(
-            "Slecht: de langste onderbreking was {} ({} keer ≥ 1 ms). Drivers of energiebeheer houden de CPU te lang bezig; dit veroorzaakt haperingen en freezes.",
-            fmt_us(stats.max_us()),
-            stats.gaps_over_1ms()
+        _ => crate::tr!(
+            format!(
+                "Slecht: de langste onderbreking was {} ({} keer ≥ 1 ms). Drivers of energiebeheer houden de CPU te lang bezig; dit veroorzaakt haperingen en freezes.",
+                fmt_us(stats.max_us()),
+                stats.gaps_over_1ms()
+            ),
+            format!(
+                "Poor: the longest interruption was {} ({} times ≥ 1 ms). Drivers or power management keep the CPU busy too long; this causes stutters and freezes.",
+                fmt_us(stats.max_us()),
+                stats.gaps_over_1ms()
+            )
         ),
     };
-    s.push_str(&format!(
-        " {:.1} miljoen timer-metingen uitgevoerd.",
-        stats.samples as f64 / 1_000_000.0
+    s.push_str(&crate::tr!(
+        format!(
+            " {:.1} miljoen timer-metingen uitgevoerd.",
+            stats.samples as f64 / 1_000_000.0
+        ),
+        format!(
+            " {:.1} million timer samples taken.",
+            stats.samples as f64 / 1_000_000.0
+        )
     ));
     if let Some(d) = c.dpc_avg {
         s.push_str(&format!(" Gemiddelde DPC-tijd {:.2} %", d));
@@ -369,10 +396,13 @@ fn build_summary(verdict: &str, stats: &GapStats, c: &CounterStats, elevated: bo
         }
         s.push('.');
     } else {
-        s.push_str(" Windows-prestatiemeteritems (DPC/interrupt-%) niet beschikbaar.");
+        s.push_str(crate::tr!(
+            " Windows-prestatiemeteritems (DPC/interrupt-%) niet beschikbaar.",
+            " Windows performance counters (DPC/interrupt %) not available."
+        ));
     }
     if !elevated {
-        s.push_str(" Let op: de meetthread draaide zonder verhoogde prioriteit, dus losse pieken kunnen ook gewone Windows-scheduling zijn.");
+        s.push_str(crate::tr!(" Let op: de meetthread draaide zonder verhoogde prioriteit, dus losse pieken kunnen ook gewone Windows-scheduling zijn.", " Note: the measuring thread ran without elevated priority, so isolated spikes may also be ordinary Windows scheduling."));
     }
     s
 }
@@ -399,10 +429,20 @@ fn build_result(
             interrupt_time_percent_max: c.irq_max,
             dpcs_queued_per_sec_avg: c.dpcq_avg,
             verdict: "Matig".to_string(),
-            summary: "De latency-meting heeft geen metingen opgeleverd.".to_string(),
+            summary: crate::tr!(
+                "De latency-meting heeft geen metingen opgeleverd.",
+                "The latency measurement produced no samples."
+            )
+            .to_string(),
             suspected_drivers: Vec::new(),
             advice: Vec::new(),
-            error: Some("Geen timer-metingen verzameld".to_string()),
+            error: Some(
+                crate::tr!(
+                    "Geen timer-metingen verzameld",
+                    "No timer samples collected"
+                )
+                .to_string(),
+            ),
         };
     }
     let verdict = overall_verdict(stats.max_us(), stats.gaps_over_1ms(), c);

@@ -9,8 +9,8 @@ use tauri::AppHandle;
 
 use crate::models::*;
 use crate::{
-    cooling, drivers, elevation, freeze, health, history, latency, monitor, power, power_delivery,
-    processes, storage, stress, system,
+    cooling, driver_latency, drivers, elevation, freeze, health, history, latency, monitor, power,
+    power_delivery, processes, storage, stress, system,
 };
 
 async fn blocking<T, F>(what: &str, f: F) -> Result<T, String>
@@ -18,34 +18,57 @@ where
     T: Send + 'static,
     F: FnOnce() -> T + Send + 'static,
 {
-    tauri::async_runtime::spawn_blocking(f)
-        .await
-        .map_err(|e| format!("{} is onverwacht afgebroken: {}", what, e))
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| {
+        crate::tr!(
+            format!("{} is onverwacht afgebroken: {}", what, e),
+            format!("{} stopped unexpectedly: {}", what, e)
+        )
+    })
 }
 
 #[tauri::command]
 pub async fn get_system_overview() -> Result<SystemOverview, String> {
-    blocking("Systeemoverzicht", system::get_system_overview).await
+    blocking(
+        crate::tr!("Systeemoverzicht", "System overview"),
+        system::get_system_overview,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn get_power_and_battery_info() -> Result<PowerInfo, String> {
-    blocking("Voedingsinformatie", power::get_power_and_battery_info).await
+    blocking(
+        crate::tr!("Voedingsinformatie", "Power information"),
+        power::get_power_and_battery_info,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn run_battery_health_check() -> Result<BatteryHealthReport, String> {
-    blocking("Batterijtest", power::run_battery_health_check).await
+    blocking(
+        crate::tr!("Batterijtest", "Battery test"),
+        power::run_battery_health_check,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn get_cooling_and_fan_info() -> Result<CoolingOverview, String> {
-    blocking("Koelingsinformatie", cooling::get_cooling_and_fan_info).await
+    blocking(
+        crate::tr!("Koelingsinformatie", "Cooling information"),
+        cooling::get_cooling_and_fan_info,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn scan_freeze_diagnostic() -> Result<FreezeDiagnosticReport, String> {
-    blocking("Freeze-diagnose", freeze::scan_freeze_diagnostic).await
+    blocking(
+        crate::tr!("Freeze-diagnose", "Freeze diagnosis"),
+        freeze::scan_freeze_diagnostic,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -53,7 +76,7 @@ pub async fn run_cpu_stress_test(
     duration_secs: u64,
     thread_count: Option<usize>,
 ) -> Result<StressTestResult, String> {
-    blocking("CPU-stresstest", move || {
+    blocking(crate::tr!("CPU-stresstest", "CPU stress test"), move || {
         stress::run_cpu_stress_test(duration_secs, thread_count)
     })
     .await
@@ -64,7 +87,7 @@ pub async fn run_ram_stress_test(
     size_mb: usize,
     passes: Option<usize>,
 ) -> Result<StressTestResult, String> {
-    blocking("RAM-test", move || {
+    blocking(crate::tr!("RAM-test", "RAM test"), move || {
         stress::run_ram_stress_test(size_mb, passes)
     })
     .await
@@ -75,7 +98,7 @@ pub async fn run_disk_benchmark(
     target_dir: Option<String>,
     file_size_mb: Option<usize>,
 ) -> Result<StressTestResult, String> {
-    blocking("Schijftest", move || {
+    blocking(crate::tr!("Schijftest", "Disk test"), move || {
         stress::run_disk_benchmark(target_dir, file_size_mb)
     })
     .await
@@ -91,7 +114,7 @@ pub async fn get_process_snapshot(
     sort_by: Option<String>,
     limit: Option<usize>,
 ) -> Result<ProcessSnapshot, String> {
-    blocking("Procesmonitor", move || {
+    blocking(crate::tr!("Procesmonitor", "Process monitor"), move || {
         processes::get_process_snapshot(sort_by, limit)
     })
     .await
@@ -100,7 +123,7 @@ pub async fn get_process_snapshot(
 #[tauri::command]
 pub async fn get_freeze_process_context() -> Result<Vec<FreezeProcessContext>, String> {
     blocking(
-        "Freeze-procescontext",
+        crate::tr!("Freeze-procescontext", "Freeze process context"),
         processes::get_freeze_process_context,
     )
     .await
@@ -108,7 +131,11 @@ pub async fn get_freeze_process_context() -> Result<Vec<FreezeProcessContext>, S
 
 #[tauri::command]
 pub async fn scan_drivers() -> Result<DriverReport, String> {
-    blocking("Driver-scan", drivers::scan_drivers_blocking).await
+    blocking(
+        crate::tr!("Driver-scan", "Driver scan"),
+        drivers::scan_drivers_blocking,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -123,7 +150,7 @@ pub async fn open_windows_update() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn run_latency_test(duration_secs: u64) -> Result<LatencyTestResult, String> {
-    blocking("Latency-test", move || {
+    blocking(crate::tr!("Latency-test", "Latency test"), move || {
         latency::run_latency_test_blocking(duration_secs)
     })
     .await
@@ -131,7 +158,7 @@ pub async fn run_latency_test(duration_secs: u64) -> Result<LatencyTestResult, S
 
 #[tauri::command]
 pub async fn compute_health_score(inputs: HealthInputs) -> Result<HealthScore, String> {
-    blocking("Gezondheidsscore", move || {
+    blocking(crate::tr!("Gezondheidsscore", "Health score"), move || {
         let score = health::compute_health_score(inputs);
         history::record_health(&score);
         score
@@ -142,7 +169,7 @@ pub async fn compute_health_score(inputs: HealthInputs) -> Result<HealthScore, S
 #[tauri::command]
 pub async fn check_hardware_power_delivery() -> Result<HardwarePowerCheckReport, String> {
     blocking(
-        "Stroomtoevoercontrole",
+        crate::tr!("Stroomtoevoercontrole", "Power delivery check"),
         power_delivery::check_hardware_power_delivery,
     )
     .await
@@ -150,17 +177,25 @@ pub async fn check_hardware_power_delivery() -> Result<HardwarePowerCheckReport,
 
 #[tauri::command]
 pub async fn scan_storage_health() -> Result<StorageHealthReport, String> {
-    blocking("Schijfgezondheid", storage::scan_storage_health).await
+    blocking(
+        crate::tr!("Schijfgezondheid", "Disk health"),
+        storage::scan_storage_health,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn get_history() -> Result<HistoryData, String> {
-    blocking("Historie", history::load).await
+    blocking(crate::tr!("Historie", "History"), history::load).await
 }
 
 #[tauri::command]
 pub async fn clear_history() -> Result<(), String> {
-    blocking("Historie wissen", history::clear).await?
+    blocking(
+        crate::tr!("Historie wissen", "Clearing history"),
+        history::clear,
+    )
+    .await?
 }
 
 #[tauri::command]
@@ -172,9 +207,30 @@ pub async fn get_elevation_status() -> Result<ElevationStatus, String> {
 /// `Ok(false)` betekent dat de gebruiker de UAC-prompt heeft geweigerd.
 #[tauri::command]
 pub async fn restart_as_admin(app: AppHandle) -> Result<bool, String> {
-    let started = blocking("Herstarten als beheerder", elevation::relaunch_elevated).await??;
+    let started = blocking(
+        crate::tr!("Herstarten als beheerder", "Restarting as administrator"),
+        elevation::relaunch_elevated,
+    )
+    .await??;
     if started {
         app.exit(0);
     }
     Ok(started)
+}
+
+/// Per-driver DPC/ISR-meting via ETW (vereist beheerdersrechten).
+#[tauri::command]
+pub async fn run_driver_latency_trace(duration_secs: u64) -> Result<DriverLatencyReport, String> {
+    blocking(
+        crate::tr!("Driver-latency-meting", "Driver latency measurement"),
+        move || driver_latency::run_driver_latency_trace(duration_secs),
+    )
+    .await
+}
+
+/// Taal van backendteksten ("nl" of "en").
+#[tauri::command]
+pub async fn set_language(lang: String) -> Result<(), String> {
+    crate::i18n::set_language(&lang);
+    Ok(())
 }

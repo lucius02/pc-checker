@@ -34,7 +34,11 @@ pub fn get_system_power_status() -> Result<WinSystemPowerStatus, String> {
         if res != 0 {
             Ok(status)
         } else {
-            Err("Win32 GetSystemPowerStatus aanroep mislukt".to_string())
+            Err(crate::tr!(
+                "Win32 GetSystemPowerStatus aanroep mislukt",
+                "Win32 GetSystemPowerStatus call failed"
+            )
+            .to_string())
         }
     }
     #[cfg(target_os = "linux")]
@@ -136,7 +140,7 @@ pub fn linux_power_status(root: &std::path::Path) -> WinSystemPowerStatus {
 pub fn parse_power_scheme(text: &str) -> String {
     match (text.find('('), text.rfind(')')) {
         (Some(a), Some(b)) if b > a => text[a + 1..b].trim().to_string(),
-        _ => "Gebalanceerd (Standaard)".to_string(),
+        _ => crate::tr!("Gebalanceerd (Standaard)", "Balanced (default)").to_string(),
     }
 }
 
@@ -152,12 +156,19 @@ fn get_active_power_plan() -> String {
     let plan = if cfg!(windows) {
         match hidden_command("powercfg").arg("/getactivescheme").output() {
             Ok(out) => parse_power_scheme(&String::from_utf8_lossy(&out.stdout)),
-            Err(_) => "Gebalanceerd".to_string(),
+            Err(_) => crate::tr!("Gebalanceerd", "Balanced").to_string(),
         }
     } else {
         read_trim(std::path::Path::new("/sys/firmware/acpi/platform_profile"))
-            .map(|p| format!("Platformprofiel: {}", p))
-            .unwrap_or_else(|| "Standaard (OS-beheerd)".to_string())
+            .map(|p| {
+                crate::tr!(
+                    format!("Platformprofiel: {}", p),
+                    format!("Platform profile: {}", p)
+                )
+            })
+            .unwrap_or_else(|| {
+                crate::tr!("Standaard (OS-beheerd)", "Default (OS managed)").to_string()
+            })
     };
 
     if let Ok(mut guard) = POWER_PLAN_CACHE.lock() {
@@ -179,14 +190,26 @@ pub fn get_power_and_battery_info() -> PowerInfo {
         if battery_present {
             let pct = Some(status.battery_life_percent);
             let desc = if (status.battery_flag & 8) != 0 {
-                format!("Opladen via Netstroom ({}%)", status.battery_life_percent)
+                crate::tr!(
+                    format!("Opladen via Netstroom ({}%)", status.battery_life_percent),
+                    format!("Charging from mains ({}%)", status.battery_life_percent)
+                )
             } else if ac_connected {
-                format!(
-                    "Netstroom aangesloten, batterij vol ({}%)",
-                    status.battery_life_percent
+                crate::tr!(
+                    format!(
+                        "Netstroom aangesloten, batterij vol ({}%)",
+                        status.battery_life_percent
+                    ),
+                    format!(
+                        "Plugged in, battery full ({}%)",
+                        status.battery_life_percent
+                    )
                 )
             } else {
-                format!("Draait op batterij ({}%)", status.battery_life_percent)
+                crate::tr!(
+                    format!("Draait op batterij ({}%)", status.battery_life_percent),
+                    format!("Running on battery ({}%)", status.battery_life_percent)
+                )
             };
             let life_secs = if status.battery_life_time != 0xFFFFFFFF {
                 Some(status.battery_life_time)
@@ -198,7 +221,11 @@ pub fn get_power_and_battery_info() -> PowerInfo {
             (
                 false,
                 None,
-                "Vaste Netstroom (Desktop Workstation)".to_string(),
+                crate::tr!(
+                    "Vaste Netstroom (Desktop Workstation)",
+                    "Fixed mains power (desktop workstation)"
+                )
+                .to_string(),
                 None,
             )
         };
@@ -206,22 +233,56 @@ pub fn get_power_and_battery_info() -> PowerInfo {
     let power_plan_name = get_active_power_plan();
 
     let details = if is_laptop {
-        format!(
-            "Laptop mobiele voeding actief. AC Adapter: {}. Batterijlading: {}%. Resterend: {}",
-            if ac_connected {
-                "Verbonden"
-            } else {
-                "Niet aangesloten"
-            },
-            battery_percent.unwrap_or(0),
-            battery_life_time_secs
-                .map(|s| format!("{}u {}m", s / 3600, (s % 3600) / 60))
-                .unwrap_or_else(|| "Aan netstroom / Berekenen...".to_string())
+        crate::tr!(
+            format!(
+                "Laptop mobiele voeding actief. AC Adapter: {}. Batterijlading: {}%. Resterend: {}",
+                if ac_connected {
+                    crate::tr!("Verbonden", "Connected")
+                } else {
+                    crate::tr!("Niet aangesloten", "Not connected")
+                },
+                battery_percent.unwrap_or(0),
+                battery_life_time_secs
+                    .map(|s| crate::tr!(
+                        format!("{}u {}m", s / 3600, (s % 3600) / 60),
+                        format!("{}h {}m", s / 3600, (s % 3600) / 60)
+                    ))
+                    .unwrap_or_else(|| crate::tr!(
+                        "Aan netstroom / Berekenen...",
+                        "On mains / calculating..."
+                    )
+                    .to_string())
+            ),
+            format!(
+                "Laptop on mobile power. AC adapter: {}. Battery charge: {}%. Remaining: {}",
+                if ac_connected {
+                    crate::tr!("Verbonden", "Connected")
+                } else {
+                    crate::tr!("Niet aangesloten", "Not connected")
+                },
+                battery_percent.unwrap_or(0),
+                battery_life_time_secs
+                    .map(|s| crate::tr!(
+                        format!("{}u {}m", s / 3600, (s % 3600) / 60),
+                        format!("{}h {}m", s / 3600, (s % 3600) / 60)
+                    ))
+                    .unwrap_or_else(|| crate::tr!(
+                        "Aan netstroom / Berekenen...",
+                        "On mains / calculating..."
+                    )
+                    .to_string())
+            )
         )
     } else {
-        format!(
-            "Desktop Workstation aangesloten op continue netstroom (AC Line Online). Energiebeheerschema: {}.",
-            power_plan_name
+        crate::tr!(
+            format!(
+                "Desktop Workstation aangesloten op continue netstroom (AC Line Online). Energiebeheerschema: {}.",
+                power_plan_name
+            ),
+            format!(
+                "Desktop workstation connected to continuous mains power (AC line online). Power plan: {}.",
+                power_plan_name
+            )
         )
     };
 
@@ -245,12 +306,20 @@ pub fn run_powercfg_batteryreport() -> Result<String, String> {
     let output = hidden_command("powercfg")
         .args(["/batteryreport", "/xml", "/output", &temp_path_str])
         .output()
-        .map_err(|e| format!("Powercfg uitvoerfout: {}", e))?;
+        .map_err(|e| {
+            crate::tr!(
+                format!("Powercfg uitvoerfout: {}", e),
+                format!("Powercfg error: {}", e)
+            )
+        })?;
 
     if !output.status.success() {
-        return Err(format!(
-            "powercfg commando gaf exitcode: {:?}",
-            output.status.code()
+        return Err(crate::tr!(
+            format!("powercfg commando gaf exitcode: {:?}", output.status.code()),
+            format!(
+                "powercfg command returned exit code: {:?}",
+                output.status.code()
+            )
         ));
     }
 
@@ -261,7 +330,11 @@ pub fn run_powercfg_batteryreport() -> Result<String, String> {
     let _ = std::fs::remove_file(&temp_xml);
 
     if xml_content.is_empty() {
-        Err("Geen batterijrapport XML kunnen genereren of lezen".to_string())
+        Err(crate::tr!(
+            "Geen batterijrapport XML kunnen genereren of lezen",
+            "Could not generate or read the battery report XML"
+        )
+        .to_string())
     } else {
         Ok(xml_content)
     }
@@ -274,7 +347,7 @@ pub fn parse_battery_report(xml_content: &str) -> BatteryHealthReport {
     let mut cycles: u32 = 0;
     let mut chemistry = "LION".to_string();
     let mut manufacturer = "Notebook".to_string();
-    let mut runtime_est = "Onbekend".to_string();
+    let mut runtime_est = crate::tr!("Onbekend", "Unknown").to_string();
 
     if let Some(pos) = xml_content.find("<DesignCapacity>")
         && let Some(end) = xml_content[pos..].find("</DesignCapacity>")
@@ -331,7 +404,7 @@ pub fn parse_battery_report(xml_content: &str) -> BatteryHealthReport {
             })
             .unwrap_or(0);
         if h > 0 || m > 0 {
-            runtime_est = format!("{} uur {} min", h, m);
+            runtime_est = crate::tr!(format!("{} uur {} min", h, m), format!("{} h {} min", h, m));
         }
     }
 
@@ -359,9 +432,9 @@ pub fn unavailable_battery_report(
         design_capacity_mwh: 0,
         full_charge_capacity_mwh: 0,
         cycle_count: 0,
-        chemistry: "N.v.t.".to_string(),
+        chemistry: crate::tr!("N.v.t.", "N/A").to_string(),
         manufacturer: manufacturer.to_string(),
-        estimated_runtime: "Onbekend".to_string(),
+        estimated_runtime: crate::tr!("Onbekend", "Unknown").to_string(),
         grade: grade.to_string(),
         advice: advice.to_string(),
     }
@@ -377,9 +450,12 @@ pub fn build_battery_report(
 ) -> BatteryHealthReport {
     if design_capacity == 0 || full_charge == 0 {
         return unavailable_battery_report(
-            "Onbekend",
+            crate::tr!("Onbekend", "Unknown"),
             &manufacturer,
-            "De batterijcapaciteit kon niet worden uitgelezen (ontbrekende gegevens in het batterijrapport). Probeer het opnieuw met beheerdersrechten.",
+            crate::tr!(
+                "De batterijcapaciteit kon niet worden uitgelezen (ontbrekende gegevens in het batterijrapport). Probeer het opnieuw met beheerdersrechten.",
+                "The battery capacity could not be read (data missing from the battery report). Try again with administrator rights."
+            ),
         );
     }
 
@@ -389,22 +465,22 @@ pub fn build_battery_report(
     let (grade, advice) = if health_percent >= 90.0 {
         (
             "Uitmuntend (Graad A)".to_string(),
-            "De batterij verkeert in uitstekende staat met minimale slijtage. De accucellen presteren nagenoeg conform fabrieksspecificatie.".to_string(),
+            crate::tr!("De batterij verkeert in uitstekende staat met minimale slijtage. De accucellen presteren nagenoeg conform fabrieksspecificatie.", "The battery is in excellent condition with minimal wear. The cells perform almost to factory specification.").to_string(),
         )
     } else if health_percent >= 80.0 {
         (
             "Goed (Graad B)".to_string(),
-            "De batterij heeft lichte, normale gebruiksslijtage maar functioneert nog zeer betrouwbaar.".to_string(),
+            crate::tr!("De batterij heeft lichte, normale gebruiksslijtage maar functioneert nog zeer betrouwbaar.", "The battery has light, normal wear but still works very reliably.").to_string(),
         )
     } else if health_percent >= 65.0 {
         (
             "Matig (Graad C)".to_string(),
-            "De batterijcapaciteit is merkbaar afgenomen. Je zult merken dat de laptop sneller leegloopt.".to_string(),
+            crate::tr!("De batterijcapaciteit is merkbaar afgenomen. Je zult merken dat de laptop sneller leegloopt.", "The battery capacity has noticeably decreased. You will notice the laptop drains faster.").to_string(),
         )
     } else {
         (
             "Versleten (Graad D)".to_string(),
-            "De accucapaciteit is sterk gedegradeerd. Vervanging van de interne accu wordt aangeraden.".to_string(),
+            crate::tr!("De accucapaciteit is sterk gedegradeerd. Vervanging van de interne accu wordt aangeraden.", "The battery capacity has degraded severely. Replacing the internal battery is recommended.").to_string(),
         )
     };
 
@@ -434,10 +510,14 @@ pub fn run_battery_health_check() -> BatteryHealthReport {
         let mut r = unavailable_battery_report(
             "Desktop PC",
             "Desktop PSU",
-            "Geen batterij aanwezig op dit systeem. Dit is een Desktop Workstation aangesloten op continue netstroomvoeding.",
+            crate::tr!(
+                "Geen batterij aanwezig op dit systeem. Dit is een Desktop Workstation aangesloten op continue netstroomvoeding.",
+                "No battery in this system. This is a desktop workstation connected to continuous mains power."
+            ),
         );
         r.health_percent = 100.0;
-        r.estimated_runtime = "Onbeperkt (Netstroom)".to_string();
+        r.estimated_runtime =
+            crate::tr!("Onbeperkt (Netstroom)", "Unlimited (mains power)").to_string();
         return r;
     }
 
@@ -450,9 +530,12 @@ pub fn run_battery_health_check() -> BatteryHealthReport {
     match run_powercfg_batteryreport() {
         Ok(xml_content) => parse_battery_report(&xml_content),
         Err(e) => unavailable_battery_report(
-            "Onbekend",
+            crate::tr!("Onbekend", "Unknown"),
             "Notebook",
-            &format!("Batterijrapport kon niet worden gegenereerd: {}", e),
+            &crate::tr!(
+                format!("Batterijrapport kon niet worden gegenereerd: {}", e),
+                format!("Battery report could not be generated: {}", e)
+            ),
         ),
     }
 }
@@ -461,9 +544,12 @@ pub fn run_battery_health_check() -> BatteryHealthReport {
 pub fn linux_battery_report(root: &std::path::Path) -> BatteryHealthReport {
     let Some(bat) = find_linux_battery(root) else {
         return unavailable_battery_report(
-            "Onbekend",
-            "Onbekend",
-            "Geen batterij gevonden in /sys/class/power_supply.",
+            crate::tr!("Onbekend", "Unknown"),
+            crate::tr!("Onbekend", "Unknown"),
+            crate::tr!(
+                "Geen batterij gevonden in /sys/class/power_supply.",
+                "No battery found in /sys/class/power_supply."
+            ),
         );
     };
     let pick = |a: &str, b: &str| read_u64(&bat.join(a)).or_else(|| read_u64(&bat.join(b)));
@@ -471,15 +557,17 @@ pub fn linux_battery_report(root: &std::path::Path) -> BatteryHealthReport {
     let design = pick("energy_full_design", "charge_full_design").unwrap_or(0) / 1000;
     let full = pick("energy_full", "charge_full").unwrap_or(0) / 1000;
     let cycles = read_u64(&bat.join("cycle_count")).unwrap_or(0) as u32;
-    let chemistry = read_trim(&bat.join("technology")).unwrap_or_else(|| "Onbekend".into());
-    let manufacturer = read_trim(&bat.join("manufacturer")).unwrap_or_else(|| "Onbekend".into());
+    let chemistry = read_trim(&bat.join("technology"))
+        .unwrap_or_else(|| crate::tr!("Onbekend", "Unknown").into());
+    let manufacturer = read_trim(&bat.join("manufacturer"))
+        .unwrap_or_else(|| crate::tr!("Onbekend", "Unknown").into());
     build_battery_report(
         design,
         full,
         cycles,
         chemistry,
         manufacturer,
-        "Onbekend".into(),
+        crate::tr!("Onbekend", "Unknown").into(),
     )
 }
 

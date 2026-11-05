@@ -35,7 +35,7 @@ fn normalize_media(raw: &str) -> String {
     match raw {
         "SSD" | "4" => "SSD".to_string(),
         "HDD" | "3" => "HDD".to_string(),
-        _ => "Onbekend".to_string(),
+        _ => crate::tr!("Onbekend", "Unknown").to_string(),
     }
 }
 
@@ -43,10 +43,12 @@ fn normalize_media(raw: &str) -> String {
 pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
     let health_status = str_field(v, "HealthStatus").unwrap_or_else(|| "Unknown".to_string());
     let mut entry = StorageHealthEntry {
-        model: str_field(v, "FriendlyName").unwrap_or_else(|| "Onbekende schijf".to_string()),
+        model: str_field(v, "FriendlyName")
+            .unwrap_or_else(|| crate::tr!("Onbekende schijf", "Unknown disk").to_string()),
         serial: str_field(v, "SerialNumber").unwrap_or_default(),
         media_type: normalize_media(&str_field(v, "MediaType").unwrap_or_default()),
-        bus_type: str_field(v, "BusType").unwrap_or_else(|| "Onbekend".to_string()),
+        bus_type: str_field(v, "BusType")
+            .unwrap_or_else(|| crate::tr!("Onbekend", "Unknown").to_string()),
         size_bytes: u64_field(v, "Size").unwrap_or(0),
         health_status: health_status.clone(),
         operational_status: str_field(v, "OperationalStatus").unwrap_or_default(),
@@ -72,12 +74,20 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
     match health_status.as_str() {
         "Unhealthy" => flag(
             2,
-            "Windows meldt de schijf als 'Unhealthy' (SMART-drempel overschreden).".into(),
+            crate::tr!(
+                "Windows meldt de schijf als 'Unhealthy' (SMART-drempel overschreden).",
+                "Windows reports the disk as 'Unhealthy' (SMART threshold exceeded)."
+            )
+            .into(),
             &mut findings,
         ),
         "Warning" => flag(
             1,
-            "Windows meldt een SMART-waarschuwing voor deze schijf.".into(),
+            crate::tr!(
+                "Windows meldt een SMART-waarschuwing voor deze schijf.",
+                "Windows reports a SMART warning for this disk."
+            )
+            .into(),
             &mut findings,
         ),
         _ => {}
@@ -88,9 +98,15 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
     if uncorrected > 0 {
         flag(
             2,
-            format!(
-                "{} niet-corrigeerbare lees-/schrijffouten: kans op dataverlies, maak een back-up.",
-                uncorrected
+            crate::tr!(
+                format!(
+                    "{} niet-corrigeerbare lees-/schrijffouten: kans op dataverlies, maak een back-up.",
+                    uncorrected
+                ),
+                format!(
+                    "{} uncorrectable read/write errors: risk of data loss, make a backup.",
+                    uncorrected
+                )
             ),
             &mut findings,
         );
@@ -100,13 +116,19 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
         if w >= WEAR_CRIT {
             flag(
                 2,
-                format!("SSD-slijtage {}%: einde levensduur nadert.", w),
+                crate::tr!(
+                    format!("SSD-slijtage {}%: einde levensduur nadert.", w),
+                    format!("SSD wear {}%: end of life is approaching.", w)
+                ),
                 &mut findings,
             );
         } else if w >= WEAR_WARN {
             flag(
                 1,
-                format!("SSD-slijtage {}%: plan vervanging.", w),
+                crate::tr!(
+                    format!("SSD-slijtage {}%: plan vervanging.", w),
+                    format!("SSD wear {}%: plan a replacement.", w)
+                ),
                 &mut findings,
             );
         }
@@ -116,18 +138,30 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
         if t >= TEMP_CRIT {
             flag(
                 2,
-                format!(
-                    "Schijftemperatuur {} °C is te hoog (thermal throttling / slijtage).",
-                    t
+                crate::tr!(
+                    format!(
+                        "Schijftemperatuur {} °C is te hoog (thermal throttling / slijtage).",
+                        t
+                    ),
+                    format!(
+                        "Disk temperature {} °C is too high (thermal throttling / wear).",
+                        t
+                    )
                 ),
                 &mut findings,
             );
         } else if t >= TEMP_WARN {
             flag(
                 1,
-                format!(
-                    "Schijftemperatuur {} °C is aan de hoge kant; controleer de airflow.",
-                    t
+                crate::tr!(
+                    format!(
+                        "Schijftemperatuur {} °C is aan de hoge kant; controleer de airflow.",
+                        t
+                    ),
+                    format!(
+                        "Disk temperature {} °C is on the high side; check the airflow.",
+                        t
+                    )
                 ),
                 &mut findings,
             );
@@ -138,9 +172,15 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
     if corrected > uncorrected && corrected - uncorrected > 100 && entry.media_type == "HDD" {
         flag(
             1,
-            format!(
-                "{} gecorrigeerde leesfouten: de schijf heeft moeite met uitlezen.",
-                corrected - uncorrected
+            crate::tr!(
+                format!(
+                    "{} gecorrigeerde leesfouten: de schijf heeft moeite met uitlezen.",
+                    corrected - uncorrected
+                ),
+                format!(
+                    "{} corrected read errors: the disk is struggling to read.",
+                    corrected - uncorrected
+                )
             ),
             &mut findings,
         );
@@ -152,7 +192,10 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
     {
         flag(
             1,
-            format!("Operationele status: {}.", entry.operational_status),
+            crate::tr!(
+                format!("Operationele status: {}.", entry.operational_status),
+                format!("Operational status: {}.", entry.operational_status)
+            ),
             &mut findings,
         );
     }
@@ -177,7 +220,7 @@ pub fn build_report(
             is_available: false,
             scanned_at,
             is_elevated: elevated,
-            summary: "Schijfgezondheid is alleen beschikbaar op Windows (Storage Management API niet gevonden).".into(),
+            summary: crate::tr!("Schijfgezondheid is alleen beschikbaar op Windows (Storage Management API niet gevonden).", "Disk health is only available on Windows (Storage Management API not found).").into(),
             ..Default::default()
         };
     };
@@ -185,23 +228,44 @@ pub fn build_report(
     let critical_count = disks.iter().filter(|d| d.verdict == VERDICT_CRIT).count();
     let warning_count = disks.iter().filter(|d| d.verdict == VERDICT_WARN).count();
     let summary = if disks.is_empty() {
-        "Geen fysieke schijven gevonden.".to_string()
+        crate::tr!(
+            "Geen fysieke schijven gevonden.",
+            "No physical disks found."
+        )
+        .to_string()
     } else if critical_count > 0 {
-        format!(
-            "{} van {} schijf/schijven in kritieke staat. Maak direct een back-up.",
-            critical_count,
-            disks.len()
+        crate::tr!(
+            format!(
+                "{} van {} schijf/schijven in kritieke staat. Maak direct een back-up.",
+                critical_count,
+                disks.len()
+            ),
+            format!(
+                "{} of {} disk(s) in critical condition. Make a backup immediately.",
+                critical_count,
+                disks.len()
+            )
         )
     } else if warning_count > 0 {
-        format!(
-            "{} van {} schijf/schijven vragen aandacht.",
-            warning_count,
-            disks.len()
+        crate::tr!(
+            format!(
+                "{} van {} schijf/schijven vragen aandacht.",
+                warning_count,
+                disks.len()
+            ),
+            format!(
+                "{} of {} disk(s) need attention.",
+                warning_count,
+                disks.len()
+            )
         )
     } else {
-        format!(
-            "Alle {} schijf/schijven melden een gezonde status.",
-            disks.len()
+        crate::tr!(
+            format!(
+                "Alle {} schijf/schijven melden een gezonde status.",
+                disks.len()
+            ),
+            format!("All {} disk(s) report a healthy status.", disks.len())
         )
     };
     StorageHealthReport {
@@ -303,5 +367,13 @@ mod tests {
         assert_eq!(r.critical_count, 1);
         let none = build_report(None, "t".into(), false);
         assert!(!none.is_available);
+    }
+
+    #[test]
+    fn findings_follow_language_but_verdict_stays_code() {
+        let d =
+            crate::i18n::with_language(true, || evaluate_disk(&json!({"HealthStatus": "Warning"})));
+        assert_eq!(d.verdict, VERDICT_WARN);
+        assert!(d.findings[0].starts_with("Windows reports"));
     }
 }

@@ -26,11 +26,19 @@ pub fn ensure_watchdog_started() {
                     let freeze_ms = elapsed.as_millis().saturating_sub(100);
                     let now = Local::now();
                     let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
-                    let alert = format!(
-                        "⚡ Systeem Freeze gedetecteerd: {} ms ({:.2}s) om {}",
-                        freeze_ms,
-                        freeze_ms as f64 / 1000.0,
-                        timestamp
+                    let alert = crate::tr!(
+                        format!(
+                            "⚡ Systeem Freeze gedetecteerd: {} ms ({:.2}s) om {}",
+                            freeze_ms,
+                            freeze_ms as f64 / 1000.0,
+                            timestamp
+                        ),
+                        format!(
+                            "⚡ System freeze detected: {} ms ({:.2}s) at {}",
+                            freeze_ms,
+                            freeze_ms as f64 / 1000.0,
+                            timestamp
+                        )
                     );
                     if let Ok(mut list) = WATCHDOG_ALERTS.lock() {
                         if list.len() >= 50 {

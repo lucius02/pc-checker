@@ -84,10 +84,22 @@ pub fn tested(
 
 /// Temperatuur: <= 70 °C = 100, 80 °C = 85, 90 °C = 60, 95 °C = 35, 105 °C = 10.
 pub fn eval_thermal(i: &HealthInputs) -> Eval {
-    let (key, label, w) = ("thermal", "Temperatuur & Koeling", W_THERMAL);
+    let (key, label, w) = (
+        "thermal",
+        crate::tr!("Temperatuur & Koeling", "Temperature & cooling"),
+        W_THERMAL,
+    );
     let temp = finite_f32(i.max_temp_celsius);
     if temp.is_none() && !i.is_throttling_suspected {
-        return untested(key, label, w, "Geen temperatuursensor uitgelezen.");
+        return untested(
+            key,
+            label,
+            w,
+            crate::tr!(
+                "Geen temperatuursensor uitgelezen.",
+                "No temperature sensor could be read."
+            ),
+        );
     }
 
     let mut score = match temp {
@@ -104,31 +116,40 @@ pub fn eval_thermal(i: &HealthInputs) -> Eval {
     let status = status_from_score(score);
 
     let temp_txt = temp
-        .map(|t| format!("Max {:.0} °C", t))
-        .unwrap_or_else(|| "Temperatuur onbekend".to_string());
+        .map(|t| crate::tr!(format!("Max {:.0} °C", t), format!("Max {:.0} °C", t)))
+        .unwrap_or_else(|| crate::tr!("Temperatuur onbekend", "Temperature unknown").to_string());
     let detail = if i.is_throttling_suspected {
-        format!("{} — thermal throttling vermoed.", temp_txt)
+        crate::tr!(
+            format!("{} — thermal throttling vermoed.", temp_txt),
+            format!("{} — thermal throttling suspected.", temp_txt)
+        )
     } else {
         format!("{}.", temp_txt)
     };
 
     let issue = match temp {
-        Some(t) if t >= 95.0 => Some(format!(
+        Some(t) if t >= 95.0 => Some(crate::tr!(format!(
             "De processor bereikt {:.0} °C: dit is kritiek heet en kan freezes of noodstops veroorzaken. Controleer koeling, ventilatoren en koelpasta.",
             t
-        )),
-        Some(t) if i.is_throttling_suspected => Some(format!(
+        ), format!("The processor reaches {:.0} °C: this is critically hot and can cause freezes or emergency shutdowns. Check cooling, fans and thermal paste.",
+            t
+        ))),
+        Some(t) if i.is_throttling_suspected => Some(crate::tr!(format!(
             "Thermal throttling vermoed ({:.0} °C): de CPU klokt terug door hitte, wat haperingen kan geven.",
             t
-        )),
+        ), format!("Thermal throttling suspected ({:.0} °C): the CPU slows down because of heat, which can cause stutters.",
+            t
+        ))),
         None if i.is_throttling_suspected => Some(
-            "Thermal throttling vermoed: de CPU klokt terug door hitte, wat haperingen kan geven."
+            crate::tr!("Thermal throttling vermoed: de CPU klokt terug door hitte, wat haperingen kan geven.", "Thermal throttling suspected: the CPU slows down because of heat, which can cause stutters.")
                 .to_string(),
         ),
-        Some(t) => Some(format!(
+        Some(t) => Some(crate::tr!(format!(
             "De temperatuur loopt op tot {:.0} °C; zorg voor betere luchtstroom of reinig de ventilatoren.",
             t
-        )),
+        ), format!("Temperatures rise to {:.0} °C; improve airflow or clean the fans.",
+            t
+        ))),
         None => None,
     };
     tested(key, label, w, score, status, detail, issue)
@@ -137,9 +158,21 @@ pub fn eval_thermal(i: &HealthInputs) -> Eval {
 /// Stabiliteit: -15 per watchdog-freeze (max -60), -6 per event-log boosdoener
 /// (max -36), minimum 5. Elke freeze dwingt minstens "Let op" af.
 pub fn eval_stability(i: &HealthInputs) -> Eval {
-    let (key, label, w) = ("stability", "Stabiliteit & Freezes", W_STABILITY);
+    let (key, label, w) = (
+        "stability",
+        crate::tr!("Stabiliteit & Freezes", "Stability & freezes"),
+        W_STABILITY,
+    );
     if !i.freeze_scanned {
-        return untested(key, label, w, "Freeze-diagnose nog niet uitgevoerd.");
+        return untested(
+            key,
+            label,
+            w,
+            crate::tr!(
+                "Freeze-diagnose nog niet uitgevoerd.",
+                "Freeze diagnosis not run yet."
+            ),
+        );
     }
     let fz = i.watchdog_freeze_count;
     let ev = i.event_log_culprit_count;
@@ -156,28 +189,56 @@ pub fn eval_stability(i: &HealthInputs) -> Eval {
     }
 
     let detail = if fz == 0 && ev == 0 {
-        "Geen freezes of kritieke events gevonden.".to_string()
+        crate::tr!(
+            "Geen freezes of kritieke events gevonden.",
+            "No freezes or critical events found."
+        )
+        .to_string()
     } else {
-        format!(
-            "{} freeze(s) gemeten, {} verdachte event(s) in het logboek.",
-            fz, ev
+        crate::tr!(
+            format!(
+                "{} freeze(s) gemeten, {} verdachte event(s) in het logboek.",
+                fz, ev
+            ),
+            format!(
+                "{} freeze(s) measured, {} suspicious event(s) in the log.",
+                fz, ev
+            )
         )
     };
 
     let issue = if fz > 0 && ev > 0 {
-        Some(format!(
-            "Er zijn {} freeze(s) gemeten en {} verdachte Windows-event(s) gevonden; bekijk de Freeze Detective voor de waarschijnlijke oorzaak.",
-            fz, ev
+        Some(crate::tr!(
+            format!(
+                "Er zijn {} freeze(s) gemeten en {} verdachte Windows-event(s) gevonden; bekijk de Freeze Detective voor de waarschijnlijke oorzaak.",
+                fz, ev
+            ),
+            format!(
+                "{} freeze(s) were measured and {} suspicious Windows event(s) found; see the Freeze Detective for the likely cause.",
+                fz, ev
+            )
         ))
     } else if fz > 0 {
-        Some(format!(
-            "De watchdog heeft {} freeze(s) van meer dan 1 seconde geregistreerd.",
-            fz
+        Some(crate::tr!(
+            format!(
+                "De watchdog heeft {} freeze(s) van meer dan 1 seconde geregistreerd.",
+                fz
+            ),
+            format!(
+                "The watchdog recorded {} freeze(s) longer than 1 second.",
+                fz
+            )
         ))
     } else if ev > 0 {
-        Some(format!(
-            "{} verdachte event(s) (driver-/opslag-time-outs) in het Windows-logboek gevonden.",
-            ev
+        Some(crate::tr!(
+            format!(
+                "{} verdachte event(s) (driver-/opslag-time-outs) in het Windows-logboek gevonden.",
+                ev
+            ),
+            format!(
+                "{} suspicious event(s) (driver/storage timeouts) found in the Windows event log.",
+                ev
+            )
         ))
     } else {
         None
@@ -189,7 +250,15 @@ pub fn eval_stability(i: &HealthInputs) -> Eval {
 pub fn eval_drivers(i: &HealthInputs) -> Eval {
     let (key, label, w) = ("drivers", "Drivers", W_DRIVERS);
     if i.driver_problem_count.is_none() && i.driver_outdated_count.is_none() {
-        return untested(key, label, w, "Driver-scan nog niet uitgevoerd.");
+        return untested(
+            key,
+            label,
+            w,
+            crate::tr!(
+                "Driver-scan nog niet uitgevoerd.",
+                "Driver scan not run yet."
+            ),
+        );
     }
     let p = i.driver_problem_count.unwrap_or(0);
     let o = i.driver_outdated_count.unwrap_or(0);
@@ -204,23 +273,42 @@ pub fn eval_drivers(i: &HealthInputs) -> Eval {
     };
 
     let detail = if p == 0 && o == 0 {
-        "Geen probleemapparaten of verouderde drivers.".to_string()
+        crate::tr!(
+            "Geen probleemapparaten of verouderde drivers.",
+            "No problem devices or outdated drivers."
+        )
+        .to_string()
     } else {
-        format!(
-            "{} probleemapparaat/-apparaten, {} verouderde driver(s).",
-            p, o
+        crate::tr!(
+            format!(
+                "{} probleemapparaat/-apparaten, {} verouderde driver(s).",
+                p, o
+            ),
+            format!("{} problem device(s), {} outdated driver(s).", p, o)
         )
     };
 
     let issue = if p > 0 {
-        Some(format!(
-            "{} apparaat/apparaten met een driverprobleem in Apparaatbeheer; dit is een veelvoorkomende oorzaak van freezes.",
-            p
+        Some(crate::tr!(
+            format!(
+                "{} apparaat/apparaten met een driverprobleem in Apparaatbeheer; dit is een veelvoorkomende oorzaak van freezes.",
+                p
+            ),
+            format!(
+                "{} device(s) with a driver problem in Device Manager; this is a common cause of freezes.",
+                p
+            )
         ))
     } else if o > 0 {
-        Some(format!(
-            "{} verouderde driver(s) gevonden; werk vooral chipset-, opslag-, netwerk- en GPU-drivers bij.",
-            o
+        Some(crate::tr!(
+            format!(
+                "{} verouderde driver(s) gevonden; werk vooral chipset-, opslag-, netwerk- en GPU-drivers bij.",
+                o
+            ),
+            format!(
+                "{} outdated driver(s) found; update chipset, storage, network and GPU drivers in particular.",
+                o
+            )
         ))
     } else {
         None
@@ -239,7 +327,15 @@ pub fn eval_latency(i: &HealthInputs) -> Eval {
     let gap = finite_f64(i.latency_max_gap_us);
     let dpc = finite_f64(i.dpc_time_percent_max);
     if verdict.is_none() && gap.is_none() {
-        return untested(key, label, w, "Latency-test nog niet uitgevoerd.");
+        return untested(
+            key,
+            label,
+            w,
+            crate::tr!(
+                "Latency-test nog niet uitgevoerd.",
+                "Latency test not run yet."
+            ),
+        );
     }
 
     let mut score: f64 = 100.0;
@@ -283,10 +379,16 @@ pub fn eval_latency(i: &HealthInputs) -> Eval {
 
     let mut parts: Vec<String> = Vec::new();
     if let Some(v) = verdict {
-        parts.push(format!("Oordeel: {}", v));
+        parts.push(crate::tr!(
+            format!("Oordeel: {}", v),
+            format!("Verdict: {}", v)
+        ));
     }
     if let Some(g) = gap {
-        parts.push(format!("max gat {:.1} ms", g / 1000.0));
+        parts.push(crate::tr!(
+            format!("max gat {:.1} ms", g / 1000.0),
+            format!("max gap {:.1} ms", g / 1000.0)
+        ));
     }
     if let Some(d) = dpc {
         parts.push(format!("DPC max {:.1}%", d));
@@ -294,17 +396,34 @@ pub fn eval_latency(i: &HealthInputs) -> Eval {
     let detail = format!("{}.", parts.join(", "));
 
     let gap_txt = gap
-        .map(|g| format!(" (max {:.1} ms vertraging)", g / 1000.0))
+        .map(|g| {
+            crate::tr!(
+                format!(" (max {:.1} ms vertraging)", g / 1000.0),
+                format!(" (max {:.1} ms delay)", g / 1000.0)
+            )
+        })
         .unwrap_or_default();
     let issue = Some(if status == STATUS_CRIT {
-        format!(
-            "Hoge DPC-latency{}: een driver blokkeert de CPU, wat stotteren, audio-tikken en korte freezes veroorzaakt.",
-            gap_txt
+        crate::tr!(
+            format!(
+                "Hoge DPC-latency{}: een driver blokkeert de CPU, wat stotteren, audio-tikken en korte freezes veroorzaakt.",
+                gap_txt
+            ),
+            format!(
+                "High DPC latency{}: a driver is blocking the CPU, causing stutters, audio clicks and short freezes.",
+                gap_txt
+            )
         )
     } else {
-        format!(
-            "Verhoogde DPC-latency{}; controleer netwerk-, audio- en GPU-drivers.",
-            gap_txt
+        crate::tr!(
+            format!(
+                "Verhoogde DPC-latency{}; controleer netwerk-, audio- en GPU-drivers.",
+                gap_txt
+            ),
+            format!(
+                "Elevated DPC latency{}; check network, audio and GPU drivers.",
+                gap_txt
+            )
         )
     });
     tested(key, label, w, score, status, detail, issue)
@@ -312,14 +431,22 @@ pub fn eval_latency(i: &HealthInputs) -> Eval {
 
 /// Opslag: >= 20 % vrij = 100, 10 % = 70, 5 % = 40, 0 % = 15.
 pub fn eval_storage(i: &HealthInputs) -> Eval {
-    let (key, label, w) = ("storage", "Opslag", W_STORAGE);
+    let (key, label, w) = ("storage", crate::tr!("Opslag", "Storage"), W_STORAGE);
     let free = finite_f32(i.min_disk_free_percent).map(|f| f.clamp(0.0, 100.0));
     let smart_crit = i.storage_smart_critical_count.unwrap_or(0);
     let smart_warn = i.storage_smart_warning_count.unwrap_or(0);
     let smart_scanned =
         i.storage_smart_critical_count.is_some() || i.storage_smart_warning_count.is_some();
     if free.is_none() && i.disk_test_ok.is_none() && !smart_scanned {
-        return untested(key, label, w, "Geen schijfgegevens beschikbaar.");
+        return untested(
+            key,
+            label,
+            w,
+            crate::tr!(
+                "Geen schijfgegevens beschikbaar.",
+                "No disk data available."
+            ),
+        );
     }
 
     let mut score = match free {
@@ -346,46 +473,65 @@ pub fn eval_storage(i: &HealthInputs) -> Eval {
 
     let mut parts: Vec<String> = Vec::new();
     if let Some(f) = free {
-        parts.push(format!("Minst vrije schijf: {:.0}% vrij", f));
+        parts.push(crate::tr!(
+            format!("Minst vrije schijf: {:.0}% vrij", f),
+            format!("Fullest disk: {:.0}% free", f)
+        ));
     }
     match i.disk_test_ok {
-        Some(true) => parts.push("schijftest geslaagd".to_string()),
-        Some(false) => parts.push("schijftest mislukt".to_string()),
-        None => parts.push("schijftest niet uitgevoerd".to_string()),
+        Some(true) => parts.push(crate::tr!("schijftest geslaagd", "disk test passed").to_string()),
+        Some(false) => parts.push(crate::tr!("schijftest mislukt", "disk test failed").to_string()),
+        None => {
+            parts.push(crate::tr!("schijftest niet uitgevoerd", "disk test not run").to_string())
+        }
     }
     if smart_scanned {
         if smart_crit.saturating_add(smart_warn) == 0 {
-            parts.push("SMART-status in orde".to_string());
+            parts.push(crate::tr!("SMART-status in orde", "SMART status OK").to_string());
         } else {
-            parts.push(format!(
-                "SMART: {} kritiek, {} waarschuwing",
-                smart_crit, smart_warn
+            parts.push(crate::tr!(
+                format!("SMART: {} kritiek, {} waarschuwing", smart_crit, smart_warn),
+                format!("SMART: {} critical, {} warning", smart_crit, smart_warn)
             ));
         }
     }
     let detail = format!("{}.", parts.join(", "));
 
     let issue = if smart_crit > 0 {
-        Some(format!(
-            "{} schijf/schijven melden een kritieke SMART-status (fouten of einde levensduur); maak direct een back-up en vervang de schijf.",
-            smart_crit
+        Some(crate::tr!(
+            format!(
+                "{} schijf/schijven melden een kritieke SMART-status (fouten of einde levensduur); maak direct een back-up en vervang de schijf.",
+                smart_crit
+            ),
+            format!(
+                "{} disk(s) report a critical SMART status (errors or end of life); back up immediately and replace the disk.",
+                smart_crit
+            )
         ))
     } else if disk_failed {
         Some(
-            "De schijftest is mislukt (schrijf-/leesfout of verificatiefout); controleer de schijf met CrystalDiskInfo en maak een back-up."
+            crate::tr!("De schijftest is mislukt (schrijf-/leesfout of verificatiefout); controleer de schijf met CrystalDiskInfo en maak een back-up.", "The disk test failed (write/read error or verification error); check the disk with CrystalDiskInfo and make a backup.")
                 .to_string(),
         )
     } else if smart_warn > 0 {
-        Some(format!(
-            "{} schijf/schijven tonen SMART-waarschuwingen (slijtage, temperatuur of gecorrigeerde fouten); houd ze in de gaten.",
-            smart_warn
+        Some(crate::tr!(
+            format!(
+                "{} schijf/schijven tonen SMART-waarschuwingen (slijtage, temperatuur of gecorrigeerde fouten); houd ze in de gaten.",
+                smart_warn
+            ),
+            format!(
+                "{} disk(s) show SMART warnings (wear, temperature or corrected errors); keep an eye on them.",
+                smart_warn
+            )
         ))
     } else {
         free.filter(|f| *f < 20.0).map(|f| {
-            format!(
+            crate::tr!(format!(
                 "Een schijf heeft nog maar {:.0}% vrije ruimte; weinig ruimte vertraagt Windows en de paginabestand-swap.",
                 f
-            )
+            ), format!("A disk has only {:.0}% free space left; low space slows down Windows and page file swapping.",
+                f
+            ))
         })
     };
     tested(key, label, w, score, status, detail, issue)
@@ -393,7 +539,7 @@ pub fn eval_storage(i: &HealthInputs) -> Eval {
 
 /// Geheugen: gebruik in banden.
 pub fn eval_memory(i: &HealthInputs) -> Eval {
-    let (key, label, w) = ("memory", "Geheugen", W_MEMORY);
+    let (key, label, w) = ("memory", crate::tr!("Geheugen", "Memory"), W_MEMORY);
     let used = (i.ram_used_percent as f64).clamp(0.0, 100.0);
     let used = if used.is_finite() { used } else { 0.0 };
 
@@ -417,21 +563,33 @@ pub fn eval_memory(i: &HealthInputs) -> Eval {
     };
 
     let test_txt = match i.ram_test_ok {
-        Some(true) => "integriteitstest geslaagd",
-        Some(false) => "integriteitstest: FOUTEN gevonden",
-        None => "integriteitstest niet uitgevoerd",
+        Some(true) => crate::tr!("integriteitstest geslaagd", "integrity test passed"),
+        Some(false) => crate::tr!(
+            "integriteitstest: FOUTEN gevonden",
+            "integrity test: ERRORS found"
+        ),
+        None => crate::tr!("integriteitstest niet uitgevoerd", "integrity test not run"),
     };
-    let detail = format!("{:.0}% in gebruik, {}.", used, test_txt);
+    let detail = crate::tr!(
+        format!("{:.0}% in gebruik, {}.", used, test_txt),
+        format!("{:.0}% in use, {}.", used, test_txt)
+    );
 
     let issue = if ram_failed {
         Some(
-            "De RAM-test heeft geheugenfouten (bitflips) gevonden: defect of instabiel geheugen veroorzaakt freezes en crashes. Zet XMP/EXPO uit en test de modules apart."
+            crate::tr!("De RAM-test heeft geheugenfouten (bitflips) gevonden: defect of instabiel geheugen veroorzaakt freezes en crashes. Zet XMP/EXPO uit en test de modules apart.", "The RAM test found memory errors (bit flips): faulty or unstable memory causes freezes and crashes. Disable XMP/EXPO and test the modules one by one.")
                 .to_string(),
         )
     } else {
-        Some(format!(
-            "Het werkgeheugen is {:.0}% vol; bij een vol geheugen gaat Windows swappen, wat haperingen geeft.",
-            used
+        Some(crate::tr!(
+            format!(
+                "Het werkgeheugen is {:.0}% vol; bij een vol geheugen gaat Windows swappen, wat haperingen geeft.",
+                used
+            ),
+            format!(
+                "Memory is {:.0}% full; when memory is full Windows starts swapping, which causes stutters.",
+                used
+            )
         ))
     };
     tested(key, label, w, score, status, detail, issue)
@@ -439,7 +597,7 @@ pub fn eval_memory(i: &HealthInputs) -> Eval {
 
 /// Batterij: alleen als er een accu is.
 pub fn eval_battery(health: f64) -> Eval {
-    let (key, label, w) = ("battery", "Batterij", W_BATTERY);
+    let (key, label, w) = ("battery", crate::tr!("Batterij", "Battery"), W_BATTERY);
     let h = if health.is_finite() {
         health.clamp(0.0, 100.0)
     } else {
@@ -459,29 +617,38 @@ pub fn eval_battery(health: f64) -> Eval {
     } else {
         STATUS_CRIT
     };
-    let detail = format!(
-        "Batterijgezondheid {:.0}% van de oorspronkelijke capaciteit.",
-        h
+    let detail = crate::tr!(
+        format!(
+            "Batterijgezondheid {:.0}% van de oorspronkelijke capaciteit.",
+            h
+        ),
+        format!("Battery health {:.0}% of the original capacity.", h)
     );
-    let issue = Some(format!(
-        "De batterij heeft nog {:.0}% van zijn oorspronkelijke capaciteit; overweeg vervanging.",
-        h
+    let issue = Some(crate::tr!(
+        format!(
+            "De batterij heeft nog {:.0}% van zijn oorspronkelijke capaciteit; overweeg vervanging.",
+            h
+        ),
+        format!(
+            "The battery has {:.0}% of its original capacity left; consider replacing it.",
+            h
+        )
     ));
     tested(key, label, w, score, status, detail, issue)
 }
 
 /// CPU: stresstest evaluatie.
 pub fn eval_cpu(i: &HealthInputs) -> Eval {
-    let (key, label, w) = ("cpu", "Processor", W_CPU);
+    let (key, label, w) = ("cpu", crate::tr!("Processor", "Processor"), W_CPU);
     match i.cpu_stress_ok {
-        None => untested(key, label, w, "CPU-stresstest nog niet uitgevoerd."),
+        None => untested(key, label, w, crate::tr!("CPU-stresstest nog niet uitgevoerd.", "CPU stress test not run yet.")),
         Some(true) => tested(
             key,
             label,
             w,
             100.0,
             STATUS_GOOD,
-            "Stresstest zonder fouten voltooid.".to_string(),
+            crate::tr!("Stresstest zonder fouten voltooid.", "Stress test completed without errors.").to_string(),
             None,
         ),
         Some(false) => tested(
@@ -490,9 +657,9 @@ pub fn eval_cpu(i: &HealthInputs) -> Eval {
             w,
             45.0,
             STATUS_CRIT,
-            "Stresstest kon niet voltooien.".to_string(),
+            crate::tr!("Stresstest kon niet voltooien.", "Stress test could not complete.").to_string(),
             Some(
-                "De CPU-stresstest kon niet voltooien; herhaal de test en controleer bij herhaling stabiliteit en overklok-instellingen."
+                crate::tr!("De CPU-stresstest kon niet voltooien; herhaal de test en controleer bij herhaling stabiliteit en overklok-instellingen.", "The CPU stress test could not complete; repeat the test and, if it happens again, check stability and overclock settings.")
                     .to_string(),
             ),
         ),

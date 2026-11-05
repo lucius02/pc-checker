@@ -90,7 +90,10 @@ pub fn run_cpu_stress_test(duration_secs: u64, thread_count: Option<usize>) -> S
                 "CPU Multi-Core Stress",
                 "MOps/sec",
                 start,
-                "Kon threadpool niet initialiseren.",
+                crate::tr!(
+                    "Kon threadpool niet initialiseren.",
+                    "Could not initialise the thread pool."
+                ),
                 e.to_string(),
             );
         }
@@ -135,11 +138,20 @@ pub fn run_cpu_stress_test(duration_secs: u64, thread_count: Option<usize>) -> S
             operations_or_bytes: total,
             score_or_speed: score,
             unit: "MOps/sec".to_string(),
-            details: format!(
-                "WAARSCHUWING: {} rekenblok(ken) gaven een afwijkend resultaat. De CPU rekent onder belasting niet betrouwbaar (instabiele overclock/undervolt, te lage spanning of oververhitting).",
-                errors
+            details: crate::tr!(
+                format!(
+                    "WAARSCHUWING: {} rekenblok(ken) gaven een afwijkend resultaat. De CPU rekent onder belasting niet betrouwbaar (instabiele overclock/undervolt, te lage spanning of oververhitting).",
+                    errors
+                ),
+                format!(
+                    "WARNING: {} block(s) of work returned a different result. The CPU does not compute reliably under load (unstable overclock/undervolt, too little voltage or overheating).",
+                    errors
+                )
             ),
-            error: Some(format!("{} rekenfouten gedetecteerd", errors)),
+            error: Some(crate::tr!(
+                format!("{} rekenfouten gedetecteerd", errors),
+                format!("{} calculation errors detected", errors)
+            )),
         };
     }
 
@@ -150,9 +162,15 @@ pub fn run_cpu_stress_test(duration_secs: u64, thread_count: Option<usize>) -> S
         operations_or_bytes: total,
         score_or_speed: score,
         unit: "MOps/sec".to_string(),
-        details: format!(
-            "Voltooid op {} threads. Alle rekenblokken geverifieerd tegen referentiewaarden: 0 rekenfouten. Score: {:.2} MOps/s.",
-            effective_threads, score
+        details: crate::tr!(
+            format!(
+                "Voltooid op {} threads. Alle rekenblokken geverifieerd tegen referentiewaarden: 0 rekenfouten. Score: {:.2} MOps/s.",
+                effective_threads, score
+            ),
+            format!(
+                "Completed on {} threads. All blocks of work verified against reference values: 0 calculation errors. Score: {:.2} MOps/s.",
+                effective_threads, score
+            )
         ),
         error: None,
     }
@@ -225,14 +243,20 @@ fn verify_with(buf: &[u64], pattern: &str, f: impl Fn(usize) -> u64 + Sync) -> R
                 if *w != expected {
                     e.count += 1;
                     if e.samples.len() < MAX_REPORTED_ERRORS {
-                        e.samples.push(format!(
+                        e.samples.push(crate::tr!(format!(
                             "{}: offset 0x{:X}, verwacht {:016X}, gelezen {:016X} (bits {:016X})",
                             pattern,
                             (base + j) * 8,
                             expected,
                             w,
                             expected ^ w
-                        ));
+                        ), format!("{}: offset 0x{:X}, expected {:016X}, read {:016X} (bits {:016X})",
+                            pattern,
+                            (base + j) * 8,
+                            expected,
+                            w,
+                            expected ^ w
+                        )));
                     }
                 }
             }
@@ -337,7 +361,10 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
     let max_mb = max_ram_test_mb();
     let size_mb = size_mb.clamp(16, max_mb);
     let words = size_mb * 1024 * 1024 / 8;
-    let test_name = format!("RAM Geheugenintegriteit Test ({} MB)", size_mb);
+    let test_name = crate::tr!(
+        format!("RAM Geheugenintegriteit Test ({} MB)", size_mb),
+        format!("RAM integrity test ({} MB)", size_mb)
+    );
 
     let mut buffer: Vec<u64> = Vec::new();
     if buffer.try_reserve_exact(words).is_err() {
@@ -345,8 +372,14 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
             &test_name,
             "MB/s",
             start,
-            "Onvoldoende vrij geheugen om de test te alloceren.",
-            format!("Kon {} MB niet alloceren", size_mb),
+            crate::tr!(
+                "Onvoldoende vrij geheugen om de test te alloceren.",
+                "Not enough free memory to allocate the test."
+            ),
+            crate::tr!(
+                format!("Kon {} MB niet alloceren", size_mb),
+                format!("Could not allocate {} MB", size_mb)
+            ),
         );
     }
     buffer.resize(words, 0);
@@ -367,8 +400,10 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
     // Elk patroon = minimaal één volledige schrijf- + leesronde.
     let throughput =
         (size_mb as f64 * pattern_count as f64 * 2.0) / elapsed.as_secs_f64().max(0.001);
-    let pattern_desc =
-        "checkerboard, walking ones, address-in-address, moving inversions en random";
+    let pattern_desc = crate::tr!(
+        "checkerboard, walking ones, address-in-address, moving inversions en random",
+        "checkerboard, walking ones, address-in-address, moving inversions and random"
+    );
 
     if errors.count == 0 {
         StressTestResult {
@@ -378,9 +413,15 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
             operations_or_bytes: (size_mb * 1024 * 1024) as u64,
             score_or_speed: throughput,
             unit: "MB/s read+write".to_string(),
-            details: format!(
-                "Succesvol {} MB getest over {} pass(es) en {} patronen ({}). 0 bitflips gedetecteerd. Maximaal testbaar nu: {} MB.",
-                size_mb, num_passes, pattern_count, pattern_desc, max_mb
+            details: crate::tr!(
+                format!(
+                    "Succesvol {} MB getest over {} pass(es) en {} patronen ({}). 0 bitflips gedetecteerd. Maximaal testbaar nu: {} MB.",
+                    size_mb, num_passes, pattern_count, pattern_desc, max_mb
+                ),
+                format!(
+                    "Successfully tested {} MB over {} pass(es) and {} patterns ({}). 0 bit flips detected. Maximum testable right now: {} MB.",
+                    size_mb, num_passes, pattern_count, pattern_desc, max_mb
+                )
             ),
             error: None,
         }
@@ -392,14 +433,21 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
             operations_or_bytes: (size_mb * 1024 * 1024) as u64,
             score_or_speed: 0.0,
             unit: "MB/s".to_string(),
-            details: format!(
-                "WAARSCHUWING: {} geheugenfouten / bit-flips gedetecteerd! RAM kan defect zijn of onstabiel draaien (XMP/EXPO-profiel?). Voorbeelden: {}",
-                errors.count,
-                errors.samples.join(" | ")
+            details: crate::tr!(
+                format!(
+                    "WAARSCHUWING: {} geheugenfouten / bit-flips gedetecteerd! RAM kan defect zijn of onstabiel draaien (XMP/EXPO-profiel?). Voorbeelden: {}",
+                    errors.count,
+                    errors.samples.join(" | ")
+                ),
+                format!(
+                    "WARNING: {} memory errors / bit flips detected! RAM may be faulty or unstable (XMP/EXPO profile?). Examples: {}",
+                    errors.count,
+                    errors.samples.join(" | ")
+                )
             ),
-            error: Some(format!(
-                "{} geheugen verificatiefouten gevonden",
-                errors.count
+            error: Some(crate::tr!(
+                format!("{} geheugen verificatiefouten gevonden", errors.count),
+                format!("{} memory verification errors found", errors.count)
             )),
         }
     }
@@ -504,7 +552,10 @@ pub fn run_disk_benchmark(
     let start = Instant::now();
     let size_mb = file_size_mb.unwrap_or(256).clamp(16, 4096);
     let total_bytes = (size_mb * DISK_BLOCK) as u64;
-    let name = "Schijf Schrijf & Lees Benchmark";
+    let name = crate::tr!(
+        "Schijf Schrijf & Lees Benchmark",
+        "Disk write & read benchmark"
+    );
 
     let dir = target_dir
         .map(PathBuf::from)
@@ -521,8 +572,11 @@ pub fn run_disk_benchmark(
             name,
             "MB/s",
             start,
-            "Kon I/O-buffers niet alloceren.",
-            "Geheugenallocatie mislukt".into(),
+            crate::tr!(
+                "Kon I/O-buffers niet alloceren.",
+                "Could not allocate I/O buffers."
+            ),
+            crate::tr!("Geheugenallocatie mislukt", "Memory allocation failed").into(),
         );
     };
 
@@ -550,7 +604,10 @@ pub fn run_disk_benchmark(
                 name,
                 "MB/s",
                 start,
-                "Kon testbestand niet schrijven.",
+                crate::tr!(
+                    "Kon testbestand niet schrijven.",
+                    "Could not write the test file."
+                ),
                 e.to_string(),
             );
         }
@@ -584,7 +641,10 @@ pub fn run_disk_benchmark(
                 name,
                 "MB/s",
                 start,
-                "Fout tijdens uitlezen van testbestand.",
+                crate::tr!(
+                    "Fout tijdens uitlezen van testbestand.",
+                    "Error while reading the test file."
+                ),
                 e.to_string(),
             );
         }
@@ -593,9 +653,15 @@ pub fn run_disk_benchmark(
     let avg = (write_speed + read_speed) / 2.0;
 
     let cache_note = if write_bypassed && read_bypassed {
-        "OS-cache omzeild (directe I/O): de snelheden zijn echte schijfsnelheden."
+        crate::tr!(
+            "OS-cache omzeild (directe I/O): de snelheden zijn echte schijfsnelheden.",
+            "OS cache bypassed (direct I/O): these are real disk speeds."
+        )
     } else {
-        "Let op: directe I/O werd niet ondersteund op dit volume; de leessnelheid kan door de OS-cache te hoog uitvallen."
+        crate::tr!(
+            "Let op: directe I/O werd niet ondersteund op dit volume; de leessnelheid kan door de OS-cache te hoog uitvallen.",
+            "Note: direct I/O was not supported on this volume; the read speed may be inflated by the OS cache."
+        )
     };
 
     if !corrupt_blocks.is_empty() {
@@ -606,31 +672,55 @@ pub fn run_disk_benchmark(
             .collect();
         return StressTestResult {
             success: false,
-            test_name: "Schijf Integriteit & Snelheid".to_string(),
+            test_name: crate::tr!("Schijf Integriteit & Snelheid", "Disk integrity & speed")
+                .to_string(),
             duration_ms: start.elapsed().as_millis(),
             operations_or_bytes: total_bytes,
             score_or_speed: avg,
             unit: "MB/s".to_string(),
-            details: format!(
-                "WAARSCHUWING: {} van {} blokken (1 MB) kwamen niet overeen met de geschreven data (o.a. {}). Mogelijke schijf-, kabel- of bestandssysteemcorruptie.",
-                corrupt_blocks.len(),
-                size_mb,
-                shown.join(", ")
+            details: crate::tr!(
+                format!(
+                    "WAARSCHUWING: {} van {} blokken (1 MB) kwamen niet overeen met de geschreven data (o.a. {}). Mogelijke schijf-, kabel- of bestandssysteemcorruptie.",
+                    corrupt_blocks.len(),
+                    size_mb,
+                    shown.join(", ")
+                ),
+                format!(
+                    "WARNING: {} of {} blocks (1 MB) did not match the written data (e.g. {}). Possible disk, cable or file system corruption.",
+                    corrupt_blocks.len(),
+                    size_mb,
+                    shown.join(", ")
+                )
             ),
-            error: Some("Data integriteit verificatie mislukt".to_string()),
+            error: Some(
+                crate::tr!(
+                    "Data integriteit verificatie mislukt",
+                    "Data integrity verification failed"
+                )
+                .to_string(),
+            ),
         };
     }
 
     StressTestResult {
         success: true,
-        test_name: format!("Schijf Benchmark ({} MB Sequentieel)", size_mb),
+        test_name: crate::tr!(
+            format!("Schijf Benchmark ({} MB Sequentieel)", size_mb),
+            format!("Disk benchmark ({} MB sequential)", size_mb)
+        ),
         duration_ms: start.elapsed().as_millis(),
         operations_or_bytes: total_bytes,
         score_or_speed: avg,
         unit: "MB/s avg".to_string(),
-        details: format!(
-            "Schrijfsnelheid: {:.2} MB/s | Leessnelheid: {:.2} MB/s. Alle {} blokken met uniek patroon geverifieerd (0 bitfouten). {}",
-            write_speed, read_speed, size_mb, cache_note
+        details: crate::tr!(
+            format!(
+                "Schrijfsnelheid: {:.2} MB/s | Leessnelheid: {:.2} MB/s. Alle {} blokken met uniek patroon geverifieerd (0 bitfouten). {}",
+                write_speed, read_speed, size_mb, cache_note
+            ),
+            format!(
+                "Write speed: {:.2} MB/s | Read speed: {:.2} MB/s. All {} blocks with a unique pattern verified (0 bit errors). {}",
+                write_speed, read_speed, size_mb, cache_note
+            )
         ),
         error: None,
     }

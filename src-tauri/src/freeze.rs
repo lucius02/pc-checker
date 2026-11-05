@@ -13,26 +13,44 @@ pub fn classify_provider(provider: &str) -> (String, String) {
         || provider.contains("nvme")
     {
         (
-            "Opslag / Schijf Time-out",
-            "DIT VEROORZAAKT VAAK DE FREEZE: De schijf ontwaakte te traag uit slaapstand of SATA reset. Schakel 'AHCI Link Power Management' (HIPM/DIPM) uit in Energiebeheer, vervang de SATA-kabel of controleer de SSD gezondheid.",
+            crate::tr!("Opslag / Schijf Time-out", "Storage / disk timeout"),
+            crate::tr!(
+                "DIT VEROORZAAKT VAAK DE FREEZE: De schijf ontwaakte te traag uit slaapstand of SATA reset. Schakel 'AHCI Link Power Management' (HIPM/DIPM) uit in Energiebeheer, vervang de SATA-kabel of controleer de SSD gezondheid.",
+                "THIS OFTEN CAUSES THE FREEZE: the disk woke up too slowly from sleep or there was a SATA reset. Disable 'AHCI Link Power Management' (HIPM/DIPM) in Power Options, replace the SATA cable or check the SSD's health."
+            ),
         )
     } else if provider.contains("Display")
         || provider.contains("nvlddmkm")
         || provider.contains("amdkmdag")
     {
         (
-            "Videokaart Driver Crash (TDR)",
-            "De GPU reageerde niet op tijd (TDR time-out); Windows heeft de driver herstart. Voer een schone driver-installatie uit met DDU of controleer PCIe voedingskabels.",
+            crate::tr!(
+                "Videokaart Driver Crash (TDR)",
+                "Graphics driver crash (TDR)"
+            ),
+            crate::tr!(
+                "De GPU reageerde niet op tijd (TDR time-out); Windows heeft de driver herstart. Voer een schone driver-installatie uit met DDU of controleer PCIe voedingskabels.",
+                "The GPU didn't respond in time (TDR timeout); Windows restarted the driver. Do a clean driver install with DDU or check the PCIe power cables."
+            ),
         )
     } else if provider.contains("WHEA") {
         (
-            "Hardware Bus / Pariteitsfout",
-            "Hardwarefout (WHEA) op de PCIe bus of CPU cache. Controleer RAM XMP profiel of moederbord spanning.",
+            crate::tr!(
+                "Hardware Bus / Pariteitsfout",
+                "Hardware bus / parity error"
+            ),
+            crate::tr!(
+                "Hardwarefout (WHEA) op de PCIe bus of CPU cache. Controleer RAM XMP profiel of moederbord spanning.",
+                "Hardware error (WHEA) on the PCIe bus or CPU cache. Check the RAM XMP profile or motherboard voltages."
+            ),
         )
     } else {
         (
-            "Systeem Waarschuwing",
-            "Inspecteer het stuurprogramma of achtergrondservice.",
+            crate::tr!("Systeem Waarschuwing", "System warning"),
+            crate::tr!(
+                "Inspecteer het stuurprogramma of achtergrondservice.",
+                "Inspect the driver or background service."
+            ),
         )
     };
     (c.to_string(), s.to_string())
@@ -69,7 +87,7 @@ pub fn classify_linux_kernel_line(line: &str) -> Option<FreezeEventEntry> {
     let timestamp = line
         .split_whitespace()
         .next()
-        .unwrap_or("Onlangs")
+        .unwrap_or(crate::tr!("Onlangs", "Recently"))
         .replace('T', " ");
     let message = line
         .split_once("kernel:")
@@ -115,7 +133,10 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
             let provider = it["ProviderName"].as_str().unwrap_or("").to_string();
             let (category, suggestion) = classify_provider(&provider);
             culprits.push(FreezeEventEntry {
-                timestamp: it["TimeCreated"].as_str().unwrap_or("Onlangs").to_string(),
+                timestamp: it["TimeCreated"]
+                    .as_str()
+                    .unwrap_or(crate::tr!("Onlangs", "Recently"))
+                    .to_string(),
                 provider,
                 event_id: it["Id"].as_u64().unwrap_or(0) as u32,
                 level: it["LevelDisplayName"]
@@ -153,39 +174,60 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
 
     if !watchdog_freezes.is_empty() || !culprits.is_empty() {
         risk = "Hoog".to_string();
-        actions.push("1. Schakel 'Aggressive Link Power Management' (LPM) voor SATA schijven uit in Geavanceerd Energiebeheer.".to_string());
+        actions.push(crate::tr!("1. Schakel 'Aggressive Link Power Management' (LPM) voor SATA schijven uit in Geavanceerd Energiebeheer.", "1. Disable 'Aggressive Link Power Management' (LPM) for SATA disks in Advanced power settings.").to_string());
         actions.push(
-            "2. Zet in Windows Energiebeheer: 'Harde schijf uitschakelen na' op NOOIT (0 minuten)."
+            crate::tr!("2. Zet in Windows Energiebeheer: 'Harde schijf uitschakelen na' op NOOIT (0 minuten).", "2. In Windows Power Options, set 'Turn off hard disk after' to NEVER (0 minutes).")
                 .to_string(),
         );
         actions.push(
-            "3. Schakel 'PCI Express Link State Power Management' uit (Zet op 'Uit' / Off)."
-                .to_string(),
+            crate::tr!(
+                "3. Schakel 'PCI Express Link State Power Management' uit (Zet op 'Uit' / Off).",
+                "3. Disable 'PCI Express Link State Power Management' (set it to 'Off')."
+            )
+            .to_string(),
         );
-        actions.push("4. Vervang de SATA-datakabel van extra HDD's/SSD's of test met CrystalDiskInfo op CRC/Pending errors.".to_string());
-        actions.push("5. Verwijder conflicterende RGB/monitoring achtergrondsoftware (zoals Asus Armoury Crate, Razer Synapse of iCUE).".to_string());
+        actions.push(crate::tr!("4. Vervang de SATA-datakabel van extra HDD's/SSD's of test met CrystalDiskInfo op CRC/Pending errors.", "4. Replace the SATA data cable of extra HDDs/SSDs or check with CrystalDiskInfo for CRC/pending errors.").to_string());
+        actions.push(crate::tr!("5. Verwijder conflicterende RGB/monitoring achtergrondsoftware (zoals Asus Armoury Crate, Razer Synapse of iCUE).", "5. Remove conflicting RGB/monitoring background software (such as Asus Armoury Crate, Razer Synapse or iCUE).").to_string());
     } else if max_jitter_ms > 200.0 {
         risk = "Middel".to_string();
-        actions.push("Er zijn micro-hickups gedetecteerd in de thread scheduling. Sluit achtergrondprogramma's af.".to_string());
-        actions.push("Controleer audio- en netwerkstuurprogramma's met LatencyMon.".to_string());
+        actions.push(crate::tr!("Er zijn micro-hickups gedetecteerd in de thread scheduling. Sluit achtergrondprogramma's af.", "Micro-hiccups were detected in thread scheduling. Close background programs.").to_string());
+        actions.push(
+            crate::tr!(
+                "Controleer audio- en netwerkstuurprogramma's met LatencyMon.",
+                "Check audio and network drivers with the DPC Latency tab (per-driver measurement)."
+            )
+            .to_string(),
+        );
     } else {
         risk = "Laag".to_string();
-        actions.push("Op dit specifieke moment vertoont het systeem stabiele lage latency en geen actieve driver timeouts.".to_string());
-        actions.push("Laat deze Freeze Detective actief draaien tijdens je normale werk; zodra de freeze optreedt, zal de Watchdog het exact loggen.".to_string());
+        actions.push(crate::tr!("Op dit specifieke moment vertoont het systeem stabiele lage latency en geen actieve driver timeouts.", "At this moment the system shows stable, low latency and no active driver timeouts.").to_string());
+        actions.push(crate::tr!("Laat deze Freeze Detective actief draaien tijdens je normale werk; zodra de freeze optreedt, zal de Watchdog het exact loggen.", "Keep the Freeze Detective running during your normal work; when the freeze happens, the Watchdog will log it exactly.").to_string());
     }
 
     let diagnosis_summary = if !culprits.is_empty() {
-        format!(
-            "Gevonden: {} kritieke event(s) in Windows logboek die direct overeenkomen met systeem freezes (o.a. opslag/driver time-outs).",
-            culprits.len()
+        crate::tr!(
+            format!(
+                "Gevonden: {} kritieke event(s) in Windows logboek die direct overeenkomen met systeem freezes (o.a. opslag/driver time-outs).",
+                culprits.len()
+            ),
+            format!(
+                "Found: {} critical event(s) in the Windows event log that match system freezes (e.g. storage/driver timeouts).",
+                culprits.len()
+            )
         )
     } else if !watchdog_freezes.is_empty() {
-        format!(
-            "Watchdog heeft {} freeze-incident(en) van meer dan 1 seconde live geregistreerd!",
-            watchdog_freezes.len()
+        crate::tr!(
+            format!(
+                "Watchdog heeft {} freeze-incident(en) van meer dan 1 seconde live geregistreerd!",
+                watchdog_freezes.len()
+            ),
+            format!(
+                "The Watchdog recorded {} freeze incident(s) longer than 1 second live!",
+                watchdog_freezes.len()
+            )
         )
     } else {
-        "Geen directe freeze-events aangetroffen in recente logs. Watchdog blijft live monitoren."
+        crate::tr!("Geen directe freeze-events aangetroffen in recente logs. Watchdog blijft live monitoren.", "No direct freeze events found in recent logs. The Watchdog keeps monitoring live.")
             .to_string()
     };
 

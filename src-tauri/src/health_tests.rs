@@ -280,3 +280,15 @@ fn smart_warning_lowers_storage_to_warn() {
     });
     assert_eq!(cat(&h, "storage").unwrap().status, STATUS_WARN);
 }
+
+#[test]
+fn english_texts_when_language_is_english() {
+    let h = crate::i18n::with_language(true, || compute_health_score(all_good()));
+    assert_eq!(h.label, "Excellent");
+    let storage = cat(&h, "storage").unwrap();
+    assert_eq!(storage.label, "Storage");
+    // Statuscodes blijven Nederlands: de frontend vergelijkt erop.
+    assert_eq!(storage.status, STATUS_GOOD);
+    let nl = crate::i18n::with_language(false, || compute_health_score(all_good()));
+    assert_eq!(nl.label, "Uitstekend");
+}
