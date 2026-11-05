@@ -67,7 +67,8 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 
 ### 11. ⏱️ DPC Latency
 * Meet scheduling-latency met een hoge-prioriteit spin-loop (max / p99 / gemiddeld in µs, histogram) en leest de Windows-tellers `% DPC Time`, `% Interrupt Time` en `DPCs Queued/sec`.
-* Noemt waarschijnlijke verdachte drivers op basis van de Driver Check. Dit is géén meting per driver zoals LatencyMon (die ETW-tracing met adminrechten vereist).
+* Noemt waarschijnlijke verdachte drivers op basis van de Driver Check.
+* **Per-driver DPC/ISR-meting (ETW, beheerder):** volgt met Event Tracing for Windows elke DPC en interrupt en koppelt die aan de driver die hem uitvoert (zoals LatencyMon). Toont per driver de langste en totale DPC-/ISR-tijd, met een oordeel (DPC < 500 µs en ISR < 100 µs is goed). Gebruikt een eigen *system logger*-sessie, zodat hij niet botst met LatencyMon of Process Explorer.
 
 ### 12. ⌨️ Toetsenbord & Ghosting Matrix Test
 * **Chassis- & Formaat-detectie:** Schakelt automatisch naar **Laptop 75%** compact bij laptops, en naar **100% Volledig met Numpad** bij desktops. Handmatig omschakelbaar naar TKL 80%.
@@ -107,10 +108,12 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 
 ### 19. 🛡️ Beheerdersmodus
 * De header toont of de app verhoogde rechten heeft en kan zichzelf via UAC herstarten als beheerder (Windows). Dat ontgrendelt SMART-temperatuur/slijtage en realtime-prioriteit voor de latency-test.
-* Een meting per driver met ETW (zoals LatencyMon) zit er nog **niet** in.
+* Met verhoogde rechten is ook de per-driver DPC/ISR-meting (ETW) in het DPC Latency-tabblad beschikbaar.
 
 ### 20. 🌐 Taal
-* Nederlands en Engels voor de app-shell (header, navigatie, meldingen en de nieuwe modules). De oudere tabbladen en de backendmeldingen zijn nog Nederlands.
+* Volledig Nederlands en Engels: alle tabbladen, het rapport en de teksten die de Rust-backend teruggeeft (samenvattingen, adviezen).
+* De taal volgt standaard de systeemtaal en is in de header om te schakelen. Al uitgevoerde tests houden hun taal; nieuwe metingen komen in de gekozen taal.
+* Technisch: frontendteksten staan in `src/i18n/` (per tabblad een bestand in `tabs/`), backendteksten via de `tr!`-macro (`src-tauri/src/i18n.rs`). Statuscodes (`Goed`, `Let op`, `Kritiek`, …) blijven bewust Nederlands, omdat de frontend erop vergelijkt; ze worden alleen voor weergave vertaald (`src/i18n/status.ts`).
 
 ### 21. ⚡ Prestatie- & Caching Engine (Anti-Lag Architecture)
 * **Alle Tauri-commando's zijn `async`:** het werk draait via `spawn_blocking` op worker-threads, zodat stresstests en WMI-queries het venster niet bevriezen (en de eigen freeze/latency-metingen niet verstoren).
@@ -149,6 +152,10 @@ npm run typecheck
 ```
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml
+```
+De echte ETW-meting heeft beheerdersrechten nodig en wordt daarom niet standaard getest. Draai hem in een terminal die als administrator is gestart:
+```bash
+cargo test --manifest-path src-tauri/Cargo.toml live_etw -- --ignored --nocapture
 ```
 
 ### TypeScript-types uit Rust genereren
