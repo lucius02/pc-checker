@@ -10,6 +10,8 @@ import {
   Radio,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
 
 interface NetworkTabProps {
   onUpdateResult?: (data: {
@@ -26,6 +28,7 @@ interface PingSample {
 }
 
 export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
+  const t = useT();
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [isMonitoring, setIsMonitoring] = useState<boolean>(false);
   const [samples, setSamples] = useState<PingSample[]>([]);
@@ -193,18 +196,18 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">Netwerk, Wi-Fi &amp; Ping Stabiliteit</h2>
+                <h2 className="text-lg font-bold text-white">{t("net.title")}</h2>
                 <span className={cn(
                   "px-2 py-0.5 rounded-full text-[10px] font-semibold border",
                   isOnline
                     ? "bg-emerald-950/80 border-emerald-700/60 text-emerald-300"
                     : "bg-rose-950/80 border-rose-700/60 text-rose-300"
                 )}>
-                  {isOnline ? "Online Verbonden" : "Offline"}
+                  {isOnline ? t("net.online") : t("net.offline")}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Meet latency (ping), jitter en packet loss in realtime om micro-onderbrekingen en Wi-Fi storingen op te sporen.
+                {t("net.intro")}
               </p>
             </div>
           </div>
@@ -212,7 +215,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={toggleMonitoring}
-              aria-label={isMonitoring ? "Stop live ping monitoring" : "Start live ping monitoring"}
+              aria-label={isMonitoring ? t("net.ariaStop") : t("net.ariaStart")}
               className={cn(
                 "px-3.5 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2",
                 isMonitoring
@@ -223,23 +226,23 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
               {isMonitoring ? (
                 <>
                   <Square className="w-3.5 h-3.5" />
-                  Stop Monitor
+                  {t("net.stop")}
                 </>
               ) : (
                 <>
                   <Play className="w-3.5 h-3.5" />
-                  Live Ping Starten
+                  {t("net.start")}
                 </>
               )}
             </button>
 
             <button
               onClick={resetTest}
-              aria-label="Reset netwerk teststatistieken"
+              aria-label={t("net.ariaReset")}
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
             >
               <RotateCcw className="w-3.5 h-3.5 text-blue-400" />
-              Reset
+              {t("net.reset")}
             </button>
           </div>
         </div>
@@ -247,7 +250,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
         {/* Telemetry Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Actuele Ping</span>
+            <span className="text-slate-400 block">{t("net.current")}</span>
             <span className={cn(
               "text-lg font-bold font-mono",
               currentPing === null ? "text-slate-500" : currentPing < 30 ? "text-emerald-400" : currentPing < 80 ? "text-amber-400" : "text-rose-400"
@@ -257,14 +260,14 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Gemiddelde Ping</span>
+            <span className="text-slate-400 block">{t("net.avg")}</span>
             <span className="text-lg font-bold font-mono text-cyan-400">
               {avgPing !== null ? `${avgPing} ms` : "—"}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Jitter (Stabiliteit)</span>
+            <span className="text-slate-400 block">{t("net.jitter")}</span>
             <div className="flex items-center gap-1.5">
               <span className={cn(
                 "text-lg font-bold font-mono",
@@ -276,7 +279,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Packet Loss</span>
+            <span className="text-slate-400 block">{t("net.loss")}</span>
             <span className={cn(
               "text-lg font-bold font-mono",
               packetLossPercent === 0 ? "text-emerald-400" : "text-rose-400"
@@ -286,7 +289,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Min / Max / Link</span>
+            <span className="text-slate-400 block">{t("net.minMax")}</span>
             <span className="text-xs font-mono font-bold text-slate-200 block mt-1 truncate">
               {minPing !== null ? `${minPing} / ${maxPing} ms` : "—"} • {connType.toUpperCase()} ({downlinkSpeed}M)
             </span>
@@ -299,17 +302,17 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           <span className="font-semibold text-slate-200 flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
-            Ping Grafiek (Laatste 30 metingen):
+            {t("net.graph")}
           </span>
           <div className="flex items-center gap-3 text-[11px] text-slate-400">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> &lt;30ms (Snel)
+              <span className="w-2 h-2 rounded-full bg-emerald-400" /> {t("net.fast")}
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-400" /> 30-80ms (Normaal)
+              <span className="w-2 h-2 rounded-full bg-amber-400" /> {t("net.normal")}
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-rose-400" /> &gt;80ms of Time-out
+              <span className="w-2 h-2 rounded-full bg-rose-400" /> {t("net.slow")}
             </span>
           </div>
         </div>
@@ -319,7 +322,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
           {samples.length === 0 ? (
             <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-xs">
               <Radio className="w-6 h-6 mb-2 text-slate-600 animate-pulse" />
-              <span>Klik op &lsquo;Live Ping Starten&rsquo; om de stabiliteitstest te beginnen</span>
+              <span>{t("net.empty")}</span>
             </div>
           ) : (
             samples.map((s, idx) => {
@@ -346,7 +349,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
                   />
                   {/* Tooltip */}
                   <div className="absolute -top-7 hidden group-hover:flex px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-white whitespace-nowrap z-10 border border-slate-700 shadow-md">
-                    {s.latencyMs !== null ? `${s.latencyMs} ms` : "Time-out"}
+                    {s.latencyMs !== null ? `${s.latencyMs} ms` : t("net.timeout")}
                   </div>
                 </div>
               );
@@ -360,22 +363,20 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
         <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
           <h4 className="font-semibold text-slate-200 flex items-center gap-2">
             <Zap className="w-4 h-4 text-blue-400" />
-            Wat is Jitter &amp; Packet Loss?
+            {t("net.jitterTitle")}
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            <strong>Jitter</strong> meet de schommeling in reactiesnelheid. Een lage jitter (&lt; 10 ms) zorgt voor vloeiende Zoom/Teams-gesprekken en lag-vrij online gamen. 
-            <strong> Packet loss</strong> betekent dat datapakketjes verdwijnen door slechte Wi-Fi ontvangst of overbelaste routers.
+            <RichText text={t("net.jitterText")} />
           </p>
         </div>
 
         <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
           <h4 className="font-semibold text-slate-200 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            Wi-Fi Optimalisatie Advies
+            {t("net.wifiTitle")}
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            Als je packet loss ervaart op Wi-Fi: schakel over naar een <strong>5 GHz of 6 GHz (Wi-Fi 6)</strong> netwerk in plaats van 2.4 GHz. 
-            2.4 GHz stoort snel door magnetrons, bluetooth en routers van buren. Voor gaming is een bekabelde ethernetkabel altijd superieur.
+            <RichText text={t("net.wifiText")} />
           </p>
         </div>
       </div>

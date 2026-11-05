@@ -20,8 +20,9 @@ describe("formatBytes", () => {
 
 describe("formatUptime", () => {
   it("shows days only when needed", () => {
-    expect(formatUptime(59)).toBe("0u 0m");
-    expect(formatUptime(3 * 3600 + 25 * 60)).toBe("3u 25m");
-    expect(formatUptime(2 * 86400 + 3600)).toBe("2d 1u 0m");
+    expect(formatUptime(59, "nl")).toBe("0u 0m");
+    expect(formatUptime(3 * 3600 + 25 * 60, "nl")).toBe("3u 25m");
+    expect(formatUptime(2 * 86400 + 3600, "nl")).toBe("2d 1u 0m");
+    expect(formatUptime(2 * 86400 + 3600, "en")).toBe("2d 1h 0m");
   });
 });

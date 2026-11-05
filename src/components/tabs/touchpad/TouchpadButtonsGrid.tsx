@@ -1,6 +1,8 @@
 import React from "react";
 import { CheckCircle2, Info } from "lucide-react";
 import { cn } from "../../../utils/cn";
+import { useT } from "../../../i18n";
+import { RichText } from "../../../i18n/RichText";
 
 export interface ClickCounters {
   left: number;
@@ -27,6 +29,7 @@ export const TouchpadButtonsGrid: React.FC<TouchpadButtonsGridProps> = ({
   held,
   counts,
 }) => {
+  const t = useT();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
       {/* Left Button */}
@@ -38,7 +41,7 @@ export const TouchpadButtonsGrid: React.FC<TouchpadButtonsGridProps> = ({
             : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
         )}
       >
-        <span className="block text-slate-400 text-[11px]">Linkerklik (LMB)</span>
+        <span className="block text-slate-400 text-[11px]">{t("tp.lmb")}</span>
         <span className="text-base font-bold font-mono text-violet-400 block mt-0.5">
           {counts.left}x
         </span>
@@ -53,7 +56,7 @@ export const TouchpadButtonsGrid: React.FC<TouchpadButtonsGridProps> = ({
             : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
         )}
       >
-        <span className="block text-slate-400 text-[11px]">Middenklik (MMB)</span>
+        <span className="block text-slate-400 text-[11px]">{t("tp.mmb")}</span>
         <span className="text-base font-bold font-mono text-cyan-400 block mt-0.5">
           {counts.middle}x
         </span>
@@ -68,7 +71,7 @@ export const TouchpadButtonsGrid: React.FC<TouchpadButtonsGridProps> = ({
             : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
         )}
       >
-        <span className="block text-slate-400 text-[11px]">Rechterklik (RMB)</span>
+        <span className="block text-slate-400 text-[11px]">{t("tp.rmb")}</span>
         <span className="text-base font-bold font-mono text-purple-400 block mt-0.5">
           {counts.right}x
         </span>
@@ -83,7 +86,7 @@ export const TouchpadButtonsGrid: React.FC<TouchpadButtonsGridProps> = ({
             : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
         )}
       >
-        <span className="block text-slate-400 text-[11px]">Zijkant 1 (Vorige)</span>
+        <span className="block text-slate-400 text-[11px]">{t("tp.side1")}</span>
         <span className="text-base font-bold font-mono text-amber-400 block mt-0.5">
           {counts.back}x
         </span>
@@ -98,7 +101,7 @@ export const TouchpadButtonsGrid: React.FC<TouchpadButtonsGridProps> = ({
             : "bg-slate-950/80 border-slate-800 text-slate-300 hover:border-slate-700"
         )}
       >
-        <span className="block text-slate-400 text-[11px]">Zijkant 2 (Volgende)</span>
+        <span className="block text-slate-400 text-[11px]">{t("tp.side2")}</span>
         <span className="text-base font-bold font-mono text-emerald-400 block mt-0.5">
           {counts.forward}x
         </span>
@@ -108,28 +111,26 @@ export const TouchpadButtonsGrid: React.FC<TouchpadButtonsGridProps> = ({
 };
 
 export const TouchpadAdviceCards: React.FC = () => {
+  const t = useT();
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
       <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
         <h4 className="font-semibold text-slate-200 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          Wat is een Dubbelklik-defect (Switch Chatter)?
+          {t("tp.chatterTitle")}
         </h4>
         <p className="text-slate-400 text-xs leading-relaxed">
-          Als een muisschakelaar versleten raakt, stuitert het metalen contactveertje. Hierdoor registreert Windows 
-          twee kliks binnen <strong>minder dan 70 milliseconden</strong> bij één fysieke vingerbeweging. 
-          PC Checker detecteert dit automatisch en geeft een waarschuwing zodat je weet of een muis toe is aan vervanging.
+          <RichText text={t("tp.chatter")} />
         </p>
       </div>
 
       <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
         <h4 className="font-semibold text-slate-200 flex items-center gap-2">
           <Info className="w-4 h-4 text-cyan-400" />
-          Zwevende of haperende cursor op je laptop?
+          {t("tp.floatTitle")}
         </h4>
         <p className="text-slate-400 text-xs leading-relaxed">
-          Haperingen op een laptop-touchpad worden vaak veroorzaakt door een ongeaarde netstroomoplader (statische storing), 
-          vet op het aanraakoppervlak, of een opzwellende accu die van onderaf tegen het mechanisme aandrukt.
+          {t("tp.float")}
         </p>
       </div>
     </div>

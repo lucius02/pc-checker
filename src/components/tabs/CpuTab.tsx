@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { SystemOverview, StressTestResult } from "../../types";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
 
 interface CpuTabProps {
   data: SystemOverview;
@@ -30,6 +32,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
   handleCpuStress,
   cpuResult,
 }) => {
+  const t = useT();
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-5">
@@ -37,10 +40,10 @@ export const CpuTab: React.FC<CpuTabProps> = ({
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Flame className="w-5 h-5 text-cyan-400" />
-              Multi-Core Processor Stresstest
+              {t("cpu.title")}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Voert intensieve wiskundige berekeningen uit op alle {data.cpu.logical_cores} threads om stabiliteit, throttling en piekprestaties te controleren.
+              {t("cpu.intro", { n: data.cpu.logical_cores })}
             </p>
           </div>
 
@@ -78,12 +81,12 @@ export const CpuTab: React.FC<CpuTabProps> = ({
               {isTestingCpu ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Stresstest Bezig...
+                  {t("cpu.running")}
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-slate-950" />
-                  Start Stresstest
+                  {t("cpu.start")}
                 </>
               )}
             </button>
@@ -93,7 +96,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
         {/* Per Core Usage Grid */}
         <div>
           <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-            Live Belasting per Kern ({data.cpu.cores.length} threads)
+            {t("cpu.perCore", { n: data.cpu.cores.length })}
           </h4>
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2.5">
             {data.cpu.cores.map((core, i) => (
@@ -102,7 +105,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
                 className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl flex flex-col justify-between"
               >
                 <div className="flex justify-between items-center text-xs mb-1.5">
-                  <span className="text-slate-400 font-medium">Core {i}</span>
+                  <span className="text-slate-400 font-medium">{t("cpu.core", { i })}</span>
                   <span className="font-mono font-bold text-cyan-400">
                     {core.usage.toFixed(0)}%
                   </span>
@@ -138,7 +141,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
                 ) : (
                   <AlertTriangle className="w-5 h-5 text-red-400" />
                 )}
-                <span>{cpuResult.test_name} - {cpuResult.success ? "Geslaagd" : "Mislukt"}</span>
+                <span>{cpuResult.test_name} - {cpuResult.success ? t("common.passed") : t("common.failed")}</span>
               </div>
               <span className="font-mono font-bold text-lg">
                 {cpuResult.score_or_speed.toFixed(2)} {cpuResult.unit}
@@ -154,7 +157,7 @@ export const CpuTab: React.FC<CpuTabProps> = ({
         <div className="flex items-center gap-2">
           <Info className="w-5 h-5 text-cyan-400" />
           <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            CPU Richtlijnen, Prestatiescores &amp; Stabiliteitsadvies
+            {t("cpu.guideTitle")}
           </h3>
         </div>
 
@@ -163,13 +166,13 @@ export const CpuTab: React.FC<CpuTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <Activity className="w-4 h-4 text-cyan-400" />
-              Wat meet deze stresstest precies?
+              {t("cpu.whatTitle")}
             </h4>
             <p className="text-slate-400 text-xs leading-relaxed">
-              De test voert miljoenen non-lineaire goniometrische en drijvende-komma berekeningen (sinus/cosinus) per seconde uit via een multi-threaded Rayon threadpool.
+              {t("cpu.what1")}
             </p>
             <p className="text-slate-300 text-xs">
-              Hiermee worden alle logische kernen 100% belast. Dit brengt zwakke plekken zoals VRM spanningsdips, instabiele overkloks of overmatige hitte onmiddellijk aan het licht.
+              {t("cpu.what2")}
             </p>
           </div>
 
@@ -177,24 +180,24 @@ export const CpuTab: React.FC<CpuTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <Cpu className="w-4 h-4 text-emerald-400" />
-              Wat is een normale score in MOps/sec?
+              {t("cpu.scoreTitle")}
             </h4>
             <div className="space-y-1.5 text-xs text-slate-300">
               <div className="flex justify-between border-b border-slate-800/80 pb-1">
-                <span className="text-slate-400">4 – 8 threads (Quad-core laptops):</span>
+                <span className="text-slate-400">{t("cpu.score1")}</span>
                 <span className="font-mono text-cyan-300">10 – 30 MOps/s</span>
               </div>
               <div className="flex justify-between border-b border-slate-800/80 pb-1">
-                <span className="text-slate-400">12 – 16 threads (Moderne i7/Ultra/Ryzen):</span>
+                <span className="text-slate-400">{t("cpu.score2")}</span>
                 <span className="font-mono text-emerald-400">40 – 90 MOps/s</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">24+ threads (Desktop Workstations):</span>
+                <span className="text-slate-400">{t("cpu.score3")}</span>
                 <span className="font-mono text-purple-400">100+ MOps/s</span>
               </div>
             </div>
             <p className="text-slate-500 text-xs pt-1">
-              Een hogere score betekent snellere multi-core rekenkracht en betere stabiliteit onder continue zware belasting.
+              {t("cpu.scoreNote")}
             </p>
           </div>
         </div>
@@ -203,28 +206,28 @@ export const CpuTab: React.FC<CpuTabProps> = ({
         <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3 text-xs">
           <div className="flex items-center gap-2 text-cyan-300 font-semibold">
             <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>Aanbevelingen bij CPU Instabiliteit of Prestatieverlies</span>
+            <span>{t("cpu.recTitle")}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">1. Controleer Klokfrequenties</span>
+              <span className="font-medium text-white block">{t("cpu.rec1Title")}</span>
               <p className="text-xs text-slate-400">
-                Als de score na 10-30 seconden sterk keldert, verlaagt het moederbord de MHz (Thermal Throttling). Bekijk het tabblad <em>Koeling &amp; Fans</em> om te zien of de temperatuur boven 90°C piekt.
+                <RichText text={t("cpu.rec1")} />
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">2. Reset Overclock &amp; Undervolt</span>
+              <span className="font-medium text-white block">{t("cpu.rec2Title")}</span>
               <p className="text-xs text-slate-400">
-                Crasht de pc tijdens een stresstest met een Blue Screen (zoals WHEA_UNCORRECTABLE_ERROR)? Zet eventuele CPU-overclock of undervolt instellingen in de BIOS terug naar fabriekswaarden.
+                <RichText text={t("cpu.rec2")} />
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">3. Energiebeheerschema</span>
+              <span className="font-medium text-white block">{t("cpu.rec3Title")}</span>
               <p className="text-xs text-slate-400">
-                Stel Windows Energiebeheer in op 'Gebalanceerd' of 'Beste Prestaties'. Vermijd energiebesparende profielen tijdens zware reken- of renderklussen.
+                {t("cpu.rec3")}
               </p>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { translate, type Lang, type MessageKey } from "../i18n";
 import { formatBytes, formatUptime } from "./formatters";
+import { statusLabel } from "../i18n/status";
 import type { DiagnosticsState } from "../store/diagnosticsStore";
 
 /** Alleen de velden die het rapport nodig heeft (maakt de builder puur en testbaar). */
@@ -48,7 +49,8 @@ function section(title: string, body: string): string {
 
 /** Bouwt een zelfstandig, afdrukbaar HTML-rapport (geen externe resources). */
 export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new Date()): string {
-  const tr = (k: MessageKey) => translate(lang, k);
+  const tr = (k: MessageKey, vars?: Record<string, string | number>) => translate(lang, k, vars);
+  const st = (code: string) => statusLabel(lang, code);
   const na = badge("na", tr("report.notRun"));
   const parts: string[] = [];
 
@@ -61,20 +63,20 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
         `<table>${[
           row("OS", escapeHtml(`${d.os_name} ${d.os_version} (kernel ${d.kernel_version})`)),
           row("Host", escapeHtml(d.host_name)),
-          row("Type", escapeHtml(s.powerData?.is_laptop ? tr("machine.laptop") : tr("machine.desktop"))),
+          row(tr("report.type"), escapeHtml(s.powerData?.is_laptop ? tr("machine.laptop") : tr("machine.desktop"))),
           row("CPU", escapeHtml(`${d.cpu.brand} — ${d.cpu.physical_cores}C/${d.cpu.logical_cores}T`)),
-          row("RAM", escapeHtml(`${formatBytes(d.ram.total_bytes)} (${formatBytes(d.ram.used_bytes)} in gebruik)`)),
+          row("RAM", escapeHtml(tr("report.ramUsed", { t: formatBytes(d.ram.total_bytes), u: formatBytes(d.ram.used_bytes) }))),
           row("GPU", escapeHtml(d.gpus.map((g) => `${g.name} ${g.driver_version}`.trim()).join("; "))),
           row(
-            "Moederbord / BIOS",
+            tr("report.board"),
             escapeHtml(`${d.motherboard.manufacturer} ${d.motherboard.product} — ${d.motherboard.bios_vendor} ${d.motherboard.bios_version}`),
           ),
-          row("Uptime", escapeHtml(`${formatUptime(d.session_uptime_secs)} (${d.session_started_at})`)),
+          row("Uptime", escapeHtml(`${formatUptime(d.session_uptime_secs, lang)} (${d.session_started_at})`)),
           row(
-            "Volumes",
+            tr("report.volumes"),
             escapeHtml(
               d.disks
-                .map((x) => `${x.mount_point} ${formatBytes(x.available_bytes)} vrij van ${formatBytes(x.total_bytes)}`)
+                .map((x) => tr("report.volFree", { m: x.mount_point, f: formatBytes(x.available_bytes), t: formatBytes(x.total_bytes) }))
                 .join("; "),
             ),
           ),
@@ -86,13 +88,13 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
   // Gezondheidsscore
   if (s.healthScore) {
     const h = s.healthScore;
-    const st: Status = h.score >= 80 ? "ok" : h.score >= 60 ? "warn" : "bad";
+    const tone: Status = h.score >= 80 ? "ok" : h.score >= 60 ? "warn" : "bad";
     parts.push(
       section(
         tr("report.health"),
-        `<p class="score">${badge(st, `${h.grade} · ${h.score}/100 · ${h.label}`)}</p>
+        `<p class="score">${badge(tone, `${h.grade} · ${h.score}/100 · ${st(h.label)}`)}</p>
         <table>${h.categories
-          .map((c) => row(c.label, `${badge(c.status === "Goed" ? "ok" : c.status === "Kritiek" ? "bad" : c.status === "Niet getest" ? "na" : "warn", `${c.status} ${c.score}`)} ${escapeHtml(c.detail)}`))
+          .map((c) => row(c.label, `${badge(c.status === "Goed" ? "ok" : c.status === "Kritiek" ? "bad" : c.status === "Niet getest" ? "na" : "warn", `${st(c.status)} ${c.score}`)} ${escapeHtml(c.detail)}`))
           .join("")}</table>
         ${h.top_issues.length ? `<ul>${h.top_issues.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>` : ""}`,
       ),
@@ -102,7 +104,7 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
   // Tests
   const stress = (r: ReportSnapshot["cpuResult"]) =>
     r
-      ? `${badge(r.success ? "ok" : "bad", r.success ? "OK" : "FOUT")} ${escapeHtml(`${r.score_or_speed.toFixed(1)} ${r.unit} — ${r.details}`)}`
+      ? `${badge(r.success ? "ok" : "bad", r.success ? "OK" : tr("report.fail"))} ${escapeHtml(`${r.score_or_speed.toFixed(1)} ${r.unit} — ${r.details}`)}`
       : na;
   parts.push(
     section(
@@ -110,12 +112,12 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
       `<table>${[
         row("CPU", stress(s.cpuResult)),
         row("RAM", stress(s.ramResult)),
-        row("Schijf", stress(s.diskResult)),
+        row(tr("report.disk"), stress(s.diskResult)),
         row("GPU", s.gpuResult ? escapeHtml(s.gpuResult) : na),
         row(
           tr("report.latency"),
           s.latencyResult
-            ? `${badge(s.latencyResult.verdict === "Goed" ? "ok" : s.latencyResult.verdict === "Slecht" ? "bad" : "warn", s.latencyResult.verdict)} ${escapeHtml(`max ${s.latencyResult.timer_max_gap_us.toFixed(0)} µs, p99 ${s.latencyResult.timer_p99_gap_us.toFixed(0)} µs — ${s.latencyResult.summary}`)}`
+            ? `${badge(s.latencyResult.verdict === "Goed" ? "ok" : s.latencyResult.verdict === "Slecht" ? "bad" : "warn", st(s.latencyResult.verdict))} ${escapeHtml(`max ${s.latencyResult.timer_max_gap_us.toFixed(0)} µs, p99 ${s.latencyResult.timer_p99_gap_us.toFixed(0)} µs — ${s.latencyResult.summary}`)}`
             : na,
         ),
       ].join("")}</table>`,
@@ -125,11 +127,11 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
   // Freeze
   if (s.freezeData) {
     const f = s.freezeData;
-    const st: Status = f.system_freeze_risk === "Hoog" ? "bad" : f.system_freeze_risk === "Middel" ? "warn" : "ok";
+    const risk: Status = f.system_freeze_risk === "Hoog" ? "bad" : f.system_freeze_risk === "Middel" ? "warn" : "ok";
     parts.push(
       section(
         tr("report.freeze"),
-        `<p>${badge(st, f.system_freeze_risk)} ${escapeHtml(f.diagnosis_summary)}</p>
+        `<p>${badge(risk, st(f.system_freeze_risk))} ${escapeHtml(f.diagnosis_summary)}</p>
         ${f.event_log_culprits.length ? `<table>${f.event_log_culprits.slice(0, 15).map((e) => row(e.timestamp, `<b>${escapeHtml(e.category)}</b> (${escapeHtml(e.provider)} #${e.event_id}) — ${escapeHtml(e.suggestion)}`)).join("")}</table>` : ""}
         <ol>${f.recommended_actions.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ol>`,
       ),
@@ -145,11 +147,11 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
           .map((d) =>
             row(
               `${d.model} (${d.bus_type} ${d.media_type})`,
-              `${badge(d.verdict === "Goed" ? "ok" : d.verdict === "Kritiek" ? "bad" : "warn", d.verdict)} ${escapeHtml(
+              `${badge(d.verdict === "Goed" ? "ok" : d.verdict === "Kritiek" ? "bad" : "warn", st(d.verdict))} ${escapeHtml(
                 [
-                  d.wear_percent != null ? `slijtage ${d.wear_percent}%` : null,
+                  d.wear_percent != null ? tr("report.wear", { p: d.wear_percent }) : null,
                   d.temperature_celsius != null ? `${d.temperature_celsius} °C` : null,
-                  d.power_on_hours != null ? `${d.power_on_hours} uur` : null,
+                  d.power_on_hours != null ? tr("report.hours", { h: d.power_on_hours }) : null,
                   ...d.findings,
                 ]
                   .filter(Boolean)
@@ -169,25 +171,25 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
     parts.push(
       section(
         tr("report.drivers"),
-        `<p>${escapeHtml(r.summary)}</p>${flagged.length ? `<table>${flagged.map((d) => row(d.device_name, `${badge(d.status === "Probleem" ? "bad" : "warn", d.status)} ${escapeHtml(`${d.provider} ${d.version} (${d.date || "?"}) — ${d.advice}`)}`)).join("")}</table>` : ""}`,
+        `<p>${escapeHtml(r.summary)}</p>${flagged.length ? `<table>${flagged.map((d) => row(d.device_name, `${badge(d.status === "Probleem" ? "bad" : "warn", st(d.status))} ${escapeHtml(`${d.provider} ${d.version} (${d.date || "?"}) — ${d.advice}`)}`)).join("")}</table>` : ""}`,
       ),
     );
   }
 
   // Stroom & koeling
   const powerRows: string[] = [];
-  if (s.powerData) powerRows.push(row("Voeding", escapeHtml(s.powerData.details)));
+  if (s.powerData) powerRows.push(row(tr("report.supply"), escapeHtml(s.powerData.details)));
   if (s.batteryReport) {
     powerRows.push(
       row(
-        "Batterij",
+        tr("report.battery"),
         s.batteryReport.is_available
-          ? escapeHtml(`${s.batteryReport.health_percent.toFixed(0)}% gezondheid, ${s.batteryReport.cycle_count} cycli — ${s.batteryReport.grade}`)
+          ? escapeHtml(tr("report.batteryText", { h: s.batteryReport.health_percent.toFixed(0), c: s.batteryReport.cycle_count, g: st(s.batteryReport.grade) }))
           : escapeHtml(s.batteryReport.advice),
       ),
     );
   }
-  if (s.powerDeliveryReport) powerRows.push(row("Stroomtoevoer", escapeHtml(`${s.powerDeliveryReport.score}/100 — ${s.powerDeliveryReport.summary}`)));
+  if (s.powerDeliveryReport) powerRows.push(row(tr("report.delivery"), escapeHtml(`${s.powerDeliveryReport.score}/100 — ${s.powerDeliveryReport.summary}`)));
   if (powerRows.length) parts.push(section(tr("report.power"), `<table>${powerRows.join("")}</table>`));
 
   if (s.coolingData) {
@@ -221,7 +223,7 @@ export function buildHtmlReport(s: ReportSnapshot, lang: Lang, now: Date = new D
     parts.push(
       section(
         tr("report.history"),
-        `<p>${escapeHtml(`${s.history.freezes.length} freezes totaal, ${recent} in de afgelopen 7 dagen; ${s.history.health.length} opgeslagen scores.`)}</p>`,
+        `<p>${escapeHtml(tr("report.historyText", { n: s.history.freezes.length, r: recent, s: s.history.health.length }))}</p>`,
       ),
     );
   }

@@ -289,6 +289,8 @@ export function generateKeyboardRows(
   ];
 }
 
+import { t } from "../../../i18n";
+
 // Scans keyboard layout using hardware hints & browser Keyboard Layout Map API
 export async function scanKeyboardLayout(
   isLaptop: boolean
@@ -296,7 +298,8 @@ export async function scanKeyboardLayout(
   const formFactor: FormFactor = isLaptop ? "laptop" : "full";
   let keymapType: KeymapType = "qwerty";
   let enterStyle: EnterStyle = "ansi";
-  let scanSource = "Standaard detectie (Systeem & Chassis)";
+  let scanSource = t("kb.src.default");
+  let resolved = false;
 
   // 1. Check navigator.keyboard getLayoutMap API if available
   const navAny = navigator as unknown as {
@@ -314,14 +317,17 @@ export async function scanKeyboardLayout(
       if (qChar === "a") {
         keymapType = "azerty";
         enterStyle = "iso";
-        scanSource = "Live Keyboard Layout Map API (AZERTY herkent)";
+        scanSource = t("kb.src.map", { k: "AZERTY" });
+        resolved = true;
       } else if (zChar === "y") {
         keymapType = "qwertz";
         enterStyle = "iso";
-        scanSource = "Live Keyboard Layout Map API (QWERTZ herkent)";
+        scanSource = t("kb.src.map", { k: "QWERTZ" });
+        resolved = true;
       } else {
         keymapType = "qwerty";
-        scanSource = "Live Keyboard Layout Map API (QWERTY herkent)";
+        scanSource = t("kb.src.map", { k: "QWERTY" });
+        resolved = true;
       }
     } catch {
       // Permission blocked or fallback
@@ -329,28 +335,28 @@ export async function scanKeyboardLayout(
   }
 
   // 2. Language/Locale heuristics if not resolved
-  if (scanSource.startsWith("Standaard")) {
+  if (!resolved) {
     const lang = (navigator.language || "").toLowerCase();
     if (lang.includes("be") || lang.includes("fr")) {
       keymapType = "azerty";
       enterStyle = "iso";
-      scanSource = `Taalcode locale (${lang}) -> AZERTY`;
+      scanSource = t("kb.src.locale", { l: lang, k: "AZERTY" });
     } else if (lang.includes("de") || lang.includes("at") || lang.includes("ch")) {
       keymapType = "qwertz";
       enterStyle = "iso";
-      scanSource = `Taalcode locale (${lang}) -> QWERTZ`;
+      scanSource = t("kb.src.locale", { l: lang, k: "QWERTZ" });
     } else if (lang.includes("nl") || lang.includes("gb")) {
       keymapType = "qwerty";
       // NL/UK usually ISO Enter on laptops, ANSI or ISO on desktops
       enterStyle = isLaptop ? "iso" : "ansi";
-      scanSource = `Systeem locale (${lang}) + ${isLaptop ? "Laptop chassis" : "Desktop"}`;
+      scanSource = t("kb.src.system", { l: lang, c: isLaptop ? t("kb.src.laptopChassis") : t("kb.src.desktop") });
     }
   }
 
   const formFactorLabel =
     formFactor === "laptop"
-      ? "Laptop 75% compact"
-      : "100% Volledig met Numpad";
+      ? t("kb.ffLaptopLabel")
+      : t("kb.ffFullLabel");
 
   const details = `${scanSource} • ${formFactorLabel} • ${keymapType.toUpperCase()} • ${enterStyle.toUpperCase()} Enter`;
 

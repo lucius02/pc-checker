@@ -14,6 +14,7 @@ import {
   TouchpadButtonsGrid,
   TouchpadAdviceCards,
 } from "./touchpad/TouchpadButtonsGrid";
+import { useT, type MessageKey } from "../../i18n";
 
 type TrailMode = "fading" | "permanent";
 
@@ -28,6 +29,7 @@ interface TouchpadTabProps {
 }
 
 export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -59,7 +61,7 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
 
   // Scroll tracking
   const [scrollDelta, setScrollDelta] = useState<{ y: number; x: number }>({ y: 0, x: 0 });
-  const [scrollDirection, setScrollDirection] = useState<string>("Stilstaand");
+  const [scrollDirection, setScrollDirection] = useState<MessageKey>("tp.idle");
   const [totalScrollSteps, setTotalScrollSteps] = useState<number>(0);
 
   // Refs for animation & performance
@@ -289,9 +291,9 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
       setTotalScrollSteps((prev) => prev + 1);
 
       if (Math.abs(dy) > Math.abs(dx)) {
-        setScrollDirection(dy < 0 ? "▲ Omhoog scrollen" : "▼ Omlaag scrollen");
+        setScrollDirection(dy < 0 ? "tp.up" : "tp.down");
       } else if (Math.abs(dx) > 0) {
-        setScrollDirection(dx < 0 ? "◀ Naar links" : "▶ Naar rechts");
+        setScrollDirection(dx < 0 ? "tp.left" : "tp.right");
       }
     };
 
@@ -308,7 +310,7 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
     setIsSwitchChatterWarning(false);
     setScrollDelta({ x: 0, y: 0 });
     setTotalScrollSteps(0);
-    setScrollDirection("Stilstaand");
+    setScrollDirection("tp.idle");
   };
 
   return (
@@ -322,13 +324,13 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">Touchpad &amp; Muis Test</h2>
+                <h2 className="text-lg font-bold text-white">{t("tp.title")}</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-950/80 border border-violet-700/60 text-violet-300">
-                  5-Knoppen + Dode-Hoeken Scanner
+                  {t("tp.badge")}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Beweeg, teken en klik om dode hoeken, dubbelklikfouten, zijknoppen, polling rate (Hz) en scrollwielrichting te testen.
+                {t("tp.intro")}
               </p>
             </div>
           </div>
@@ -344,14 +346,14 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
               )}
             >
               <Layers className="w-3.5 h-3.5" />
-              {trailMode === "permanent" ? "Modus: Dode Zone (Vast)" : "Modus: Vervaagt (2s)"}
+              {trailMode === "permanent" ? t("tp.modePermanent") : t("tp.modeFading")}
             </button>
             <button
               onClick={clearCanvas}
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400"
             >
               <RotateCcw className="w-3.5 h-3.5 text-violet-400" />
-              Reset &amp; Wissen
+              {t("tp.reset")}
             </button>
           </div>
         </div>
@@ -359,28 +361,28 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
         {/* Real-time Telemetry Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Positie (X, Y)</span>
+            <span className="text-slate-400 block">{t("tp.position")}</span>
             <span className="text-lg font-bold font-mono text-violet-400">
               {coords.x}, {coords.y}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Polling Rate</span>
+            <span className="text-slate-400 block">{t("tp.polling")}</span>
             <span className="text-lg font-bold font-mono text-cyan-400">
               {eventRateHz} Hz
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Oppervlakte Getest</span>
+            <span className="text-slate-400 block">{t("tp.coverage")}</span>
             <span className="text-lg font-bold font-mono text-emerald-400">
               {coveragePercent}%
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Dubbelklik Snelheid</span>
+            <span className="text-slate-400 block">{t("tp.doubleClick")}</span>
             <div className="flex items-center gap-1.5">
               <span className={cn(
                 "text-lg font-bold font-mono",
@@ -389,7 +391,7 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
                 {doubleClickSpeed !== null ? `${doubleClickSpeed} ms` : "—"}
               </span>
               {isSwitchChatterWarning && (
-                <span title="Minder dan 75 ms duidt vaak op een stuiterende/defecte microswitch">
+                <span title={t("tp.chatterHint")}>
                   <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                 </span>
               )}
@@ -397,9 +399,9 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Scrollwiel Status</span>
+            <span className="text-slate-400 block">{t("tp.scroll")}</span>
             <span className="text-xs font-bold font-mono text-amber-400 truncate block mt-1">
-              {scrollDirection} ({totalScrollSteps}x • ΔY: {scrollDelta.y})
+              {t(scrollDirection)} ({totalScrollSteps}x • ΔY: {scrollDelta.y})
             </span>
           </div>
         </div>
@@ -423,16 +425,16 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <span className="text-xs font-semibold text-slate-300 flex items-center gap-2">
             <Laptop className="w-4 h-4 text-violet-400" />
-            Interactief Teken- &amp; Detectievlak (beweeg met muis of vinger):
+            {t("tp.surface")}
           </span>
           <div className="flex items-center gap-2 text-xs">
             {isDragging ? (
               <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-700 text-emerald-300 flex items-center gap-1 font-medium">
                 <Zap className="w-3 h-3 text-emerald-400" />
-                Slepen Actief (Knop vastgehouden)
+                {t("tp.dragging")}
               </span>
             ) : (
-              <span className="text-slate-500">Vrij bewegen</span>
+              <span className="text-slate-500">{t("tp.free")}</span>
             )}
           </div>
         </div>
@@ -445,7 +447,7 @@ export const TouchpadTab: React.FC<TouchpadTabProps> = ({ onUpdateResult }) => {
             className="w-full h-[280px] touch-none cursor-crosshair block"
           />
           <div className="absolute top-3 left-3 text-xs text-slate-500 font-mono pointer-events-none">
-            Touchpad / Muis Traceer-Zone • 1:1 Pixel Mapping
+            {t("tp.zone")}
           </div>
         </div>
 

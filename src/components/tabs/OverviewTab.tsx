@@ -26,6 +26,7 @@ import {
 } from "../../types";
 import { formatBytes, formatUptime } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
 import { OverviewCardsGrid } from "./overview/OverviewCardsGrid";
 import { HealthScoreCard } from "./overview/HealthScoreCard";
 
@@ -56,6 +57,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   diskResult,
   setActiveTab,
 }) => {
+  const t = useT();
   const totalDiskBytes = data.disks.reduce((acc, d) => acc + d.total_bytes, 0);
   const primaryGpu = data.gpus[0];
 
@@ -75,10 +77,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Layers className="w-5 h-5 text-cyan-400" />
-            Hardware Status &amp; Diagnostische Testen
+            {t("ov.title")}
           </h2>
           <p className="text-xs text-slate-400">
-            Live overzicht van alle hardware-modules en diagnoses. Klik op een knop om de gewenste test direct te openen.
+            {t("ov.intro")}
           </p>
         </div>
       </div>
@@ -114,7 +116,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
             <Clock className="w-4 h-4 text-cyan-400" />
-            <span>Actuele Werksessie &amp; Systeemuptime</span>
+            <span>{t("ov.sessionTitle")}</span>
           </div>
         </div>
 
@@ -122,7 +124,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-4 bg-slate-950/80 rounded-xl border border-cyan-800/50 space-y-1">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-cyan-400 uppercase tracking-wider text-xs">
-                Huidige Werksessie (Actueel)
+                {t("ov.currentSession")}
               </span>
               <span className="px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-mono text-xs border border-cyan-800">
                 {data.session_started_at}
@@ -132,17 +134,17 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               {formatUptime(data.session_uptime_secs)}
             </div>
             <p className="text-slate-400 text-xs">
-              Exacte tijd dat de computer actief in gebruik is sinds het openklappen of ontwaken vandaag.
+              {t("ov.sessionHint")}
             </p>
           </div>
 
           <div className="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
             <div className="flex justify-between items-center">
               <span className="font-semibold text-slate-400 uppercase tracking-wider text-xs">
-                Totale Windows Kernel Uptime
+                {t("ov.kernelUptime")}
               </span>
               <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-400 font-mono text-xs border border-slate-800">
-                Sinds laatste herstart
+                {t("ov.sinceRestart")}
               </span>
             </div>
             <div className="text-2xl font-bold font-mono text-slate-300">
@@ -151,7 +153,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <p className="text-slate-400 text-xs flex items-center gap-1">
               <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span>
-                Windows Snel Opstarten (Fast Startup) &amp; Standby houden de kernel actief bij afsluiten.
+                {t("ov.fastStartup")}
               </span>
             </p>
           </div>
@@ -163,7 +165,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
             <Monitor className="w-4 h-4 text-cyan-400" />
-            <span>Volledige Systeemspecificaties &amp; Hardware Profiel</span>
+            <span>{t("ov.specsTitle")}</span>
           </div>
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1">
             {powerData?.is_laptop ? (
@@ -172,7 +174,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               </>
             ) : (
               <>
-                <PcCase className="w-3 h-3 text-cyan-400" /> Desktop Workstation
+                <PcCase className="w-3 h-3 text-cyan-400" /> {t("ov.desktop")}
               </>
             )}
           </span>
@@ -183,13 +185,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Processor (CPU)</span>
+              <span>{t("ov.cpu")}</span>
             </div>
             <div className="font-semibold text-slate-100 truncate" title={data.cpu.brand}>
               {data.cpu.brand}
             </div>
             <div className="text-xs text-slate-400">
-              {data.cpu.physical_cores} Fysiek • {data.cpu.logical_cores} Threads ({data.cpu.vendor_id || "x86_64"})
+              {t("ov.cpuCores", { p: data.cpu.physical_cores, l: data.cpu.logical_cores, v: data.cpu.vendor_id || "x86_64" })}
             </div>
           </div>
 
@@ -197,13 +199,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Monitor className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Grafische Kaart (GPU)</span>
+              <span>{t("ov.gpu")}</span>
             </div>
-            <div className="font-semibold text-slate-100 truncate" title={primaryGpu?.name || "Grafische Adapter"}>
-              {primaryGpu?.name || "Standaard GPU"}
+            <div className="font-semibold text-slate-100 truncate" title={primaryGpu?.name || t("ov.gpuAdapter")}>
+              {primaryGpu?.name || t("ov.gpuDefault")}
             </div>
             <div className="text-xs text-slate-400 truncate">
-              {primaryGpu?.driver_version ? `Driver v${primaryGpu.driver_version}` : "Standaard driver"}
+              {primaryGpu?.driver_version ? t("ov.gpuDriver", { v: primaryGpu.driver_version }) : t("ov.gpuDriverDefault")}
               {primaryGpu?.vram_bytes ? ` • ${formatBytes(primaryGpu.vram_bytes)}` : ""}
             </div>
           </div>
@@ -212,13 +214,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Layers className="w-3.5 h-3.5 text-amber-400" />
-              <span>Moederbord (Baseboard)</span>
+              <span>{t("ov.board")}</span>
             </div>
             <div className="font-semibold text-slate-100 truncate" title={`${data.motherboard.manufacturer} ${data.motherboard.product}`}>
               {data.motherboard.manufacturer}
             </div>
             <div className="text-xs text-slate-400 truncate">
-              Model: {data.motherboard.product}
+              {t("ov.model", { v: data.motherboard.product })}
             </div>
           </div>
 
@@ -226,13 +228,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Info className="w-3.5 h-3.5 text-blue-400" />
-              <span>BIOS / Firmware</span>
+              <span>{t("ov.bios")}</span>
             </div>
             <div className="font-semibold text-slate-100 truncate" title={data.motherboard.bios_vendor}>
               {data.motherboard.bios_vendor}
             </div>
             <div className="text-xs text-slate-400 truncate">
-              Versie: {data.motherboard.bios_version}
+              {t("ov.version", { v: data.motherboard.bios_version })}
             </div>
           </div>
 
@@ -240,13 +242,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Zap className="w-3.5 h-3.5 text-purple-400" />
-              <span>Werkgeheugen (RAM)</span>
+              <span>{t("ov.ram")}</span>
             </div>
             <div className="font-semibold text-slate-100">
-              {formatBytes(data.ram.total_bytes)} Totaal
+              {t("ov.ramTotal", { v: formatBytes(data.ram.total_bytes) })}
             </div>
             <div className="text-xs text-slate-400">
-              Vrij: {formatBytes(data.ram.free_bytes)} • Swap: {formatBytes(data.ram.total_swap_bytes)}
+              {t("ov.ramSub", { f: formatBytes(data.ram.free_bytes), s: formatBytes(data.ram.total_swap_bytes) })}
             </div>
           </div>
 
@@ -254,13 +256,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Totale Opslagcapaciteit</span>
+              <span>{t("ov.storage")}</span>
             </div>
             <div className="font-semibold text-slate-100">
-              {formatBytes(totalDiskBytes)} ({data.disks.length} Volume{data.disks.length === 1 ? "" : "s"})
+              {t("ov.volumes", { v: formatBytes(totalDiskBytes), n: data.disks.length })}
             </div>
             <div className="text-xs text-slate-400 truncate">
-              Hoofdschijf: {data.disks[0]?.disk_type || "SSD"} ({data.disks[0]?.mount_point || "C:"})
+              {t("ov.mainDisk", { t: data.disks[0]?.disk_type || "SSD", m: data.disks[0]?.mount_point || "C:" })}
             </div>
           </div>
 
@@ -268,13 +270,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Monitor className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Besturingssysteem</span>
+              <span>{t("ov.os")}</span>
             </div>
             <div className="font-semibold text-slate-100 truncate">
               {data.os_name} {data.os_version}
             </div>
             <div className="text-xs text-slate-400 truncate">
-              Kernel: {data.kernel_version || "Windows 11"}
+              {t("ov.kernel", { v: data.kernel_version || "–" })}
             </div>
           </div>
 
@@ -282,13 +284,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-3.5 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-1">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
               <Laptop className="w-3.5 h-3.5 text-rose-400" />
-              <span>Netwerk Hostnaam</span>
+              <span>{t("ov.host")}</span>
             </div>
             <div className="font-semibold text-slate-100 truncate">
               {data.host_name}
             </div>
             <div className="text-xs text-slate-400 truncate">
-              {powerData?.is_laptop ? "Mobiel Systeem (Accu)" : "Desktop Workstation (AC Line)"}
+              {powerData?.is_laptop ? t("ov.mobile") : t("ov.desktopAc")}
             </div>
           </div>
         </div>
@@ -299,7 +301,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-cyan-400" />
           <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            Systeemgezondheid &amp; Directe Aanbevelingen
+            {t("ov.healthTitle")}
           </h3>
         </div>
 
@@ -315,22 +317,22 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                <HardDrive className="w-4 h-4 text-amber-400" /> Opslagstatus
+                <HardDrive className="w-4 h-4 text-amber-400" /> {t("ov.storageStatus")}
               </span>
               {fullDisks.length > 0 ? (
                 <span className="text-xs px-2 py-0.5 rounded bg-amber-950 border border-amber-800 text-amber-300 font-bold">
-                  Opschonen
+                  {t("ov.cleanUp")}
                 </span>
               ) : (
                 <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-bold">
-                  Gezond
+                  {t("ov.healthy")}
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-400">
               {fullDisks.length > 0
-                ? `${fullDisks.length} schijfvolume(s) zijn voor >85% vol. Klik om schijfopruiming tips te bekijken.`
-                : "Voldoende vrije ruimte beschikbaar voor TRIM en SSD wear-leveling."}
+                ? t("ov.fullDisks", { n: fullDisks.length })
+                : t("ov.enoughSpace")}
             </p>
           </button>
 
@@ -345,22 +347,22 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           >
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                <Fan className="w-4 h-4 text-blue-400" /> Koelconditie
+                <Fan className="w-4 h-4 text-blue-400" /> {t("ov.cooling")}
               </span>
               {coolingData?.is_throttling_suspected ? (
                 <span className="text-xs px-2 py-0.5 rounded bg-rose-950 border border-rose-800 text-rose-300 font-bold animate-pulse">
-                  Throttling
+                  {t("ov.throttling")}
                 </span>
               ) : (
                 <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-bold">
-                  Normaal
+                  {t("ov.normal")}
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-400">
               {coolingData?.is_throttling_suspected
-                ? "Temperaturen overschrijden 90°C. Maak de ventilatieroosters stofvrij en controleer koelpasta."
-                : "Thermische sensoren rapporteren stabiele en veilige bedrijfstemperaturen."}
+                ? t("ov.hot")
+                : t("ov.coolOk")}
             </p>
           </button>
 
@@ -368,22 +370,22 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                <RefreshCw className="w-4 h-4 text-purple-400" /> Systeemonderhoud
+                <RefreshCw className="w-4 h-4 text-purple-400" /> {t("ov.maintenance")}
               </span>
               {isLongKernelUptime ? (
                 <span className="text-xs px-2 py-0.5 rounded bg-purple-950 border border-purple-800 text-purple-300 font-bold">
-                  Herstart Advies
+                  {t("ov.restartAdvice")}
                 </span>
               ) : (
                 <span className="text-xs px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-bold">
-                  Vers
+                  {t("ov.fresh")}
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-400">
               {isLongKernelUptime
-                ? `Kernel draait al ${formatUptime(data.kernel_uptime_secs)}. Kies in Start voor 'Opnieuw opstarten' om stuurprogramma's te verversen.`
-                : "Windows kernel is recent herstart; systeemcaches en drivers zijn schoon geïnitialiseerd."}
+                ? t("ov.longUptime", { u: formatUptime(data.kernel_uptime_secs) })
+                : t("ov.recentRestart")}
             </p>
           </div>
         </div>

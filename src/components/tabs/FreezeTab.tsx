@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import { FreezeDiagnosticReport } from "../../types";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
+import { useStatusLabel } from "../../i18n/status";
 
 interface FreezeTabProps {
   freezeData: FreezeDiagnosticReport | null;
@@ -21,6 +24,8 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
   isScanningFreeze,
   scanFreezeDiagnostic,
 }) => {
+  const t = useT();
+  const status = useStatusLabel();
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div className="p-6 bg-linear-to-r from-rose-950/40 via-slate-900/80 to-slate-900 border border-rose-900/50 rounded-2xl space-y-4">
@@ -32,10 +37,10 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
               </span>
               <div>
                 <h2 className="text-lg font-bold text-white">
-                  Freeze Detective &amp; Watchdog
+                  {t("freeze.title")}
                 </h2>
                 <p className="text-xs text-slate-300">
-                  Gespecialiseerd in het opsporen van Windows freezes (SATA link resets, GPU TDR crashes &amp; driver DPC latency).
+                  {t("freeze.intro")}
                 </p>
               </div>
             </div>
@@ -53,7 +58,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
               )}
             >
               <Search className={cn("w-4 h-4", isScanningFreeze && "animate-spin")} />
-              {isScanningFreeze ? "Logboek Scannen..." : "Herscan Windows Logboek"}
+              {isScanningFreeze ? t("freeze.scanning") : t("freeze.rescan")}
             </button>
           </div>
         </div>
@@ -62,12 +67,12 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-semibold text-emerald-400">
-              Achtergrond Watchdog Actief
+              {t("freeze.watchdogActive")}
             </span>
           </div>
           <span className="text-slate-600">•</span>
           <span className="text-slate-400">
-            Monitort live thread-scheduling. Zodra het systeem &gt;1.2s bevriest, wordt de precieze freeze-duur en datum geregistreerd.
+            {t("freeze.watchdogText")}
           </span>
         </div>
       </div>
@@ -76,7 +81,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
       <div className="p-5 bg-slate-900/70 border border-slate-800 rounded-2xl space-y-3">
         <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
           <Activity className="w-4 h-4 text-rose-400" />
-          Live Geregistreerde Freeze Incidenten
+          {t("freeze.liveTitle")}
         </h3>
         {freezeData && freezeData.watchdog_freezes_detected.length > 0 ? (
           <div className="space-y-2">
@@ -94,7 +99,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800/80 text-xs text-slate-400 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
             <span>
-              Nog geen live freezes geregistreerd sinds de app is geopend. Laat PC Checker op de achtergrond draaien om een eventuele freeze direct vast te leggen.
+              {t("freeze.noLive")}
             </span>
           </div>
         )}
@@ -106,7 +111,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div>
             <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
               <Search className="w-4 h-4 text-cyan-400" />
-              Gevonden Freeze-Oorzaken in Windows Systeemlogboek
+              {t("freeze.logTitle")}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
               {freezeData?.diagnosis_summary}
@@ -124,7 +129,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
                   : "bg-emerald-950 border-emerald-800 text-emerald-400"
               )}
             >
-              Freeze Risico: {freezeData.system_freeze_risk}
+              {t("freeze.risk", { r: status(freezeData.system_freeze_risk) })}
             </span>
           )}
         </div>
@@ -141,7 +146,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
                     <span className="px-2 py-0.5 rounded bg-rose-950 border border-rose-800 text-rose-400">
                       {culprit.category}
                     </span>
-                    <span className="text-slate-200">{culprit.provider} (Event {culprit.event_id})</span>
+                    <span className="text-slate-200">{t("freeze.event", { p: culprit.provider, id: culprit.event_id })}</span>
                   </div>
                   <span className="text-slate-500 font-mono">{culprit.timestamp}</span>
                 </div>
@@ -149,7 +154,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
                   {culprit.message}
                 </p>
                 <div className="p-2.5 bg-cyan-950/30 border border-cyan-800/60 rounded-lg text-cyan-300">
-                  <strong>Aanbevolen Actie:</strong> {culprit.suggestion}
+                  <RichText text={t("freeze.action", { s: culprit.suggestion })} />
                 </div>
               </div>
             ))}
@@ -158,7 +163,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
           <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800/80 text-xs text-slate-400 flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
             <span>
-              Geen actieve driver crashes of SATA time-outs gevonden in recente Windows logs.
+              {t("freeze.noCulprits")}
             </span>
           </div>
         )}
@@ -168,47 +173,47 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
       <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-2xl space-y-4">
         <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-cyan-400" />
-          Bewezen Oplossingen voor Systeem Freezes op Desktops
+          {t("freeze.solutionsTitle")}
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
-            <h4 className="font-semibold text-amber-400">1. SATA Link Power Management (LPM / HIPM / DIPM)</h4>
+            <h4 className="font-semibold text-amber-400">{t("freeze.s1Title")}</h4>
             <p className="text-slate-300">
-              Als een SSD of extra HDD na enkele seconden in slaap valt (D3/Slumber), bevriest Windows kortstondig bij het ontwaken.
+              {t("freeze.s1")}
             </p>
             <p className="text-slate-400 text-xs">
-              <strong>Oplossing:</strong> Open Geavanceerd Energiebeheer en zet "Harde schijf uitschakelen na" op 0 (Nooit). Schakel SATA LPM uit in de storage driver.
+              <RichText text={t("freeze.s1Fix")} />
             </p>
           </div>
 
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
-            <h4 className="font-semibold text-cyan-400">2. Slechte SATA Datakabel of Extra Harde Schijf</h4>
+            <h4 className="font-semibold text-cyan-400">{t("freeze.s2Title")}</h4>
             <p className="text-slate-300">
-              Een defecte of loszittende SATA-kabel veroorzaakt CRC-overdrachtsfouten. Windows wacht op een retry vóór time-out.
+              {t("freeze.s2")}
             </p>
             <p className="text-slate-400 text-xs">
-              <strong>Oplossing:</strong> Vervang de SATA-datakabel van extra schijven of koppel tijdelijk niet-essentiële harde schijven los.
+              <RichText text={t("freeze.s2Fix")} />
             </p>
           </div>
 
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
-            <h4 className="font-semibold text-rose-400">3. GPU Driver Timeout Detection (TDR)</h4>
+            <h4 className="font-semibold text-rose-400">{t("freeze.s3Title")}</h4>
             <p className="text-slate-300">
-              Als de videokaart niet tijdig antwoordt door een spanningsdip of driverbug, bevriest het scherm en reset de driver.
+              {t("freeze.s3")}
             </p>
             <p className="text-slate-400 text-xs">
-              <strong>Oplossing:</strong> Schone installatie van de nieuwste videokaart-driver via DDU (Display Driver Uninstaller).
+              <RichText text={t("freeze.s3Fix")} />
             </p>
           </div>
 
           <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-xl space-y-1.5">
-            <h4 className="font-semibold text-purple-400">4. Bloatware &amp; RGB Monitoring Software</h4>
+            <h4 className="font-semibold text-purple-400">{t("freeze.s4Title")}</h4>
             <p className="text-slate-300">
-              Programma's zoals Asus Armoury Crate, iCUE, Synapse of verouderde antivirussen scannen continu de SMBus/PCIe sensoren en kunnen CPU cores tijdelijk blokkeren en freezes veroorzaken.
+              {t("freeze.s4")}
             </p>
             <p className="text-slate-400 text-xs">
-              <strong>Oplossing:</strong> Sluit overbodige RGB- en monitoringsoftware tijdelijk af om te testen.
+              <RichText text={t("freeze.s4Fix")} />
             </p>
           </div>
         </div>

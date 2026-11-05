@@ -13,6 +13,8 @@ import {
 import { SystemOverview, StressTestResult } from "../../types";
 import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
 
 interface RamTabProps {
   data: SystemOverview;
@@ -31,6 +33,7 @@ export const RamTab: React.FC<RamTabProps> = ({
   handleRamStress,
   ramResult,
 }) => {
+  const t = useT();
   const ramUsagePercent = Math.min(
     100,
     Math.round((data.ram.used_bytes / Math.max(1, data.ram.total_bytes)) * 100)
@@ -43,10 +46,10 @@ export const RamTab: React.FC<RamTabProps> = ({
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Zap className="w-5 h-5 text-purple-400" />
-              RAM Geheugenintegriteit &amp; Bit-Flip Verificatie
+              {t("ram.title")}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Allokeert een dynamisch geheugenblok en voert walking-bit en checkerboard patronen (0xAA / 0x55) uit om corrupte geheugencellen op te sporen.
+              {t("ram.intro")}
             </p>
           </div>
 
@@ -84,12 +87,12 @@ export const RamTab: React.FC<RamTabProps> = ({
               {isTestingRam ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  RAM Testen...
+                  {t("ram.running")}
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-slate-950" />
-                  Start Integriteitstest
+                  {t("ram.start")}
                 </>
               )}
             </button>
@@ -99,19 +102,19 @@ export const RamTab: React.FC<RamTabProps> = ({
         {/* RAM Breakdown Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
           <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl">
-            <span className="text-slate-400 block mb-1">Totaal Fysiek RAM</span>
+            <span className="text-slate-400 block mb-1">{t("ram.total")}</span>
             <span className="text-lg font-bold text-slate-200">
               {formatBytes(data.ram.total_bytes)}
             </span>
           </div>
           <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl">
-            <span className="text-slate-400 block mb-1">In Gebruik</span>
+            <span className="text-slate-400 block mb-1">{t("ram.used")}</span>
             <span className="text-lg font-bold text-purple-400">
               {formatBytes(data.ram.used_bytes)} ({ramUsagePercent}%)
             </span>
           </div>
           <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl">
-            <span className="text-slate-400 block mb-1">Beschikbaar / Vrij</span>
+            <span className="text-slate-400 block mb-1">{t("ram.free")}</span>
             <span className="text-lg font-bold text-emerald-400">
               {formatBytes(data.ram.free_bytes)}
             </span>
@@ -135,7 +138,7 @@ export const RamTab: React.FC<RamTabProps> = ({
                 ) : (
                   <AlertTriangle className="w-5 h-5 text-red-400" />
                 )}
-                <span>{ramResult.test_name} - {ramResult.success ? "Geslaagd" : "Mislukt"}</span>
+                <span>{ramResult.test_name} - {ramResult.success ? t("common.passed") : t("common.failed")}</span>
               </div>
               <span className="font-mono font-bold text-lg">
                 {ramResult.score_or_speed.toFixed(1)} {ramResult.unit}
@@ -151,7 +154,7 @@ export const RamTab: React.FC<RamTabProps> = ({
         <div className="flex items-center gap-2">
           <Info className="w-5 h-5 text-purple-400" />
           <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            RAM Richtlijnen, Geheugengebruik &amp; Integriteitsadvies
+            {t("ram.guideTitle")}
           </h3>
         </div>
 
@@ -160,13 +163,13 @@ export const RamTab: React.FC<RamTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <Layers className="w-4 h-4 text-purple-400" />
-              Wat is een normaal geheugengebruik in Windows?
+              {t("ram.normalTitle")}
             </h4>
             <p className="text-slate-400 text-xs leading-relaxed">
-              Een bezettingsgraad tussen <strong>40% en 75%</strong> is volkomen normaal. Windows gebruikt ongebruikt RAM actief als <em>SuperFetch / Standby Cache</em> om geopende bestanden direct klaar te zetten.
+              <RichText text={t("ram.normal1")} />
             </p>
             <p className="text-slate-300 text-xs">
-              Pas wanneer het geheugengebruik continu boven de <strong>85% - 90%</strong> blijft, moet Windows gegevens wegschrijven naar het tragere schijf-wisselbestand (pagefile). Dit veroorzaakt haperingen en vertragingen.
+              <RichText text={t("ram.normal2")} />
             </p>
           </div>
 
@@ -174,13 +177,13 @@ export const RamTab: React.FC<RamTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-rose-400" />
-              Waarom is 0 bit-flips een harde vereiste?
+              {t("ram.flipTitle")}
             </h4>
             <p className="text-slate-400 text-xs leading-relaxed">
-              Consumentengeheugen (Non-ECC RAM) heeft geen ingebouwde foutcorrectie. Als één enkele transistor een '1' naar een '0' flipt (een bit-flip), raakt de data in het geheugen direct corrupt.
+              {t("ram.flip1")}
             </p>
             <p className="text-slate-300 text-xs">
-              Dit leidt vaak tot onverklaarbare crashes, plotseling afsluitende browser-tabbladen of beruchte Blue Screens zoals <code>MEMORY_MANAGEMENT</code> of <code>PAGE_FAULT_IN_NONPAGED_AREA</code>.
+              <RichText text={t("ram.flip2")} />
             </p>
           </div>
         </div>
@@ -189,28 +192,28 @@ export const RamTab: React.FC<RamTabProps> = ({
         <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3 text-xs">
           <div className="flex items-center gap-2 text-purple-300 font-semibold">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span>Aanbevelingen bij Geheugenfouten of Hoog RAM-Gebruik</span>
+            <span>{t("ram.recTitle")}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">1. XMP / EXPO Klokprofiel Testen</span>
+              <span className="font-medium text-white block">{t("ram.rec1Title")}</span>
               <p className="text-xs text-slate-400">
-                Verschijnen er bitfouten in de test? Schakel dan tijdelijk het XMP of AMD EXPO overklokprofiel uit in de BIOS en test opnieuw op de standaard JEDEC-snelheid.
+                {t("ram.rec1")}
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">2. RAM Modules Herplaatsen</span>
+              <span className="font-medium text-white block">{t("ram.rec2Title")}</span>
               <p className="text-xs text-slate-400">
-                Soms maakt een RAM-stick slecht contact door stof of oxidatie in het slot. Schakel de pc uit, haal de modules eruit en klik ze stevig opnieuw vast (in slot 2 en 4 bij dual-channel).
+                {t("ram.rec2")}
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">3. Controleer op Geheugenlekken</span>
+              <span className="font-medium text-white block">{t("ram.rec3Title")}</span>
               <p className="text-xs text-slate-400">
-                Loopt het RAM-geheugen vol zonder dat er zware programma's openstaan? Open Taakbeheer (Ctrl+Shift+Esc), sorteer op 'Geheugen' en beëindig achtergrondprocessen met geheugenlekken.
+                {t("ram.rec3")}
               </p>
             </div>
           </div>

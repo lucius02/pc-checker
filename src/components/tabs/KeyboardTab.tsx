@@ -21,6 +21,8 @@ import {
   NUMPAD_ROWS,
   scanKeyboardLayout,
 } from "./keyboard/keyboardLayouts";
+import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
 
 interface KeyboardTabProps {
   isLaptop?: boolean;
@@ -38,10 +40,11 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
   isLaptop = false,
   onUpdateResult,
 }) => {
+  const t = useT();
   const [formFactor, setFormFactor] = useState<FormFactor>(isLaptop ? "laptop" : "full");
   const [keymapType, setKeymapType] = useState<KeymapType>("qwerty");
   const [enterStyle, setEnterStyle] = useState<EnterStyle>("ansi");
-  const [scanInfo, setScanInfo] = useState<string>("Detecteren van systeemindeling...");
+  const [scanInfo, setScanInfo] = useState<string>("");
   const [hasScanned, setHasScanned] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -85,9 +88,9 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
       setScanInfo(res.details);
       setHasScanned(true);
     } catch {
-      setScanInfo("Automatische scan voltooid met standaardinstellingen.");
+      setScanInfo(t("kb.scanFallback"));
     }
-  }, [isLaptop]);
+  }, [isLaptop, t]);
 
   useEffect(() => {
     runAutoScan();
@@ -200,13 +203,13 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">Toetsenbord &amp; Ghosting Test</h2>
+                <h2 className="text-lg font-bold text-white">{t("kb.title")}</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950/80 border border-emerald-700/60 text-emerald-300">
-                  {formFactor === "laptop" ? "Laptop 75%" : formFactor === "tkl" ? "TKL 80%" : "Volledig 100%"}
+                  {formFactor === "laptop" ? "Laptop 75%" : formFactor === "tkl" ? "TKL 80%" : t("kb.ffFull")}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Herkenning van laptop- vs desktop-indeling, ANSI/ISO Enter en Numpad. Druk op een willekeurige toets om te testen.
+                {t("kb.intro")}
               </p>
             </div>
           </div>
@@ -214,8 +217,8 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={toggleFullscreen}
-              title="Schakel volledig scherm in om alle toetsaanslagen direct op te vangen"
-              aria-label={isFullscreen ? "Verlaat volledig scherm focus modus" : "Open volledig scherm focus modus"}
+              title={t("kb.fsTitle")}
+              aria-label={isFullscreen ? t("kb.fsExit") : t("kb.fsEnter")}
               className={cn(
                 "px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2",
                 isFullscreen
@@ -226,31 +229,31 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
               {isFullscreen ? (
                 <>
                   <Minimize className="w-3.5 h-3.5 text-purple-400" />
-                  Verlaat Focus
+                  {t("kb.leaveFocus")}
                 </>
               ) : (
                 <>
                   <Maximize className="w-3.5 h-3.5 text-purple-400" />
-                  Focus Modus
+                  {t("kb.focusMode")}
                 </>
               )}
             </button>
             <button
               onClick={runAutoScan}
-              title="Scant aangesloten toetsenbord en Windows-taalindeling"
-              aria-label="Scan aangesloten toetsenbord en taalindeling"
+              title={t("kb.scanTitle")}
+              aria-label={t("kb.scanAria")}
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-cyan-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400"
             >
               <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-              Scan Toetsenbord
+              {t("kb.scan")}
             </button>
             <button
               onClick={resetTest}
-              aria-label="Reset toetsenbord testgeschiedenis"
+              aria-label={t("kb.resetAria")}
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             >
               <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
-              Reset
+              {t("kb.reset")}
             </button>
           </div>
         </div>
@@ -260,7 +263,7 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
           <div className="flex items-center gap-2 text-slate-300">
             <HelpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
             <span className="font-mono text-[11px] text-slate-300">
-              {hasScanned ? scanInfo : "Bezig met scannen van toetsenbord..."}
+              {hasScanned ? scanInfo : t("kb.scanning")}
             </span>
           </div>
 
@@ -336,7 +339,7 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
                       : "text-slate-400 hover:text-slate-200"
                   )}
                 >
-                  {es === "ansi" ? "ANSI Plat" : "ISO L-Enter"}
+                  {es === "ansi" ? t("kb.ansi") : t("kb.iso")}
                 </button>
               ))}
             </div>
@@ -346,7 +349,7 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
         {/* Progress & Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Geteste Toetsen</span>
+            <span className="text-slate-400 block">{t("kb.tested")}</span>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-bold font-mono text-emerald-400">
                 {testedCodes.size}
@@ -356,23 +359,23 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Live Ingedrukt</span>
+            <span className="text-slate-400 block">{t("kb.pressed")}</span>
             <span className="text-xl font-bold font-mono text-cyan-400">
               {pressedCodes.size}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Max Gelijktijdig (Rollover)</span>
+            <span className="text-slate-400 block">{t("kb.rollover")}</span>
             <span className="text-xl font-bold font-mono text-purple-400">
-              {maxRollover} toetsen
+              {t("kb.keys", { n: maxRollover })}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Laatste Aanslag</span>
+            <span className="text-slate-400 block">{t("kb.last")}</span>
             <span className="text-xs font-mono font-bold text-slate-200 truncate block">
-              {lastEvent ? `${lastEvent.key} (${lastEvent.code})` : "Nog geen"}
+              {lastEvent ? `${lastEvent.key} (${lastEvent.code})` : t("kb.none")}
             </span>
           </div>
         </div>
@@ -461,23 +464,20 @@ export const KeyboardTab: React.FC<KeyboardTabProps> = ({
         <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
           <h4 className="font-semibold text-slate-200 flex items-center gap-2">
             <Zap className="w-4 h-4 text-emerald-400" />
-            Hoe herkent PC Checker je toetsenbord?
+            {t("kb.howTitle")}
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            PC Checker combineert de chassis-detectie van je pc (laptop vs desktop) met de Windows Keyboard Layout Map API. 
-            Hierdoor schakelt het programma automatisch tussen compacte laptop-indelingen en volledige 100%-toetsenborden met Numpad. 
-            Je kunt met de knoppen hierboven handmatig wisselen tussen <strong>Laptop 75%</strong>, <strong>TKL 80%</strong> en <strong>100%</strong>.
+            <RichText text={t("kb.how")} />
           </p>
         </div>
 
         <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
           <h4 className="font-semibold text-slate-200 flex items-center gap-2">
             <Info className="w-4 h-4 text-cyan-400" />
-            Toets weigert of typt dubbel (Key Chatter)?
+            {t("kb.chatterTitle")}
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            Als een specifieke toets niet oplicht of dubbele tekens registreert, zit er vaak stof onder het membraan of is een switch vuil. 
-            Reiniging met perslucht (bij laptops) of het vervangen van de mechanische switch lost dit meestal direct op zonder reparatiekosten.
+            {t("kb.chatter")}
           </p>
         </div>
       </div>

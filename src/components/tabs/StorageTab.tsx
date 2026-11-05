@@ -4,6 +4,7 @@ import { useT } from "../../i18n";
 import { useDiagnosticsStore } from "../../store/diagnosticsStore";
 import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
+import { useStatusLabel } from "../../i18n/status";
 import type { StorageHealthEntry } from "../../types";
 
 const verdictClass = (v: string) =>
@@ -15,6 +16,7 @@ const verdictClass = (v: string) =>
 
 const DiskCard: React.FC<{ d: StorageHealthEntry }> = ({ d }) => {
   const t = useT();
+  const status = useStatusLabel();
   const na = t("storage.unknown");
   const uncorrected =
     d.read_errors_uncorrected == null && d.write_errors_uncorrected == null
@@ -38,7 +40,7 @@ const DiskCard: React.FC<{ d: StorageHealthEntry }> = ({ d }) => {
             {d.serial ? ` · ${d.serial}` : ""}
           </p>
         </div>
-        <span className={cn("px-2 py-0.5 text-xs font-semibold rounded-full border shrink-0", verdictClass(d.verdict))}>{d.verdict}</span>
+        <span className={cn("px-2 py-0.5 text-xs font-semibold rounded-full border shrink-0", verdictClass(d.verdict))}>{status(d.verdict)}</span>
       </div>
       <dl className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {metrics.map(([k, v]) => (

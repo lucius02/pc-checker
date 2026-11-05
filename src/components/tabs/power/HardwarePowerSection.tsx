@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { HardwarePowerCheckReport } from "../../../types";
 import { cn } from "../../../utils/cn";
+import { useT } from "../../../i18n";
+import { useStatusLabel } from "../../../i18n/status";
 
 interface HardwarePowerSectionProps {
   report: HardwarePowerCheckReport | null;
@@ -27,6 +29,8 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
   isTesting,
   onRunTest,
 }) => {
+  const t = useT();
+  const status = useStatusLabel();
   const getIconForComponent = (name: string) => {
     if (name.includes("Processor") || name.includes("CPU")) {
       return <Cpu className="w-4 h-4 text-cyan-400" />;
@@ -52,13 +56,13 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-white">Hardware Stroomvoorziening &amp; Voedingscontrole</h3>
+              <h3 className="text-base font-bold text-white">{t("pd.title")}</h3>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-950/80 border border-amber-700/60 text-amber-300">
-                Component Test
+                {t("pd.badge")}
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-1">
-              Controleert of processor, videokaart, USB-poorten, NVMe-schijven en adapter voldoende en stabiele stroom ontvangen zonder spanningsdips.
+              {t("pd.intro")}
             </p>
           </div>
         </div>
@@ -67,7 +71,7 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
           type="button"
           onClick={onRunTest}
           disabled={isTesting}
-          aria-label={isTesting ? "Hardware stroomtoevoer testen..." : "Start test of componenten genoeg stroom krijgen"}
+          aria-label={isTesting ? t("pd.ariaRunning") : t("pd.ariaStart")}
           className={cn(
             "px-4 py-2.5 rounded-xl font-bold text-xs shadow-lg transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2",
             "bg-linear-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 shadow-amber-500/20 focus-visible:outline-amber-300",
@@ -77,12 +81,12 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
           {isTesting ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin" />
-              Stroomtoevoer Meten...
+              {t("pd.measuring")}
             </>
           ) : (
             <>
               <Play className="w-4 h-4 fill-slate-950" />
-              Test Hardware Stroomtoevoer
+              {t("pd.start")}
             </>
           )}
         </button>
@@ -114,8 +118,8 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
                 <div className="flex items-center gap-2">
                   <h4 className="text-base font-bold text-white">
                     {report.is_sufficient
-                      ? "Alle componenten krijgen voldoende stroom"
-                      : "Stroombeperking of spanningsafwijking vastgesteld"}
+                      ? t("pd.allOk")
+                      : t("pd.problem")}
                   </h4>
                   <span className={cn(
                     "px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border",
@@ -123,7 +127,7 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
                       ? "bg-emerald-950 border-emerald-700 text-emerald-300"
                       : "bg-rose-950 border-rose-700 text-rose-300"
                   )}>
-                    Score: {report.score}/100
+                    {t("pd.score", { s: report.score })}
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
@@ -133,7 +137,7 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
             </div>
 
             <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end gap-1.5 text-xs">
-              <span className="text-slate-400">Voedingsbron:</span>
+              <span className="text-slate-400">{t("pd.source")}</span>
               <span className="font-semibold text-slate-200 bg-slate-900/90 px-3 py-1 rounded-lg border border-slate-800">
                 {report.psu_or_adapter_verdict}
               </span>
@@ -181,7 +185,7 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
                       ) : (
                         <XCircle className="w-3 h-3 text-rose-400" />
                       )}
-                      {check.status}
+                      {status(check.status)}
                     </span>
                   </div>
 
@@ -202,7 +206,7 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
             <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2 text-xs">
               <div className="flex items-center gap-2 text-amber-300 font-semibold">
                 <Lightbulb className="w-4 h-4 text-amber-400" />
-                <span>Voedingsaanbevelingen &amp; Technische Analyse:</span>
+                <span>{t("pd.recs")}</span>
               </div>
               <ul className="space-y-1.5 pl-6 list-disc text-slate-300">
                 {report.recommendations.map((rec, idx) => (
@@ -215,7 +219,7 @@ export const HardwarePowerSection: React.FC<HardwarePowerSectionProps> = ({
       ) : (
         <div className="p-6 rounded-xl bg-slate-950/60 border border-slate-800 text-center space-y-2">
           <p className="text-xs text-slate-400">
-            Nog geen hardware vermogenscontrole uitgevoerd. Klik hierboven op &lsquo;Test Hardware Stroomtoevoer&rsquo; om te controleren of alle onderdelen (CPU, GPU, USB, NVMe) voldoende spanning ontvangen.
+            {t("pd.notRun")}
           </p>
         </div>
       )}

@@ -2,7 +2,21 @@
  * Nederlandse teksten (brontaal). Elke sleutel hier moet ook in `en.ts` staan;
  * `i18n.test.ts` controleert dat.
  */
-export const nl = {
+import { latencyNl } from "./tabs/latency";
+import { cameraNetworkNl } from "./tabs/cameraNetwork";
+import { audioNl } from "./tabs/audio";
+import { touchpadNl } from "./tabs/touchpad";
+import { screenNl } from "./tabs/screen";
+import { keyboardNl } from "./tabs/keyboard";
+import { overviewNl } from "./tabs/overview";
+import { processesNl } from "./tabs/processes";
+import { liveNl } from "./tabs/live";
+import { driversNl } from "./tabs/drivers";
+import { coolingFreezeNl } from "./tabs/coolingFreeze";
+import { powerNl } from "./tabs/power";
+import { stressNl } from "./tabs/stress";
+
+export const coreNl = {
   "app.subtitle": "Hardware tests, ventilatoren, stroom & freeze detective",
   "app.badge": "Diagnostics Suite",
   "app.loading": "Hardware- en stroomgegevens uitlezen...",
@@ -68,6 +82,7 @@ export const nl = {
   "error.export": "Rapport exporteren mislukt",
   "error.admin": "Herstarten als beheerder mislukt",
   "error.stress": "Stresstest mislukt",
+  "error.driverLatency": "Driver-latency-meting mislukt",
   "toast.exported": "Rapport opgeslagen",
   "toast.adminDeclined": "UAC-verzoek geweigerd; de app draait verder zonder beheerdersrechten.",
   "toast.historyCleared": "Historie gewist",
@@ -151,4 +166,35 @@ export const nl = {
   "report.cooling": "Koeling",
   "report.peripherals": "Randapparatuur",
   "report.history": "Historie",
+  "report.type": "Type",
+  "report.ramUsed": "{t} ({u} in gebruik)",
+  "report.board": "Moederbord / BIOS",
+  "report.volumes": "Volumes",
+  "report.volFree": "{m} {f} vrij van {t}",
+  "report.fail": "FOUT",
+  "report.disk": "Schijf",
+  "report.wear": "slijtage {p}%",
+  "report.hours": "{h} uur",
+  "report.supply": "Voeding",
+  "report.battery": "Batterij",
+  "report.batteryText": "{h}% gezondheid, {c} cycli — {g}",
+  "report.delivery": "Stroomtoevoer",
+  "report.historyText": "{n} freezes totaal, {r} in de afgelopen 7 dagen; {s} opgeslagen scores.",
+} as const;
+
+export const nl = {
+  ...coreNl,
+  ...latencyNl,
+  ...cameraNetworkNl,
+  ...audioNl,
+  ...touchpadNl,
+  ...screenNl,
+  ...keyboardNl,
+  ...overviewNl,
+  ...processesNl,
+  ...liveNl,
+  ...driversNl,
+  ...coolingFreezeNl,
+  ...powerNl,
+  ...stressNl,
 } as const;

@@ -19,6 +19,8 @@ import {
 } from "../../../types";
 import { formatBytes } from "../../../utils/formatters";
 import { cn } from "../../../utils/cn";
+import { useT } from "../../../i18n";
+import { useStatusLabel } from "../../../i18n/status";
 
 interface OverviewCardsGridProps {
   data: SystemOverview;
@@ -43,6 +45,8 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
   diskResult,
   setActiveTab,
 }) => {
+  const t = useT();
+  const status = useStatusLabel();
   const ramUsagePercent = Math.min(
     100,
     Math.round((data.ram.used_bytes / Math.max(1, data.ram.total_bytes)) * 100)
@@ -59,7 +63,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                 <Cpu className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-200">Processor (CPU)</h3>
+                <h3 className="font-semibold text-slate-200">{t("ov.cpu")}</h3>
                 <p className="text-xs text-slate-400 truncate max-w-40">
                   {data.cpu.brand}
                 </p>
@@ -78,7 +82,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               />
             </div>
             <div className="flex justify-between text-xs text-slate-400">
-              <span>{data.cpu.physical_cores} Cores / {data.cpu.logical_cores} Threads</span>
+              <span>{t("cards.cores", { p: data.cpu.physical_cores, l: data.cpu.logical_cores })}</span>
               <span>{data.cpu.cores[0]?.frequency_mhz || 0} MHz</span>
             </div>
           </div>
@@ -86,10 +90,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {cpuResult ? (
               <span className="text-emerald-400 font-medium">
-                Laatste test: {cpuResult.score_or_speed.toFixed(2)} {cpuResult.unit}
+                {t("cards.lastTest", { v: `${cpuResult.score_or_speed.toFixed(2)} ${cpuResult.unit}` })}
               </span>
             ) : (
-              <span>Multi-core rekenstresstest &amp; throttling verificatie</span>
+              <span>{t("cards.cpuHint")}</span>
             )}
           </div>
         </div>
@@ -102,7 +106,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           )}
         >
           <Flame className="w-4 h-4 text-cyan-400" />
-          Open CPU Stresstest
+          {t("cards.openCpu")}
         </button>
       </div>
 
@@ -115,7 +119,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                 <Zap className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-200">Werkgeheugen (RAM)</h3>
+                <h3 className="font-semibold text-slate-200">{t("ov.ram")}</h3>
                 <p className="text-xs text-slate-400">
                   {formatBytes(data.ram.used_bytes)} / {formatBytes(data.ram.total_bytes)}
                 </p>
@@ -134,18 +138,18 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               />
             </div>
             <div className="flex justify-between text-xs text-slate-400">
-              <span>Vrij: {formatBytes(data.ram.free_bytes)}</span>
-              <span>Swap: {formatBytes(data.ram.used_swap_bytes)}</span>
+              <span>{t("cards.free", { v: formatBytes(data.ram.free_bytes) })}</span>
+              <span>{t("cards.swap", { v: formatBytes(data.ram.used_swap_bytes) })}</span>
             </div>
           </div>
 
           <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {ramResult ? (
               <span className="text-emerald-400 font-medium">
-                Laatste test: {ramResult.success ? "0 bitfouten gedetecteerd" : "Fouten gevonden!"}
+                {t("cards.lastTest", { v: ramResult.success ? t("cards.noBitErrors") : t("cards.errorsFound") })}
               </span>
             ) : (
-              <span>Walking-bit &amp; checkerboard geheugentest</span>
+              <span>{t("cards.ramHint")}</span>
             )}
           </div>
         </div>
@@ -158,7 +162,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           )}
         >
           <Zap className="w-4 h-4 text-purple-400" />
-          Open Geheugencheck
+          {t("cards.openRam")}
         </button>
       </div>
 
@@ -171,9 +175,9 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                 <HardDrive className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-200">Opslag &amp; Schijven</h3>
+                <h3 className="font-semibold text-slate-200">{t("cards.storage")}</h3>
                 <p className="text-xs text-slate-400">
-                  {data.disks.length} volume(s) aangesloten
+                  {t("cards.volumes", { n: data.disks.length })}
                 </p>
               </div>
             </div>
@@ -209,7 +213,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                 {data.disks[0]?.name || "C:"} ({data.disks[0]?.disk_type || "SSD"})
               </span>
               <span>
-                {data.disks[0] ? formatBytes(data.disks[0].available_bytes) : "0 B"} vrij
+                {t("cards.diskFree", { v: data.disks[0] ? formatBytes(data.disks[0].available_bytes) : "0 B" })}
               </span>
             </div>
           </div>
@@ -217,10 +221,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {diskResult ? (
               <span className="text-emerald-400 font-medium">
-                Benchmark: {diskResult.score_or_speed.toFixed(1)} {diskResult.unit}
+                {t("cards.benchmark", { v: `${diskResult.score_or_speed.toFixed(1)} ${diskResult.unit}` })}
               </span>
             ) : (
-              <span>Sequentiële lees/schrijftest &amp; data-integriteit</span>
+              <span>{t("cards.diskHint")}</span>
             )}
           </div>
         </div>
@@ -233,7 +237,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           )}
         >
           <HardDrive className="w-4 h-4 text-amber-400" />
-          Open Schijf Benchmark
+          {t("cards.openDisk")}
         </button>
       </div>
 
@@ -246,9 +250,9 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                 <BatteryCharging className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-200">Stroom &amp; Batterij</h3>
+                <h3 className="font-semibold text-slate-200">{t("cards.power")}</h3>
                 <p className="text-xs text-slate-400 truncate max-w-40">
-                  {powerData?.power_plan_name || "Netstroom"}
+                  {powerData?.power_plan_name || t("cards.mains")}
                 </p>
               </div>
             </div>
@@ -273,9 +277,9 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               />
             </div>
             <div className="flex justify-between text-xs text-slate-400">
-              <span>{powerData?.is_laptop ? "Mobiele Accu" : "Vaste Netstroom (Desktop)"}</span>
+              <span>{powerData?.is_laptop ? t("cards.mobileBattery") : t("cards.fixedMains")}</span>
               <span className="text-emerald-400 font-medium">
-                {powerData?.ac_connected ? "Aangesloten" : "Op batterij"}
+                {powerData?.ac_connected ? t("cards.connected") : t("cards.onBattery")}
               </span>
             </div>
           </div>
@@ -283,10 +287,10 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
             {batteryReport ? (
               <span className="text-emerald-400 font-medium">
-                Gezondheid: {batteryReport.health_percent.toFixed(1)}% ({batteryReport.grade})
+                {t("cards.batteryHealth", { p: batteryReport.health_percent.toFixed(1), g: status(batteryReport.grade) })}
               </span>
             ) : (
-              <span>Slijtagetest van accucellen &amp; voedingsanalyse</span>
+              <span>{t("cards.powerHint")}</span>
             )}
           </div>
         </div>
@@ -299,7 +303,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           )}
         >
           <BatteryCharging className="w-4 h-4 text-amber-400" />
-          Open Stroom &amp; Batterij
+          {t("cards.openPower")}
         </button>
       </div>
 
@@ -312,16 +316,16 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                 <Fan className="w-5 h-5 animate-spin" />
               </div>
               <div>
-                <h3 className="font-semibold text-slate-200">Koeling &amp; Fans</h3>
+                <h3 className="font-semibold text-slate-200">{t("cards.cooling")}</h3>
                 <p className="text-xs text-slate-400">
-                  {coolingData?.fans.length || 1} koelmodule(s) actief
+                  {t("cards.coolModules", { n: coolingData?.fans.length || 1 })}
                 </p>
               </div>
             </div>
             <span className="text-2xl font-bold font-mono text-blue-400">
               {coolingData?.temperatures[0]?.temperature_celsius
                 ? `${coolingData.temperatures[0].temperature_celsius.toFixed(0)}°C`
-                : "Normaal"}
+                : t("cards.normal")}
             </span>
           </div>
 
@@ -345,7 +349,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               <span>
                 {coolingData?.fans[0]?.speed_rpm
                   ? `${coolingData.fans[0].speed_rpm} RPM`
-                  : "Dynamische BIOS/EC Curve"}
+                  : t("cards.dynamicCurve")}
               </span>
               <span
                 className={cn(
@@ -354,13 +358,13 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                     : "text-emerald-400 font-medium"
                 )}
               >
-                {coolingData?.is_throttling_suspected ? "Throttling" : "Thermisch Stabiel"}
+                {coolingData?.is_throttling_suspected ? t("cards.throttling") : t("cards.stable")}
               </span>
             </div>
           </div>
 
           <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 truncate">
-            <span>Live ACPI sensoren &amp; ventilator toerentallen</span>
+            <span>{t("cards.coolHint")}</span>
           </div>
         </div>
 
@@ -372,7 +376,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           )}
         >
           <Fan className="w-4 h-4 text-blue-400" />
-          Open Koeling &amp; Fans
+          {t("cards.openCooling")}
         </button>
       </div>
 
@@ -387,7 +391,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
               <div>
                 <h3 className="font-semibold text-slate-200">Freeze Detective</h3>
                 <p className="text-xs text-slate-400">
-                  Systeem freeze detectie
+                  {t("cards.freezeSub")}
                 </p>
               </div>
             </div>
@@ -399,27 +403,27 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
                   : "bg-emerald-950 border-emerald-800 text-emerald-400"
               )}
             >
-              Risico: {freezeData?.system_freeze_risk || "Laag"}
+              {t("cards.risk", { r: status(freezeData?.system_freeze_risk || "Laag") })}
             </span>
           </div>
 
           <div className="space-y-2 mb-3">
             <div className="flex items-center gap-2 text-xs text-slate-300">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-              <span className="truncate">Live Achtergrond Watchdog actief</span>
+              <span className="truncate">{t("cards.watchdog")}</span>
             </div>
             <div className="flex justify-between text-xs text-slate-400">
               <span>
-                {freezeData?.watchdog_freezes_detected.length || 0} live freeze(s)
+                {t("cards.liveFreezes", { n: freezeData?.watchdog_freezes_detected.length || 0 })}
               </span>
               <span>
-                {freezeData?.event_log_culprits.length || 0} logboek incidenten
+                {t("cards.logIncidents", { n: freezeData?.event_log_culprits.length || 0 })}
               </span>
             </div>
           </div>
 
           <div className="text-xs text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 truncate">
-            <span>SATA resets, GPU TDR crashes &amp; DPC latency</span>
+            <span>{t("cards.freezeHint")}</span>
           </div>
         </div>
 
@@ -431,7 +435,7 @@ export const OverviewCardsGrid: React.FC<OverviewCardsGridProps> = ({
           )}
         >
           <ShieldAlert className="w-4 h-4 text-rose-400" />
-          Open Freeze Detective
+          {t("cards.openFreeze")}
         </button>
       </div>
     </div>

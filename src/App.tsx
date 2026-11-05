@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
 
 import type { TabType } from "./types";
 import { useDiagnosticsStore } from "./store/diagnosticsStore";
+import { api } from "./lib/api";
 import { useI18nStore, useT } from "./i18n";
 import { Header } from "./components/Header";
 import { Navigation } from "./components/Navigation";
@@ -41,19 +42,24 @@ export default function App() {
   const lang = useI18nStore((s) => s.lang);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
   const s = useDiagnosticsStore();
-
   const { fetchOverview, scanFreezeDiagnostic, loadElevation, autoRefresh } = s;
 
+  // Taal ook aan de backend doorgeven (samenvattingen/adviezen). Bij de eerste keer daarna de
+  // opstartscans draaien, zodat ook die al in de juiste taal terugkomen; bij een latere
+  // taalwissel alleen de live gegevens verversen (eerder gedraaide tests blijven in hun taal).
+  const started = useRef(false);
   useEffect(() => {
     document.documentElement.lang = lang;
-  }, [lang]);
-
-  // Eenmalig bij het opstarten.
-  useEffect(() => {
-    void fetchOverview();
-    void scanFreezeDiagnostic();
-    void loadElevation();
-  }, [fetchOverview, scanFreezeDiagnostic, loadElevation]);
+    const afterLanguage = () => {
+      void fetchOverview();
+      if (!started.current) {
+        started.current = true;
+        void scanFreezeDiagnostic();
+        void loadElevation();
+      }
+    };
+    api.setLanguage(lang).then(afterLanguage, afterLanguage);
+  }, [lang, fetchOverview, scanFreezeDiagnostic, loadElevation]);
 
   useEffect(() => {
     if (!autoRefresh || NO_POLL_TABS.includes(activeTab)) return;

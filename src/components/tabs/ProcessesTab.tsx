@@ -5,13 +5,14 @@ import { FreezeProcessContext, ProcessInfo, ProcessSnapshot } from "../../types"
 import { formatBytes } from "../../utils/formatters";
 import { SERIES_COLORS, formatClock, formatPercent, formatRate } from "../live/chartUtils";
 import { cn } from "../../utils/cn";
+import { useT, type MessageKey } from "../../i18n";
 
 type SortKey = "cpu" | "memory" | "disk";
 
-const SORT_OPTIONS: { key: SortKey; label: string; icon: React.ReactNode }[] = [
+const SORT_OPTIONS: { key: SortKey; label: MessageKey | "CPU" | "RAM"; icon: React.ReactNode }[] = [
   { key: "cpu", label: "CPU", icon: <Cpu className="w-3.5 h-3.5" /> },
   { key: "memory", label: "RAM", icon: <MemoryStick className="w-3.5 h-3.5" /> },
-  { key: "disk", label: "Schijf", icon: <HardDrive className="w-3.5 h-3.5" /> },
+  { key: "disk", label: "proc.disk", icon: <HardDrive className="w-3.5 h-3.5" /> },
 ];
 
 const POLL_MS = 2000;
@@ -76,6 +77,7 @@ function aggregateBeforeFreeze(ctx: FreezeProcessContext): AggregatedProcess[] {
 }
 
 const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
+  const t = useT();
   const top = useMemo(() => aggregateBeforeFreeze(ctx), [ctx]);
   const last = ctx.samples_before.length ? ctx.samples_before[ctx.samples_before.length - 1] : null;
   const windowSec =
@@ -92,10 +94,10 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
           </div>
           <div>
             <span className="font-semibold text-slate-100 text-sm block">
-              Freeze van {(ctx.freeze.duration_ms / 1000).toFixed(2)} s
+              {t("proc.freezeOf", { s: (ctx.freeze.duration_ms / 1000).toFixed(2) })}
             </span>
             <span className="text-xs text-slate-500">
-              Begon om {formatClock(ctx.freeze.at_epoch_ms)} · gemeld {ctx.freeze.timestamp}
+              {t("proc.startedAt", { t: formatClock(ctx.freeze.at_epoch_ms), r: ctx.freeze.timestamp })}
             </span>
           </div>
         </div>
@@ -108,14 +110,14 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
               RAM <span className="font-semibold text-slate-100">{formatPercent(last.ram_used_percent)}</span>
             </span>
             <span>
-              Schijf{" "}
+              {t("proc.disk")}{" "}
               <span className="font-semibold text-slate-100">
                 {formatRate(last.disk_read_bytes_per_sec + last.disk_write_bytes_per_sec)}
               </span>
             </span>
             {last.max_temp_celsius !== null && (
               <span>
-                Temp <span className="font-semibold text-slate-100">{last.max_temp_celsius.toFixed(0)}°C</span>
+                {t("proc.temp")} <span className="font-semibold text-slate-100">{last.max_temp_celsius.toFixed(0)}°C</span>
               </span>
             )}
           </div>
@@ -127,11 +129,11 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
           <table className="w-full text-xs">
             <thead className="text-slate-500">
               <tr>
-                <th className="text-left font-semibold py-1 pr-3">Proces</th>
+                <th className="text-left font-semibold py-1 pr-3">{t("proc.process")}</th>
                 <th className="text-right font-semibold py-1 px-3">PID</th>
-                <th className="text-right font-semibold py-1 px-3">Gem. CPU</th>
-                <th className="text-right font-semibold py-1 px-3">Piek CPU</th>
-                <th className="text-right font-semibold py-1 pl-3">Geheugen</th>
+                <th className="text-right font-semibold py-1 px-3">{t("proc.avgCpu")}</th>
+                <th className="text-right font-semibold py-1 px-3">{t("proc.peakCpu")}</th>
+                <th className="text-right font-semibold py-1 pl-3">{t("proc.memory")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70 text-slate-300" style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -149,13 +151,13 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
             </tbody>
           </table>
           <p className="text-xs text-slate-500 mt-2">
-            Gebaseerd op {ctx.samples_before.length} meting{ctx.samples_before.length === 1 ? "" : "en"}
-            {windowSec !== null ? ` in de ${windowSec} s vóór de freeze` : " vlak vóór de freeze"}.
+            {ctx.samples_before.length === 1 ? t("proc.basedOnOne") : t("proc.basedOnMany", { n: ctx.samples_before.length })}
+            {windowSec !== null ? t("proc.inWindow", { s: windowSec }) : t("proc.justBefore")}
           </p>
         </div>
       ) : (
         <p className="text-xs text-slate-500">
-          Geen metingen beschikbaar van vlak vóór deze freeze — hij gebeurde waarschijnlijk tijdens het opstarten van de monitor.
+          {t("proc.noSamplesBefore")}
         </p>
       )}
     </div>
@@ -163,6 +165,8 @@ const FreezeCard: React.FC<{ ctx: FreezeProcessContext }> = ({ ctx }) => {
 };
 
 export const ProcessesTab: React.FC = () => {
+  const t = useT();
+  const sortLabel = (l: MessageKey | "CPU" | "RAM") => (l === "CPU" || l === "RAM" ? l : t(l));
   const [sortBy, setSortBy] = useState<SortKey>("cpu");
   const [snapshot, setSnapshot] = useState<ProcessSnapshot | null>(null);
   const [snapshotSort, setSnapshotSort] = useState<SortKey | null>(null);
@@ -233,10 +237,10 @@ export const ProcessesTab: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <ListTree className="w-5 h-5 text-cyan-400" />
-              Procesmonitor
+              {t("proc.title")}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              De zwaarste processen van dit moment, elke 2 seconden ververst. CPU is een percentage van de hele processor (alle kernen samen).
+              {t("proc.intro")}
             </p>
           </div>
 
@@ -252,7 +256,7 @@ export const ProcessesTab: React.FC = () => {
                 )}
               >
                 {opt.icon}
-                {opt.label}
+                {sortLabel(opt.label)}
               </button>
             ))}
           </div>
@@ -260,12 +264,15 @@ export const ProcessesTab: React.FC = () => {
 
         <div className="text-xs text-slate-500">
           {snapshot && snapshot.total_processes > 0
-            ? `${snapshot.total_processes} processen actief · top ${processes.length} gesorteerd op ${
-                SORT_OPTIONS.find((o) => o.key === sortBy)?.label
-              } · meting van ${formatClock(snapshot.taken_at_epoch_ms)}`
+            ? t("proc.summary", {
+                n: snapshot.total_processes,
+                k: processes.length,
+                by: sortLabel(SORT_OPTIONS.find((o) => o.key === sortBy)?.label ?? "CPU"),
+                t: formatClock(snapshot.taken_at_epoch_ms),
+              })
             : error
-            ? "Procesgegevens konden niet worden opgehaald."
-            : "Eerste meting wordt verzameld…"}
+            ? t("proc.fetchFailed")
+            : t("proc.collecting")}
         </div>
 
         {error && (
@@ -284,14 +291,14 @@ export const ProcessesTab: React.FC = () => {
           <table className="w-full text-xs">
             <thead className="bg-slate-950/80 text-slate-400">
               <tr>
-                <th className="text-left font-semibold px-3 py-2">Proces</th>
+                <th className="text-left font-semibold px-3 py-2">{t("proc.process")}</th>
                 <th className="text-right font-semibold px-3 py-2">PID</th>
                 <th className="text-right font-semibold px-3 py-2">CPU</th>
-                <th className="text-right font-semibold px-3 py-2">Geheugen</th>
-                <th className="text-right font-semibold px-3 py-2 whitespace-nowrap">Schijf lezen</th>
-                <th className="text-right font-semibold px-3 py-2 whitespace-nowrap">Schijf schrijven</th>
+                <th className="text-right font-semibold px-3 py-2">{t("proc.memory")}</th>
+                <th className="text-right font-semibold px-3 py-2 whitespace-nowrap">{t("proc.diskRead")}</th>
+                <th className="text-right font-semibold px-3 py-2 whitespace-nowrap">{t("proc.diskWrite")}</th>
                 <th className="font-semibold px-3 py-2 w-32 text-left">
-                  <span className="sr-only">Aandeel</span>
+                  <span className="sr-only">{t("proc.share")}</span>
                 </th>
               </tr>
             </thead>
@@ -326,8 +333,8 @@ export const ProcessesTab: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="px-3 py-6 text-center text-slate-500">
                     {warming || !snapshot
-                      ? "De monitor verzamelt de eerste meting; de lijst verschijnt binnen enkele seconden."
-                      : "Geen processen gevonden."}
+                      ? t("proc.warming")
+                      : t("proc.none")}
                   </td>
                 </tr>
               )}
@@ -341,22 +348,20 @@ export const ProcessesTab: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
             <Zap className="w-5 h-5 text-amber-400" />
-            Processen vlak vóór een freeze
+            {t("proc.beforeTitle")}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Welke processen het drukst waren in de seconden voordat het systeem vastliep. Handig om een terugkerende boosdoener (bijv. een updater, virusscanner of driverhulpprogramma) te herkennen.
+            {t("proc.beforeIntro")}
           </p>
         </div>
 
         {freezes === null ? (
-          <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800 text-xs text-slate-400">Laden…</div>
+          <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800 text-xs text-slate-400">{t("proc.loading")}</div>
         ) : freezesNewestFirst.length === 0 ? (
           <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800 text-xs text-slate-400 flex items-start gap-2.5">
             <Snowflake className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
             <span>
-              Nog geen freezes gedetecteerd sinds de app is gestart. De watchdog controleert continu of het systeem
-              stilstaat en legt elke onderbreking van meer dan 1,2 seconde vast. Laat PC Checker op de achtergrond
-              openstaan; zodra er een freeze optreedt, zie je hier welke processen vlak daarvoor de meeste CPU gebruikten.
+              {t("proc.noFreezes")}
             </span>
           </div>
         ) : (

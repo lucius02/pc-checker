@@ -6,6 +6,8 @@ export type { CpuCoreInfo } from "./generated/CpuCoreInfo";
 export type { CpuInfo } from "./generated/CpuInfo";
 export type { DiskInfo } from "./generated/DiskInfo";
 export type { DriverEntry } from "./generated/DriverEntry";
+export type { DriverLatencyEntry } from "./generated/DriverLatencyEntry";
+export type { DriverLatencyReport } from "./generated/DriverLatencyReport";
 export type { DriverReport } from "./generated/DriverReport";
 export type { ElevationStatus } from "./generated/ElevationStatus";
 export type { FanInfo } from "./generated/FanInfo";

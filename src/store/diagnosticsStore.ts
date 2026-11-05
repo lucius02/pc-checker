@@ -5,6 +5,7 @@ import { toast } from "./toastStore";
 import type {
   BatteryHealthReport,
   CoolingOverview,
+  DriverLatencyReport,
   DriverReport,
   ElevationStatus,
   FreezeDiagnosticReport,
@@ -26,6 +27,7 @@ export type BusyKey =
   | "powerDelivery"
   | "drivers"
   | "latency"
+  | "driverLatency"
   | "storage"
   | "history"
   | "cpu"
@@ -47,6 +49,7 @@ export interface DiagnosticsState {
   powerDeliveryReport: HardwarePowerCheckReport | null;
   driverReport: DriverReport | null;
   latencyResult: LatencyTestResult | null;
+  driverLatency: DriverLatencyReport | null;
   storageReport: StorageHealthReport | null;
   history: HistoryData | null;
   elevation: ElevationStatus | null;
@@ -80,6 +83,7 @@ export interface DiagnosticsState {
   runPowerDeliveryCheck: () => Promise<void>;
   scanDrivers: () => Promise<void>;
   runLatencyTest: () => Promise<void>;
+  runDriverLatencyTrace: (durationSecs: number) => Promise<void>;
   scanStorageHealth: () => Promise<void>;
   loadHistory: () => Promise<void>;
   clearHistory: () => Promise<void>;
@@ -135,6 +139,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     powerDeliveryReport: null,
     driverReport: null,
     latencyResult: null,
+    driverLatency: null,
     storageReport: null,
     history: null,
     elevation: null,
@@ -204,6 +209,11 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
       set({ latencyResult: null });
       const r = await run("latency", "error.latency", () => api.runLatencyTest(get().latencyDuration));
       if (r) set({ latencyResult: r });
+    },
+    runDriverLatencyTrace: async (durationSecs) => {
+      set({ driverLatency: null });
+      const r = await run("driverLatency", "error.driverLatency", () => api.runDriverLatencyTrace(durationSecs));
+      if (r) set({ driverLatency: r });
     },
     scanStorageHealth: async () => {
       const r = await run("storage", "error.storage", api.scanStorageHealth);

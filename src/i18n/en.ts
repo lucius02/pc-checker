@@ -1,7 +1,20 @@
-import type { nl } from "./nl";
+import type { coreNl, nl } from "./nl";
+import { latencyEn } from "./tabs/latency";
+import { cameraNetworkEn } from "./tabs/cameraNetwork";
+import { audioEn } from "./tabs/audio";
+import { touchpadEn } from "./tabs/touchpad";
+import { screenEn } from "./tabs/screen";
+import { keyboardEn } from "./tabs/keyboard";
+import { overviewEn } from "./tabs/overview";
+import { processesEn } from "./tabs/processes";
+import { liveEn } from "./tabs/live";
+import { driversEn } from "./tabs/drivers";
+import { coolingFreezeEn } from "./tabs/coolingFreeze";
+import { powerEn } from "./tabs/power";
+import { stressEn } from "./tabs/stress";
 
 /** English translations. Must contain every key from `nl.ts` (checked by the type and by tests). */
-export const en: Record<keyof typeof nl, string> = {
+const coreEn: Record<keyof typeof coreNl, string> = {
   "app.subtitle": "Hardware tests, fans, power & freeze detective",
   "app.badge": "Diagnostics Suite",
   "app.loading": "Reading hardware and power data...",
@@ -67,6 +80,7 @@ export const en: Record<keyof typeof nl, string> = {
   "error.export": "Failed to export report",
   "error.admin": "Failed to restart as administrator",
   "error.stress": "Stress test failed",
+  "error.driverLatency": "Driver latency measurement failed",
   "toast.exported": "Report saved",
   "toast.adminDeclined": "UAC request declined; the app keeps running without administrator rights.",
   "toast.historyCleared": "History cleared",
@@ -150,4 +164,35 @@ export const en: Record<keyof typeof nl, string> = {
   "report.cooling": "Cooling",
   "report.peripherals": "Peripherals",
   "report.history": "History",
+  "report.type": "Type",
+  "report.ramUsed": "{t} ({u} in use)",
+  "report.board": "Motherboard / BIOS",
+  "report.volumes": "Volumes",
+  "report.volFree": "{m} {f} free of {t}",
+  "report.fail": "FAIL",
+  "report.disk": "Disk",
+  "report.wear": "wear {p}%",
+  "report.hours": "{h} hours",
+  "report.supply": "Power supply",
+  "report.battery": "Battery",
+  "report.batteryText": "{h}% health, {c} cycles — {g}",
+  "report.delivery": "Power delivery",
+  "report.historyText": "{n} freezes in total, {r} in the last 7 days; {s} stored scores.",
+};
+
+export const en: Record<keyof typeof nl, string> = {
+  ...coreEn,
+  ...latencyEn,
+  ...cameraNetworkEn,
+  ...audioEn,
+  ...touchpadEn,
+  ...screenEn,
+  ...keyboardEn,
+  ...overviewEn,
+  ...processesEn,
+  ...liveEn,
+  ...driversEn,
+  ...coolingFreezeEn,
+  ...powerEn,
+  ...stressEn,
 };

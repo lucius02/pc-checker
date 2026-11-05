@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   BatteryHealthReport,
   CoolingOverview,
+  DriverLatencyReport,
   DriverReport,
   ElevationStatus,
   FreezeDiagnosticReport,
@@ -53,6 +54,9 @@ export const api = {
   clearHistory: () => invoke<void>("clear_history"),
   getElevationStatus: () => invoke<ElevationStatus>("get_elevation_status"),
   restartAsAdmin: () => invoke<boolean>("restart_as_admin"),
+  runDriverLatencyTrace: (durationSecs: number) =>
+    invoke<DriverLatencyReport>("run_driver_latency_trace", { durationSecs }),
+  setLanguage: (lang: string) => invoke<void>("set_language", { lang }),
 };
 
 /** Zet een onbekende fout (Tauri geeft strings terug) om in een leesbare melding. */

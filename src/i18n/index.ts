@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { create } from "zustand";
 import { nl } from "./nl";
 import { en } from "./en";
@@ -55,7 +56,13 @@ export const useI18nStore = create<I18nState>((set) => ({
 /** React-hook: `const t = useT(); t("nav.overview")`. */
 export function useT() {
   const lang = useI18nStore((s) => s.lang);
-  return (key: MessageKey, vars?: Record<string, string | number>) => translate(lang, key, vars);
+  // Stabiel per taal, zodat `t` veilig in useMemo/useEffect-afhankelijkheden kan staan.
+  return useCallback((key: MessageKey, vars?: Record<string, string | number>) => translate(lang, key, vars), [lang]);
+}
+
+/** Locale voor `Intl`/`toLocaleString`, afgeleid van de gekozen taal. */
+export function intlLocale(lang: Lang = useI18nStore.getState().lang): string {
+  return lang === "en" ? "en-GB" : "nl-NL";
 }
 
 /** Voor gebruik buiten React (stores, utilities). */
