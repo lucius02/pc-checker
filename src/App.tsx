@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
 
-import type { TabType } from "./types";
+import type { PeripheralTestResults, TabType } from "./types";
 import { useDiagnosticsStore } from "./store/diagnosticsStore";
 import { api } from "./lib/api";
 import { useI18nStore, useT } from "./i18n";
@@ -68,6 +68,19 @@ export default function App() {
   }, [fetchOverview, autoRefresh, activeTab]);
 
   const { data, setPeripheral } = s;
+  // Stabiele callbacks: de tabbladen melden hun resultaat in een effect dat van deze functie
+  // afhangt. Een nieuwe functie per render zou dan een eindeloze update-lus geven.
+  const report = useMemo(
+    () => ({
+      keyboard: (r: PeripheralTestResults["keyboard"]) => setPeripheral("keyboard", r),
+      screen: (r: PeripheralTestResults["screen"]) => setPeripheral("screen", r),
+      touchpad: (r: PeripheralTestResults["touchpad"]) => setPeripheral("touchpad", r),
+      audio: (r: PeripheralTestResults["audio"]) => setPeripheral("audio", r),
+      camera: (r: PeripheralTestResults["camera"]) => setPeripheral("camera", r),
+      network: (r: PeripheralTestResults["network"]) => setPeripheral("network", r),
+    }),
+    [setPeripheral],
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none">
@@ -188,13 +201,13 @@ export default function App() {
             {activeTab === "burnin" && <BurnInTab />}
 
             {activeTab === "keyboard" && (
-              <KeyboardTab isLaptop={s.powerData?.is_laptop ?? false} onUpdateResult={(res) => setPeripheral("keyboard", res)} />
+              <KeyboardTab isLaptop={s.powerData?.is_laptop ?? false} onUpdateResult={report.keyboard} />
             )}
-            {activeTab === "screen" && <ScreenTab onUpdateResult={(res) => setPeripheral("screen", res)} />}
-            {activeTab === "touchpad" && <TouchpadTab onUpdateResult={(res) => setPeripheral("touchpad", res)} />}
-            {activeTab === "audio" && <AudioTab onUpdateResult={(res) => setPeripheral("audio", res)} />}
-            {activeTab === "camera" && <CameraTab onUpdateResult={(res) => setPeripheral("camera", res)} />}
-            {activeTab === "network" && <NetworkTab onUpdateResult={(res) => setPeripheral("network", res)} />}
+            {activeTab === "screen" && <ScreenTab onUpdateResult={report.screen} />}
+            {activeTab === "touchpad" && <TouchpadTab onUpdateResult={report.touchpad} />}
+            {activeTab === "audio" && <AudioTab onUpdateResult={report.audio} />}
+            {activeTab === "camera" && <CameraTab onUpdateResult={report.camera} />}
+            {activeTab === "network" && <NetworkTab onUpdateResult={report.network} />}
           </>
         )}
       </main>

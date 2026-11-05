@@ -171,7 +171,13 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     setCpuDuration: (cpuDuration) => set({ cpuDuration }),
     setRamSizeMb: (ramSizeMb) => set({ ramSizeMb }),
     setDiskSizeMb: (diskSizeMb) => set({ diskSizeMb }),
-    setPeripheral: (key, value) => set((s) => ({ peripherals: { ...s.peripherals, [key]: value } })),
+    setPeripheral: (key, value) =>
+      set((s) =>
+        // Zelfde resultaat opnieuw gemeld? Geen update (voorkomt onnodige renders/lussen).
+        JSON.stringify(s.peripherals[key]) === JSON.stringify(value)
+          ? s
+          : { peripherals: { ...s.peripherals, [key]: value } },
+      ),
     setGpuResult: (gpuResult) => set({ gpuResult }),
     setHealthScore: (healthScore) => set({ healthScore }),
 
