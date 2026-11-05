@@ -9,6 +9,7 @@ import { touchpadNl } from "./tabs/touchpad";
 import { screenNl } from "./tabs/screen";
 import { keyboardNl } from "./tabs/keyboard";
 import { overviewNl } from "./tabs/overview";
+import { blocksNl } from "./tabs/blocks";
 import { processesNl } from "./tabs/processes";
 import { liveNl } from "./tabs/live";
 import { driversNl } from "./tabs/drivers";
@@ -192,6 +193,7 @@ export const nl = {
   ...screenNl,
   ...keyboardNl,
   ...overviewNl,
+  ...blocksNl,
   ...processesNl,
   ...liveNl,
   ...driversNl,

@@ -70,6 +70,22 @@ export type TabType =
   | "camera"
   | "network";
 
+/** Uitkomst van de gecombineerde burn-in (CPU + RAM + GPU tegelijk). */
+export interface BurnInResult {
+  cpuOk: boolean;
+  cpuDetail: string;
+  ramOk: boolean;
+  ramDetail: string;
+  gpuOk: boolean;
+  gpuDetail: string;
+  maxTemp: number | null;
+  freezes: number;
+}
+
+/** Geslaagd als alle onderdelen OK zijn, er geen freezes waren en het onder de 95 °C bleef. */
+export const burnInPassed = (r: BurnInResult): boolean =>
+  r.cpuOk && r.ramOk && r.gpuOk && r.freezes === 0 && (r.maxTemp ?? 0) < 95;
+
 export interface PeripheralTestResults {
   keyboard?: {
     testedKeys: number;

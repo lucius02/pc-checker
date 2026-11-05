@@ -6,17 +6,7 @@ import { useT } from "../../i18n";
 import { useDiagnosticsStore } from "../../store/diagnosticsStore";
 import { toast } from "../../store/toastStore";
 import { cn } from "../../utils/cn";
-
-interface BurnInResult {
-  cpuOk: boolean;
-  cpuDetail: string;
-  ramOk: boolean;
-  ramDetail: string;
-  gpuOk: boolean;
-  gpuDetail: string;
-  maxTemp: number | null;
-  freezes: number;
-}
+import { burnInPassed, type BurnInResult } from "../../types";
 
 const DURATIONS_MIN = [5, 15, 30, 60];
 const TEMP_POLL_MS = 5000;
@@ -29,9 +19,10 @@ export const BurnInTab: React.FC = () => {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [liveTemp, setLiveTemp] = useState<number | null>(null);
-  const [result, setResult] = useState<BurnInResult | null>(null);
+  const [result, setResult] = useState<BurnInResult | null>(() => useDiagnosticsStore.getState().burninResult);
   const cancelled = useRef(false);
   const setAutoRefresh = useDiagnosticsStore((s) => s.setAutoRefresh);
+  const setBurninResult = useDiagnosticsStore((s) => s.setBurninResult);
 
   useEffect(
     () => () => {
@@ -122,13 +113,14 @@ export const BurnInTab: React.FC = () => {
       freezes,
     };
     setResult(res);
+    setBurninResult(res);
     setRunning(false);
     setAutoRefresh(true);
-    const passed = res.cpuOk && res.ramOk && res.gpuOk && freezes === 0 && (maxTemp ?? 0) < 95;
+    const passed = burnInPassed(res);
     toast[passed ? "success" : "error"](passed ? t("burnin.passed") : t("burnin.failed"));
   };
 
-  const passed = result && result.cpuOk && result.ramOk && result.gpuOk && result.freezes === 0 && (result.maxTemp ?? 0) < 95;
+  const passed = result && burnInPassed(result);
   const progress = Math.min(100, (elapsed / (minutes * 60_000)) * 100);
 
   return (

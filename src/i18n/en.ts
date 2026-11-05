@@ -6,6 +6,7 @@ import { touchpadEn } from "./tabs/touchpad";
 import { screenEn } from "./tabs/screen";
 import { keyboardEn } from "./tabs/keyboard";
 import { overviewEn } from "./tabs/overview";
+import { blocksEn } from "./tabs/blocks";
 import { processesEn } from "./tabs/processes";
 import { liveEn } from "./tabs/live";
 import { driversEn } from "./tabs/drivers";
@@ -190,6 +191,7 @@ export const en: Record<keyof typeof nl, string> = {
   ...screenEn,
   ...keyboardEn,
   ...overviewEn,
+  ...blocksEn,
   ...processesEn,
   ...liveEn,
   ...driversEn,

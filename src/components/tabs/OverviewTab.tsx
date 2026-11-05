@@ -85,7 +85,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         </div>
       </div>
 
-      {/* 6 Rich Diagnostic & Hardware Cards Grid */}
       <HealthScoreCard
         data={data}
         coolingData={coolingData}
@@ -99,17 +98,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         setActiveTab={setActiveTab}
       />
 
-      <OverviewCardsGrid
-        data={data}
-        powerData={powerData}
-        coolingData={coolingData}
-        freezeData={freezeData}
-        batteryReport={batteryReport}
-        cpuResult={cpuResult}
-        ramResult={ramResult}
-        diskResult={diskResult}
-        setActiveTab={setActiveTab}
-      />
+      <OverviewCardsGrid setActiveTab={setActiveTab} />
 
       {/* Systeem Uptime & Sessie Info Box */}
       <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-4">

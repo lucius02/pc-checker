@@ -20,6 +20,7 @@ import type {
   StressTestResult,
   SystemOverview,
 } from "../types";
+import type { BurnInResult } from "../types";
 
 /** Langlopende acties; per sleutel staat er een "bezig"-vlag in `busy`. */
 export type BusyKey =
@@ -58,6 +59,7 @@ export interface DiagnosticsState {
   ramResult: StressTestResult | null;
   diskResult: StressTestResult | null;
   gpuResult: string | null;
+  burninResult: BurnInResult | null;
   healthScore: HealthScore | null;
   peripherals: PeripheralTestResults;
 
@@ -79,6 +81,7 @@ export interface DiagnosticsState {
   setDiskSizeMb: (v: number) => void;
   setPeripheral: <K extends keyof PeripheralTestResults>(key: K, value: PeripheralTestResults[K]) => void;
   setGpuResult: (v: string | null) => void;
+  setBurninResult: (v: BurnInResult | null) => void;
   setHealthScore: (v: HealthScore) => void;
 
   fetchOverview: () => Promise<void>;
@@ -155,6 +158,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     ramResult: null,
     diskResult: null,
     gpuResult: null,
+    burninResult: null,
     healthScore: null,
     peripherals: {},
 
@@ -179,6 +183,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
           : { peripherals: { ...s.peripherals, [key]: value } },
       ),
     setGpuResult: (gpuResult) => set({ gpuResult }),
+    setBurninResult: (burninResult) => set({ burninResult }),
     setHealthScore: (healthScore) => set({ healthScore }),
 
     fetchOverview: async () => {
