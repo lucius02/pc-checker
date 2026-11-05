@@ -344,6 +344,7 @@ pub fn run_driver_latency_trace(duration_secs: u64) -> DriverLatencyReport {
     }
     #[cfg(not(windows))]
     {
+        let _ = duration_secs;
         unreachable!()
     }
 }

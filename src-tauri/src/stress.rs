@@ -497,8 +497,9 @@ impl Drop for AlignedBuf {
 /// verkeerde plek is beland (of een verouderd cache-blok) direct op.
 pub fn fill_disk_block(buf: &mut [u8], block_index: u64, seed: u64) {
     let block_seed = seed ^ block_index.wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    for (i, chunk) in buf.chunks_exact_mut(8).enumerate() {
-        chunk.copy_from_slice(&random_word(block_seed, i).to_le_bytes());
+    let (words, _) = buf.as_chunks_mut::<8>();
+    for (i, word) in words.iter_mut().enumerate() {
+        *word = random_word(block_seed, i).to_le_bytes();
     }
 }
 

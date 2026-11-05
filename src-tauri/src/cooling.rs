@@ -97,18 +97,18 @@ fn query_cooling_wmi() -> (Vec<TemperatureSensorInfo>, Vec<FanInfo>, Option<u32>
                 .trim()
                 .to_string();
             for i in 1..=8 {
-                if let Ok(raw) = std::fs::read_to_string(path.join(format!("fan{i}_input"))) {
-                    if let Ok(rpm) = raw.trim().parse::<u32>() {
-                        fans.push(FanInfo {
-                            name: format!("{} fan{}", chip, i),
-                            status: if rpm > 0 {
-                                crate::tr!("Actief", "Active").into()
-                            } else {
-                                crate::tr!("Stil", "Idle").into()
-                            },
-                            speed_rpm: Some(rpm),
-                        });
-                    }
+                if let Ok(raw) = std::fs::read_to_string(path.join(format!("fan{i}_input")))
+                    && let Ok(rpm) = raw.trim().parse::<u32>()
+                {
+                    fans.push(FanInfo {
+                        name: format!("{} fan{}", chip, i),
+                        status: if rpm > 0 {
+                            crate::tr!("Actief", "Active").into()
+                        } else {
+                            crate::tr!("Stil", "Idle").into()
+                        },
+                        speed_rpm: Some(rpm),
+                    });
                 }
             }
         }

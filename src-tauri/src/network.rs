@@ -342,6 +342,7 @@ const POWER_KEYWORDS: [&str; 6] = [
     "*SelectiveSuspend",
 ];
 
+#[cfg(windows)]
 const PS_ADAPTERS: &str = r#"$kw = @('*EEE','EnableGreenEthernet','AdvancedEEE','PowerSavingMode','GigaLite','*SelectiveSuspend')
 $out = foreach ($a in @(Get-NetAdapter -Physical | Where-Object Status -eq 'Up')) {
   $st = Get-NetAdapterStatistics -Name $a.Name
@@ -639,36 +640,32 @@ fn linux_adapters() -> Vec<NetworkAdapterHealth> {
 pub fn scan_network_health() -> NetworkHealthReport {
     let scanned_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
-    #[allow(unused_mut)]
-    let mut adapters: Vec<NetworkAdapterHealth> = Vec::new();
-    #[allow(unused_mut)]
-    let mut available = false;
-
+    // `None` = dit platform kon niet worden uitgelezen.
     #[cfg(windows)]
-    if let Some(v) = crate::shell::run_ps_json(PS_ADAPTERS) {
-        available = true;
-        adapters = crate::shell::json_items(&v)
-            .iter()
-            .map(parse_adapter)
-            .collect();
-        let wifi = wlan::connected();
-        for a in adapters.iter_mut().filter(|a| a.kind == "wifi") {
-            if let Some((_, w)) = wifi
+    let adapters: Option<Vec<NetworkAdapterHealth>> =
+        crate::shell::run_ps_json(PS_ADAPTERS).map(|v| {
+            let mut adapters: Vec<NetworkAdapterHealth> = crate::shell::json_items(&v)
                 .iter()
-                .find(|(d, _)| d == &a.description)
-                .or_else(|| wifi.first())
-            {
-                a.wifi = Some(w.clone());
+                .map(parse_adapter)
+                .collect();
+            let wifi = wlan::connected();
+            for a in adapters.iter_mut().filter(|a| a.kind == "wifi") {
+                if let Some((_, w)) = wifi
+                    .iter()
+                    .find(|(d, _)| d == &a.description)
+                    .or_else(|| wifi.first())
+                {
+                    a.wifi = Some(w.clone());
+                }
             }
-        }
-    }
+            adapters
+        });
     #[cfg(target_os = "linux")]
-    {
-        available = true;
-        adapters = linux_adapters();
-    }
+    let adapters: Option<Vec<NetworkAdapterHealth>> = Some(linux_adapters());
+    #[cfg(not(any(windows, target_os = "linux")))]
+    let adapters: Option<Vec<NetworkAdapterHealth>> = None;
 
-    if !available {
+    let Some(adapters) = adapters else {
         return NetworkHealthReport {
             is_available: false,
             scanned_at,
@@ -678,7 +675,7 @@ pub fn scan_network_health() -> NetworkHealthReport {
             )),
             ..Default::default()
         };
-    }
+    };
     let issues = analyze(&adapters);
     let summary = summarize(&adapters, &issues);
     NetworkHealthReport {
