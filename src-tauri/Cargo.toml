@@ -1,6 +1,6 @@
 [package]
 name = "pc-checker"
-version = "0.2.0"
+version = "0.1.0"
 description = "PC Checker - hardware diagnostics, freeze detection and health suite"
 authors = ["lucius02"]
 repository = "https://github.com/lucius02/pc-checker"

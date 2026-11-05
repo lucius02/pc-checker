@@ -106,6 +106,8 @@ Op de *Releases*-pagina van de repository:
 
 ## 3. Windows code signing
 
+> **Status: staat uit.** De importstap voor het certificaat is voorlopig uit `release.yml` gehaald; de installers zijn dus ongetekend. Wil je het later aanzetten, haal de oude stap terug met `git show af0c0bc:.github/workflows/release.yml` (de stap *Import Windows code-signing certificate*, de `HAS_WINDOWS_CERT`-regel en `args: ${{ env.TAURI_EXTRA_ARGS }}`) en volg dan de stappen hieronder.
+
 ### Het probleem
 
 Zonder handtekening ziet een gebruiker die jouw installer start dit:
@@ -154,7 +156,7 @@ Een `.pfx` is een versleuteld bestand met je certificaat **én** je privésleute
 
 *Waarom secrets en niet gewoon een bestand in de repository?* Iedereen die de code kan zien, zou dan in jouw naam software kunnen tekenen, en malware met jouw handtekening is precies wat je niet wilt. Secrets zijn versleuteld opgeslagen, verschijnen nooit in logs (GitHub vervangt ze door `***`) en zijn niet beschikbaar voor pull requests van forks.
 
-**3. Klaar.** Bij de volgende release doet de workflow automatisch:
+**3. Zet de importstap terug in `release.yml`** (zie de status bovenaan dit hoofdstuk). Daarna doet de workflow bij elke release automatisch:
 
 1. Het `.pfx` terugzetten en importeren in de Windows-certificaatopslag van de build-machine (en het bestand meteen weer verwijderen).
 2. De **thumbprint** opvragen: een unieke ID van het certificaat, zodat Tauri weet welk certificaat in de opslag het moet gebruiken.
@@ -162,7 +164,7 @@ Een `.pfx` is een versleuteld bestand met je certificaat **én** je privésleute
 
 *Waarom die tijdstempel (`timestampUrl`)?* Certificaten verlopen (meestal na 1 tot 3 jaar). Zonder tijdstempel wordt je handtekening ongeldig zodra het certificaat verloopt, ook voor installers die je jaren geleden hebt uitgebracht. Een tijdstempelserver (hier DigiCert) bevestigt onafhankelijk: "deze handtekening bestond al op 5 november 2026, toen het certificaat nog geldig was". Dan blijft hij voor altijd geldig.
 
-Zonder deze secrets slaat de workflow het tekenen over en bouwt hij gewoon een ongetekende installer. Dat is handig om te testen.
+Met die stap terug maar zonder deze secrets slaat de workflow het tekenen over en bouwt hij gewoon een ongetekende installer. Dat is handig om te testen.
 
 ### Als je geen .pfx-bestand hebt
 

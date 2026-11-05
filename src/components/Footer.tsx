@@ -3,7 +3,7 @@ import { formatUptime } from "../utils/formatters";
 import { useT } from "../i18n";
 import { useDiagnosticsStore } from "../store/diagnosticsStore";
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.1.0";
 
 export const Footer: React.FC = () => {
   const t = useT();
