@@ -135,10 +135,6 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
   }, []);
 
   // Single test run
-  const runSingleTest = async () => {
-    const lat = await measurePing();
-    recordSample(lat);
-  };
 
   // Continuous monitoring toggle
   const toggleMonitoring = useCallback(() => {
@@ -150,7 +146,7 @@ export const NetworkTab: React.FC<NetworkTabProps> = ({ onUpdateResult }) => {
       setIsMonitoring(false);
     } else {
       setIsMonitoring(true);
-      runSingleTest();
+      void measurePing().then(recordSample);
       monitorIntervalRef.current = window.setInterval(async () => {
         const lat = await measurePing();
         recordSample(lat);

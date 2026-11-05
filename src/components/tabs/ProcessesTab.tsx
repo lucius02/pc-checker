@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api, errorMessage } from "../../lib/api";
 import { AlertTriangle, Cpu, HardDrive, ListTree, MemoryStick, Snowflake, Zap } from "lucide-react";
 import { FreezeProcessContext, ProcessInfo, ProcessSnapshot } from "../../types";
 import { formatBytes } from "../../utils/formatters";
@@ -174,14 +174,14 @@ export const ProcessesTab: React.FC = () => {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      const snap = await invoke<ProcessSnapshot>("get_process_snapshot", { sortBy: key, limit: LIMIT });
+      const snap = await api.getProcessSnapshot(key, LIMIT);
       if (!isCancelled()) {
         setSnapshot(snap);
         setSnapshotSort(key);
         setError(null);
       }
     } catch (e) {
-      if (!isCancelled()) setError(String(e));
+      if (!isCancelled()) setError(errorMessage(e));
     } finally {
       inFlight.current = false;
     }
@@ -202,7 +202,7 @@ export const ProcessesTab: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     const load = () =>
-      invoke<FreezeProcessContext[]>("get_freeze_process_context")
+      api.getFreezeProcessContext()
         .then((list) => {
           if (!cancelled) setFreezes(list);
         })

@@ -180,7 +180,9 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
                 const avgLuma = Math.round((sum / (32 * 32) / 255) * 100);
                 setBrightness(avgLuma);
               }
-            } catch {}
+            } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
           }
         }
 

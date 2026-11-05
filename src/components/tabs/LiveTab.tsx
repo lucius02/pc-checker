@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../../lib/api";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import {
   Activity,
@@ -13,7 +13,7 @@ import {
   Thermometer,
   LineChart,
 } from "lucide-react";
-import { MetricsHistory, MetricsSample } from "../../types";
+import type { MetricsSample } from "../../types";
 import { TimeSeriesChart, ChartSeries } from "../live/TimeSeriesChart";
 import { StatTile, ChartCard } from "../live/LiveCards";
 import {
@@ -77,7 +77,7 @@ export const LiveTab: React.FC = () => {
         if (!cancelled) setConn("fout");
       });
 
-    invoke<MetricsHistory>("get_metrics_history")
+    api.getMetricsHistory()
       .then((history) => {
         if (cancelled) return;
         setSamples((prev) => mergeSamples(history.samples, prev));

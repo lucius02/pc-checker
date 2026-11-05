@@ -1,32 +1,36 @@
 import React from "react";
-import { SystemOverview } from "../types";
 import { formatUptime } from "../utils/formatters";
+import { useT } from "../i18n";
+import { useDiagnosticsStore } from "../store/diagnosticsStore";
 
-interface FooterProps {
-  data: SystemOverview | null;
-  lastUpdated: Date;
-}
+const APP_VERSION = "0.2.0";
 
-export const Footer: React.FC<FooterProps> = ({ data, lastUpdated }) => {
+export const Footer: React.FC = () => {
+  const t = useT();
+  const data = useDiagnosticsStore((s) => s.data);
+  const lastUpdated = useDiagnosticsStore((s) => s.lastUpdated);
+
   return (
-    <footer className="border-t border-slate-900 bg-slate-950 px-6 py-2.5 text-xs text-slate-500 flex justify-between items-center">
-      <div className="flex items-center gap-2">
+    <footer className="border-t border-slate-900 bg-slate-950 px-6 py-2.5 text-xs text-slate-500 flex justify-between items-center gap-4 print:hidden">
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="w-2 h-2 rounded-full bg-emerald-500" />
-        <span>Status: Systeem Online</span>
+        <span>{t("footer.online")}</span>
         <span>•</span>
         <span>
-          Sessie:{" "}
-          {data
-            ? `${formatUptime(data.session_uptime_secs)} (${data.session_started_at})`
-            : "Bezig..."}
+          {t("footer.session")}{" "}
+          {data ? `${formatUptime(data.session_uptime_secs)} (${data.session_started_at})` : t("footer.loading")}
         </span>
         <span>•</span>
-        <span>Watchdog Actief</span>
+        <span>{t("footer.watchdog")}</span>
         <span>•</span>
-        <span>Laatste meting: {lastUpdated.toLocaleTimeString()}</span>
+        <span>
+          {t("footer.lastMeasurement")} {lastUpdated.toLocaleTimeString()}
+        </span>
       </div>
-      <div>
-        <span>PC Checker v0.2.0 • Windows, Linux &amp; macOS</span>
+      <div className="shrink-0">
+        <span>
+          PC Checker v{APP_VERSION} • {t("footer.platforms")}
+        </span>
       </div>
     </footer>
   );

@@ -54,7 +54,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
-              {[32, 64, 128].map((mb) => (
+              {[64, 256, 1024].map((mb) => (
                 <button
                   key={mb}
                   type="button"

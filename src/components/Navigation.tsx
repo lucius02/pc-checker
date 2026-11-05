@@ -17,9 +17,15 @@ import {
   Volume2,
   Camera,
   Wifi,
+  Database,
+  History,
+  Gpu,
+  Flame,
 } from "lucide-react";
 import { TabType, FreezeDiagnosticReport } from "../types";
 import { cn } from "../utils/cn";
+import { useT } from "../i18n";
+import { useDiagnosticsStore } from "../store/diagnosticsStore";
 
 interface NavigationProps {
   activeTab: TabType;
@@ -41,33 +47,35 @@ export const Navigation: React.FC<NavigationProps> = ({
   setActiveTab,
   freezeData,
 }) => {
+  const t = useT();
+  const storageCritical = useDiagnosticsStore((s) => (s.storageReport?.critical_count ?? 0) > 0);
   const isHighFreezeRisk = freezeData?.system_freeze_risk === "Hoog";
 
   const navItems: NavItem[] = [
     {
       id: "overview",
-      label: "Systeem Overzicht",
+      label: t("nav.overview"),
       icon: Layers,
       activeClass: "border-cyan-400 text-cyan-400 font-semibold",
       focusClass: "focus-visible:outline-cyan-400",
     },
     {
       id: "live",
-      label: "Live Monitor",
+      label: t("nav.live"),
       icon: Activity,
       activeClass: "border-emerald-400 text-emerald-400 font-semibold",
       focusClass: "focus-visible:outline-emerald-400",
     },
     {
       id: "processes",
-      label: "Processen",
+      label: t("nav.processes"),
       icon: ListTree,
       activeClass: "border-sky-400 text-sky-400 font-semibold",
       focusClass: "focus-visible:outline-sky-400",
     },
     {
       id: "freeze",
-      label: "Freeze Detective",
+      label: t("nav.freeze"),
       icon: ShieldAlert,
       activeClass: "border-rose-400 text-rose-400 font-semibold",
       focusClass: "focus-visible:outline-rose-400",
@@ -77,91 +85,120 @@ export const Navigation: React.FC<NavigationProps> = ({
     },
     {
       id: "latency",
-      label: "DPC Latency",
+      label: t("nav.latency"),
       icon: Timer,
       activeClass: "border-orange-400 text-orange-400 font-semibold",
       focusClass: "focus-visible:outline-orange-400",
     },
     {
       id: "drivers",
-      label: "Drivers",
+      label: t("nav.drivers"),
       icon: Puzzle,
       activeClass: "border-indigo-400 text-indigo-400 font-semibold",
       focusClass: "focus-visible:outline-indigo-400",
     },
     {
+      id: "storage",
+      label: t("nav.storage"),
+      icon: Database,
+      activeClass: "border-lime-400 text-lime-400 font-semibold",
+      focusClass: "focus-visible:outline-lime-400",
+      badge: storageCritical ? <span className="w-2 h-2 rounded-full bg-rose-500" /> : undefined,
+    },
+    {
+      id: "history",
+      label: t("nav.history"),
+      icon: History,
+      activeClass: "border-slate-200 text-slate-200 font-semibold",
+      focusClass: "focus-visible:outline-slate-200",
+    },
+    {
       id: "power",
-      label: "Stroom & Batterij",
+      label: t("nav.power"),
       icon: BatteryCharging,
       activeClass: "border-amber-400 text-amber-400 font-semibold",
       focusClass: "focus-visible:outline-amber-400",
     },
     {
       id: "cooling",
-      label: "Koeling & Fans",
+      label: t("nav.cooling"),
       icon: Fan,
       activeClass: "border-blue-400 text-blue-400 font-semibold",
       focusClass: "focus-visible:outline-blue-400",
     },
     {
       id: "cpu",
-      label: "CPU Stresstest",
+      label: t("nav.cpu"),
       icon: Cpu,
       activeClass: "border-cyan-400 text-cyan-400 font-semibold",
       focusClass: "focus-visible:outline-cyan-400",
     },
     {
       id: "ram",
-      label: "RAM Geheugencheck",
+      label: t("nav.ram"),
       icon: Zap,
       activeClass: "border-purple-400 text-purple-400 font-semibold",
       focusClass: "focus-visible:outline-purple-400",
     },
     {
       id: "disk",
-      label: "Schijf Benchmark",
+      label: t("nav.disk"),
       icon: HardDrive,
       activeClass: "border-cyan-400 text-cyan-400 font-semibold",
       focusClass: "focus-visible:outline-cyan-400",
     },
     {
+      id: "gpu",
+      label: t("nav.gpu"),
+      icon: Gpu,
+      activeClass: "border-fuchsia-400 text-fuchsia-400 font-semibold",
+      focusClass: "focus-visible:outline-fuchsia-400",
+    },
+    {
+      id: "burnin",
+      label: t("nav.burnin"),
+      icon: Flame,
+      activeClass: "border-red-400 text-red-400 font-semibold",
+      focusClass: "focus-visible:outline-red-400",
+    },
+    {
       id: "keyboard",
-      label: "Toetsenbord",
+      label: t("nav.keyboard"),
       icon: Keyboard,
       activeClass: "border-emerald-400 text-emerald-400 font-semibold",
       focusClass: "focus-visible:outline-emerald-400",
     },
     {
       id: "screen",
-      label: "Beeldscherm",
+      label: t("nav.screen"),
       icon: Monitor,
       activeClass: "border-teal-400 text-teal-400 font-semibold",
       focusClass: "focus-visible:outline-teal-400",
     },
     {
       id: "touchpad",
-      label: "Touchpad & Muis",
+      label: t("nav.touchpad"),
       icon: MousePointer,
       activeClass: "border-violet-400 text-violet-400 font-semibold",
       focusClass: "focus-visible:outline-violet-400",
     },
     {
       id: "audio",
-      label: "Audio & Mic",
+      label: t("nav.audio"),
       icon: Volume2,
       activeClass: "border-pink-400 text-pink-400 font-semibold",
       focusClass: "focus-visible:outline-pink-400",
     },
     {
       id: "camera",
-      label: "Webcam",
+      label: t("nav.camera"),
       icon: Camera,
       activeClass: "border-rose-400 text-rose-400 font-semibold",
       focusClass: "focus-visible:outline-rose-400",
     },
     {
       id: "network",
-      label: "Netwerk & Wi-Fi",
+      label: t("nav.network"),
       icon: Wifi,
       activeClass: "border-blue-400 text-blue-400 font-semibold",
       focusClass: "focus-visible:outline-blue-400",
@@ -169,7 +206,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   ];
 
   return (
-    <nav className="border-b border-slate-800/60 bg-slate-900/40 px-6 flex items-center gap-2 overflow-x-auto">
+    <nav className="border-b border-slate-800/60 bg-slate-900/40 px-6 flex items-center gap-2 overflow-x-auto print:hidden">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = activeTab === item.id;

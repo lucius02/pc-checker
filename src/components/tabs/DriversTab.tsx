@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api, errorMessage } from "../../lib/api";
+import { toast } from "../../store/toastStore";
 import {
   CircuitBoard,
   Clock,
@@ -89,17 +90,17 @@ export const DriversTab: React.FC<DriversTabProps> = ({
 
   const handleOpenDeviceManager = async () => {
     try {
-      await invoke("open_device_manager");
+      await api.openDeviceManager();
     } catch (err) {
-      console.error("Fout bij openen Apparaatbeheer:", err);
+      toast.error("Kon Apparaatbeheer niet openen", errorMessage(err));
     }
   };
 
   const handleOpenWindowsUpdate = async () => {
     try {
-      await invoke("open_windows_update");
+      await api.openWindowsUpdate();
     } catch (err) {
-      console.error("Fout bij openen Windows Update:", err);
+      toast.error("Kon Windows Update niet openen", errorMessage(err));
     }
   };
 

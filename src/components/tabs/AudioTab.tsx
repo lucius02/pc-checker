@@ -68,7 +68,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
       if (currentOscRef.current) {
         try {
           currentOscRef.current.stop();
-        } catch {}
+        } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
       }
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach((t) => t.stop());
@@ -79,7 +81,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
       if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
         try {
           audioCtxRef.current.close();
-        } catch {}
+        } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
       }
     };
   }, []);
@@ -165,7 +169,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
           setTimeout(() => {
             try {
               osc.stop();
-            } catch {}
+            } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
             setIsPlayingTone(false);
             setActiveFrequency(null);
           }, 120);
@@ -180,7 +186,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
     if (currentOscRef.current) {
       try {
         currentOscRef.current.stop();
-      } catch {}
+      } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
       currentOscRef.current = null;
     }
     setIsPlayingTone(false);

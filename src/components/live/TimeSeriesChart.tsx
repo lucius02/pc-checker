@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AXIS_TEXT_COLOR,
   BASELINE_COLOR,
@@ -76,8 +76,11 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   const tEnd = times.length ? times[times.length - 1] : Date.now();
   const tStart = tEnd - windowMs;
 
-  const x = (t: number) => MARGIN.left + ((t - tStart) / windowMs) * innerW;
-  const y = (v: number) => MARGIN.top + plotHeight - (Math.min(Math.max(v, 0), yMax) / yMax) * plotHeight;
+  const x = useCallback((t: number) => MARGIN.left + ((t - tStart) / windowMs) * innerW, [tStart, windowMs, innerW]);
+  const y = useCallback(
+    (v: number) => MARGIN.top + plotHeight - (Math.min(Math.max(v, 0), yMax) / yMax) * plotHeight,
+    [plotHeight, yMax],
+  );
   const baselineY = MARGIN.top + plotHeight;
 
   const paths = useMemo(() => {
@@ -117,7 +120,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       closeArea();
       return { line, area };
     });
-  }, [series, times, width, yMax, tStart, windowMs, plotHeight]);
+  }, [series, times, tStart, x, y, baselineY]);
 
   // Tijd-ticks: elke minuut vanaf "nu" terug.
   const xTicks: { t: number; label: string }[] = [];

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api, errorMessage } from "../../../lib/api";
+import { useDiagnosticsStore } from "../../../store/diagnosticsStore";
 import {
   HeartPulse,
   Thermometer,
@@ -208,6 +209,8 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
   diskResult,
   setActiveTab,
 }) => {
+  const storageReport = useDiagnosticsStore((s) => s.storageReport);
+  const setHealthScore = useDiagnosticsStore((s) => s.setHealthScore);
   // `data` ververst elke 3 s; buildHealthInputs rondt live waarden af zodat deze
   // sleutel alleen verandert als de invoer echt verschuift.
   const inputsKey = useMemo(
@@ -223,9 +226,10 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
           cpuResult,
           ramResult,
           diskResult,
+          storageReport,
         })
       ),
-    [data, coolingData, freezeData, batteryReport, driverReport, latencyResult, cpuResult, ramResult, diskResult]
+    [data, coolingData, freezeData, batteryReport, driverReport, latencyResult, cpuResult, ramResult, diskResult, storageReport]
   );
 
   const [health, setHealth] = useState<HealthScore | null>(null);
@@ -233,21 +237,22 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    invoke<HealthScore>("compute_health_score", { inputs: JSON.parse(inputsKey) })
+    api
+      .computeHealthScore(JSON.parse(inputsKey))
       .then((res) => {
         if (cancelled) return;
         setHealth(res);
+        setHealthScore(res);
         setError(null);
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Fout bij berekenen gezondheidsscore:", err);
-        setError(String(err));
+        setError(errorMessage(err));
       });
     return () => {
       cancelled = true;
     };
-  }, [inputsKey]);
+  }, [inputsKey, setHealthScore]);
 
   if (!health) {
     return (

@@ -52,7 +52,7 @@ export const RamTab: React.FC<RamTabProps> = ({
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
-              {[128, 256, 512].map((mb) => (
+              {[256, 1024, 4096].map((mb) => (
                 <button
                   key={mb}
                   type="button"

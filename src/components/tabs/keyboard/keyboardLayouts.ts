@@ -293,7 +293,7 @@ export function generateKeyboardRows(
 export async function scanKeyboardLayout(
   isLaptop: boolean
 ): Promise<KeyboardScanResult> {
-  let formFactor: FormFactor = isLaptop ? "laptop" : "full";
+  const formFactor: FormFactor = isLaptop ? "laptop" : "full";
   let keymapType: KeymapType = "qwerty";
   let enterStyle: EnterStyle = "ansi";
   let scanSource = "Standaard detectie (Systeem & Chassis)";
