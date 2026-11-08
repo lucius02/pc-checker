@@ -123,6 +123,21 @@ pub struct SystemOverview {
     pub motherboard: MotherboardInfo,
 }
 
+/// Losse lees- en schrijfsnelheid van de schijfbenchmark. Lezen en schrijven zijn verschillende
+/// dingen (een SSD schrijft vaak trager dan hij leest), dus er is bewust geen gemiddelde.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct DiskSpeeds {
+    pub read_mbps: f64,
+    pub write_mbps: f64,
+    /// Soort schijf waarop getest is: "nvme", "ssd" (SATA), "hdd", "usb" of "unknown".
+    pub drive_kind: String,
+    /// Modelnaam van die schijf, als die bekend is.
+    pub drive_model: Option<String>,
+    /// `true` als de OS-cache is omzeild (dan zijn het echte schijfsnelheden).
+    pub cache_bypassed: bool,
+}
+
 /// Resultaat van een uitgevoerde synthetische hardwarestresstest of benchmark.
 #[derive(Serialize, Deserialize, TS, Clone, Debug)]
 #[ts(export)]
@@ -143,6 +158,10 @@ pub struct StressTestResult {
     pub details: String,
     /// Foutbericht indien de test voortijdig is afgebroken.
     pub error: Option<String>,
+    /// Alleen bij de schijfbenchmark: lees- en schrijfsnelheid apart.
+    #[serde(default)]
+    #[ts(optional)]
+    pub disk_speeds: Option<DiskSpeeds>,
 }
 
 /// Telemetrie over de stroomvoorziening en netstroom/accu-status.
@@ -281,6 +300,8 @@ pub struct FreezeDiagnosticReport {
     pub diagnosis_summary: String,
     /// Stapsgewijs actieplan om hardware- of driver-freezes definitief op te lossen.
     pub recommended_actions: Vec<String>,
+    /// Hoeveel dagen terug in het logboek is gekeken (door de gebruiker gekozen).
+    pub lookback_days: u32,
 }
 
 // ===== Watchdog: gestructureerde freeze-records =====
@@ -367,6 +388,22 @@ pub struct DriverEntry {
     pub advice: String,
     /// Hetzelfde advies, opgesplitst voor een overzichtelijke weergave.
     pub advice_detail: Advice,
+    /// Gezet als de fabrikant deze driver/dit apparaat niet (meer volledig) ondersteunt.
+    pub support: Option<DriverSupport>,
+}
+
+/// Ondersteuning door de fabrikant. Geen ondersteuning is géén fout: de laatste driver blijft
+/// werken; de handleiding is alleen nodig als je problemen merkt.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[ts(export)]
+pub struct DriverSupport {
+    /// "ended" (geen drivers meer), "legacy" (alleen nog beveiligings-/kritieke fixes) of
+    /// "likely_ended" (vuistregel: driver van vóór Windows 10).
+    pub level: String,
+    /// Waarom we dit denken (welke fabrikant wat heeft gemeld, of de vuistregel).
+    pub reason: String,
+    /// Wat je kunt doen, alleen als je er iets van merkt.
+    pub guide: Advice,
 }
 
 /// Gestructureerd advies (drivers, freeze-oorzaken): wat er mis is, waarom het ertoe doet en wat je moet doen.
@@ -412,6 +449,9 @@ pub struct DriverReport {
     pub outdated_count: usize,
     pub problem_count: usize,
     pub unsigned_count: usize,
+    /// Drivers die de fabrikant niet (meer volledig) ondersteunt. Telt niet als probleem.
+    #[serde(default)]
+    pub unsupported_count: usize,
     pub entries: Vec<DriverEntry>,
     pub summary: String,
 }
@@ -491,6 +531,10 @@ pub struct HealthInputs {
     /// Aantal schijven met een kritieke SMART-status (None = niet gescand).
     #[serde(default)]
     pub storage_smart_critical_count: Option<usize>,
+    /// Bevindingen van schijven die niet "Goed" zijn ("Model: reden"), zodat de score kan noemen
+    /// wáárom opslag lager scoort.
+    #[serde(default)]
+    pub storage_smart_findings: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, TS, Clone, Debug)]

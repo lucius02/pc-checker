@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 use rayon::prelude::*;
 
-use crate::models::StressTestResult;
+use crate::models::{DiskSpeeds, StressTestResult};
 
 // ============================================================================================
 // CPU
@@ -51,6 +51,7 @@ fn fail(
         unit: unit.to_string(),
         details: details.to_string(),
         error: Some(err),
+        disk_speeds: None,
     }
 }
 
@@ -152,6 +153,7 @@ pub fn run_cpu_stress_test(duration_secs: u64, thread_count: Option<usize>) -> S
                 format!("{} rekenfouten gedetecteerd", errors),
                 format!("{} calculation errors detected", errors)
             )),
+            disk_speeds: None,
         };
     }
 
@@ -173,6 +175,7 @@ pub fn run_cpu_stress_test(duration_secs: u64, thread_count: Option<usize>) -> S
             )
         ),
         error: None,
+        disk_speeds: None,
     }
 }
 
@@ -424,6 +427,7 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
                 )
             ),
             error: None,
+            disk_speeds: None,
         }
     } else {
         StressTestResult {
@@ -449,6 +453,7 @@ pub fn run_ram_stress_test(size_mb: usize, passes: Option<usize>) -> StressTestR
                 format!("{} geheugen verificatiefouten gevonden", errors.count),
                 format!("{} memory verification errors found", errors.count)
             )),
+            disk_speeds: None,
         }
     }
 }
@@ -544,6 +549,54 @@ fn open_uncached(path: &Path, write: bool) -> std::io::Result<(std::fs::File, bo
     }
     #[allow(unreachable_code)]
     Ok((f, false))
+}
+
+/// Soort schijf uit Windows' BusType/MediaType (tekst of getal), voor de vergelijking met
+/// typische snelheden.
+pub fn classify_drive(bus: &str, media: &str) -> &'static str {
+    let bus = bus.trim();
+    if bus.eq_ignore_ascii_case("NVMe") || bus == "17" {
+        "nvme"
+    } else if bus.eq_ignore_ascii_case("USB") || bus == "7" {
+        "usb"
+    } else if media.eq_ignore_ascii_case("SSD") || media == "4" {
+        "ssd"
+    } else if media.eq_ignore_ascii_case("HDD") || media == "3" {
+        "hdd"
+    } else {
+        "unknown"
+    }
+}
+
+/// Zoekt uit op welke fysieke schijf `dir` staat: (soort, model).
+fn detect_drive(dir: &Path) -> (&'static str, Option<String>) {
+    #[cfg(windows)]
+    {
+        use std::path::Component;
+        let letter = dir.components().find_map(|c| match c {
+            Component::Prefix(p) => p
+                .as_os_str()
+                .to_str()
+                .and_then(|s| s.chars().next())
+                .filter(|ch| ch.is_ascii_alphabetic()),
+            _ => None,
+        });
+        if let Some(letter) = letter {
+            let script = format!(
+                "$d = Get-Partition -DriveLetter '{letter}' | Get-Disk; $p = Get-PhysicalDisk | Where-Object DeviceId -eq ([string]$d.Number) | Select-Object -First 1; [pscustomobject]@{{ Bus=[string]$d.BusType; Media=[string]$p.MediaType; Model=[string]$d.FriendlyName }} | ConvertTo-Json -Compress"
+            );
+            if let Some(v) = crate::shell::run_ps_json(&script) {
+                let bus = crate::shell::str_field(&v, "Bus").unwrap_or_default();
+                let media = crate::shell::str_field(&v, "Media").unwrap_or_default();
+                return (
+                    classify_drive(&bus, &media),
+                    crate::shell::str_field(&v, "Model"),
+                );
+            }
+        }
+    }
+    let _ = dir;
+    ("unknown", None)
 }
 
 pub fn run_disk_benchmark(
@@ -651,7 +704,17 @@ pub fn run_disk_benchmark(
         }
     };
     let read_speed = (total_bytes as f64 / (1024.0 * 1024.0)) / read_time.as_secs_f64().max(0.001);
-    let avg = (write_speed + read_speed) / 2.0;
+    let (drive_kind, drive_model) = detect_drive(&dir);
+    let speeds = DiskSpeeds {
+        read_mbps: read_speed,
+        write_mbps: write_speed,
+        drive_kind: drive_kind.to_string(),
+        drive_model,
+        cache_bypassed: write_bypassed && read_bypassed,
+    };
+    // Hoofdgetal = leessnelheid; schrijven staat apart in `disk_speeds`. Geen gemiddelde: lezen
+    // en schrijven zijn verschillende dingen.
+    let unit = crate::tr!("MB/s lezen", "MB/s read").to_string();
 
     let cache_note = if write_bypassed && read_bypassed {
         crate::tr!(
@@ -677,8 +740,8 @@ pub fn run_disk_benchmark(
                 .to_string(),
             duration_ms: start.elapsed().as_millis(),
             operations_or_bytes: total_bytes,
-            score_or_speed: avg,
-            unit: "MB/s".to_string(),
+            score_or_speed: read_speed,
+            unit: unit.clone(),
             details: crate::tr!(
                 format!(
                     "WAARSCHUWING: {} van {} blokken (1 MB) kwamen niet overeen met de geschreven data (o.a. {}). Mogelijke schijf-, kabel- of bestandssysteemcorruptie.",
@@ -700,6 +763,7 @@ pub fn run_disk_benchmark(
                 )
                 .to_string(),
             ),
+            disk_speeds: Some(speeds.clone()),
         };
     }
 
@@ -711,8 +775,8 @@ pub fn run_disk_benchmark(
         ),
         duration_ms: start.elapsed().as_millis(),
         operations_or_bytes: total_bytes,
-        score_or_speed: avg,
-        unit: "MB/s avg".to_string(),
+        score_or_speed: read_speed,
+        unit,
         details: crate::tr!(
             format!(
                 "Schrijfsnelheid: {:.2} MB/s | Leessnelheid: {:.2} MB/s. Alle {} blokken met uniek patroon geverifieerd (0 bitfouten). {}",
@@ -724,12 +788,32 @@ pub fn run_disk_benchmark(
             )
         ),
         error: None,
+        disk_speeds: Some(speeds),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Echte meting op deze pc: `cargo test live_disk_benchmark -- --ignored --nocapture`
+    #[test]
+    #[ignore = "schrijft een testbestand naar de echte schijf"]
+    fn live_disk_benchmark() {
+        let r = run_disk_benchmark(None, Some(256));
+        println!("{} | {:?}", r.details, r.disk_speeds);
+        assert!(r.success);
+    }
+
+    #[test]
+    fn classify_drive_kinds() {
+        assert_eq!(classify_drive("NVMe", "SSD"), "nvme");
+        assert_eq!(classify_drive("17", "4"), "nvme");
+        assert_eq!(classify_drive("SATA", "SSD"), "ssd");
+        assert_eq!(classify_drive("SATA", "HDD"), "hdd");
+        assert_eq!(classify_drive("USB", "SSD"), "usb");
+        assert_eq!(classify_drive("RAID", "Unspecified"), "unknown");
+    }
 
     #[test]
     fn cpu_block_is_deterministic() {

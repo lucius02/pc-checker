@@ -37,6 +37,8 @@ export type { RamInfo } from "./generated/RamInfo";
 export type { StorageHealthEntry } from "./generated/StorageHealthEntry";
 export type { StorageHealthReport } from "./generated/StorageHealthReport";
 export type { StressTestResult } from "./generated/StressTestResult";
+export type { DiskSpeeds } from "./generated/DiskSpeeds";
+export type { DriverSupport } from "./generated/DriverSupport";
 export type { SystemOverview } from "./generated/SystemOverview";
 export type { TemperatureSensorInfo } from "./generated/TemperatureSensorInfo";
 

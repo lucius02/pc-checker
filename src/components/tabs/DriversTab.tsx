@@ -27,6 +27,7 @@ import { intlLocale, useT, type MessageKey } from "../../i18n";
 import { RichText } from "../../i18n/RichText";
 import { useStatusLabel } from "../../i18n/status";
 import { AdviceCard, type AdviceTone } from "../AdviceCard";
+import { DriverSupportNote, SupportBadge } from "./drivers/DriverSupportNote";
 
 const DRIVER_TONE: Record<string, AdviceTone> = { Probleem: "critical", "Niet ondertekend": "high", Verouderd: "medium" };
 
@@ -38,7 +39,7 @@ interface DriversTabProps {
   scanDrivers: () => void;
 }
 
-type FilterMode = "all" | "issues";
+type FilterMode = "all" | "issues" | "support";
 
 const CLASS_INFO: Record<string, { label: MessageKey; icon: React.ElementType }> = {
   DISPLAY: { label: "drivers.class.DISPLAY", icon: Monitor },
@@ -126,9 +127,9 @@ export const DriversTab: React.FC<DriversTabProps> = ({
 
   const visibleEntries = useMemo(() => {
     if (!driverReport) return [];
-    return filter === "issues"
-      ? driverReport.entries.filter((e) => e.status !== "OK")
-      : driverReport.entries;
+    if (filter === "issues") return driverReport.entries.filter((e) => e.status !== "OK");
+    if (filter === "support") return driverReport.entries.filter((e) => e.support);
+    return driverReport.entries;
   }, [driverReport, filter]);
 
   const counters = driverReport
@@ -316,6 +317,9 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                   [
                     { id: "all", label: t("drivers.filterAll", { n: driverReport.entries.length }) },
                     { id: "issues", label: t("drivers.filterIssues", { n: issueCount }) },
+                    ...(driverReport.unsupported_count > 0
+                      ? [{ id: "support", label: t("drivers.filterSupport", { n: driverReport.unsupported_count }) }]
+                      : []),
                   ] as { id: FilterMode; label: string }[]
                 ).map((chip) => (
                   <button
@@ -366,16 +370,19 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                             </span>
                           </div>
                         </div>
-                        <span
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 self-start shrink-0",
-                            st.badge
-                          )}
-                        >
-                          <StatusIcon className="w-3.5 h-3.5" />
-                          {status(entry.status)}
-                          {entry.problem_code !== null && t("drivers.code", { c: entry.problem_code })}
-                        </span>
+                        <div className="flex flex-wrap gap-1.5 self-start shrink-0">
+                          {entry.support && <SupportBadge support={entry.support} />}
+                          <span
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5",
+                              st.badge
+                            )}
+                          >
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {status(entry.status)}
+                            {entry.problem_code !== null && t("drivers.code", { c: entry.problem_code })}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
@@ -418,6 +425,8 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                           }
                         />
                       ) : null}
+
+                      {entry.support && <DriverSupportNote support={entry.support} />}
                     </div>
                   );
                 })}

@@ -4,9 +4,18 @@ use crate::models::{FreezeDiagnosticReport, FreezeEventEntry};
 use crate::shell::{json_items, run_ps_json};
 use crate::watchdog::{ensure_watchdog_started, get_watchdog_alerts};
 
-/// Systeem- en toepassingslogboek van de afgelopen 180 dagen, alleen bronnen die met freezes en
-/// crashes te maken hebben. Ruisende bronnen worden al in PowerShell op event-ID gefilterd.
-const PS_EVENT_SCRIPT: &str = r#"$since = (Get-Date).AddDays(-180)
+/// Standaard: alleen de afgelopen week. Oudere problemen zijn vaak al opgelost en zorgen anders
+/// voor een vals alarm; de gebruiker kan in de app verder terugkijken.
+pub const DEFAULT_LOOKBACK_DAYS: u32 = 7;
+/// Grenzen voor de door de gebruiker gekozen periode.
+pub const MAX_LOOKBACK_DAYS: u32 = 365;
+/// Binnen een langere periode tellen problemen van de laatste week als "recent"; oudere wegen
+/// minder zwaar mee in het risico.
+const RECENT_DAYS: u32 = 7;
+
+/// Systeem- en toepassingslogboek van de afgelopen `{DAYS}` dagen, alleen bronnen die met freezes
+/// en crashes te maken hebben. Ruisende bronnen worden al in PowerShell op event-ID gefilterd.
+const PS_EVENT_SCRIPT: &str = r#"$since = (Get-Date).AddDays(-{DAYS})
 # A: bronnen waarvan elke fout/waarschuwing relevant is.
 $errProviders = @('storahci','stornvme','nvme','iaStorA','iaStorAC','iaStorAVC','disk','Ntfs','Display','nvlddmkm','amdkmdag','amdwddmg','Microsoft-Windows-WHEA-Logger')
 $a = @(Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName=$errProviders; Level=1,2,3; StartTime=$since} -MaxEvents 1000)
@@ -160,7 +169,9 @@ pub fn classify_linux_kernel_line(line: &str) -> Option<FreezeEventEntry> {
 }
 
 /// Voert de Freeze Detective diagnose uit om eventuele freezes of driver crashes op te sporen.
-pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
+/// `days`: hoe ver terug in het logboek (1 tot en met [`MAX_LOOKBACK_DAYS`]).
+pub fn scan_freeze_diagnostic(days: u32) -> FreezeDiagnosticReport {
+    let days = days.clamp(1, MAX_LOOKBACK_DAYS);
     ensure_watchdog_started();
 
     let watchdog_freezes = get_watchdog_alerts();
@@ -180,7 +191,7 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
 
     // 2. Windows: systeem- en toepassingslogboek via PowerShell (verborgen venster, time-out).
     if cfg!(windows)
-        && let Some(parsed) = run_ps_json(PS_EVENT_SCRIPT)
+        && let Some(parsed) = run_ps_json(&PS_EVENT_SCRIPT.replace("{DAYS}", &days.to_string()))
     {
         let raw: Vec<RawEvent> = json_items(&parsed)
             .iter()
@@ -192,9 +203,10 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
                 message: it["Message"].as_str().unwrap_or("").trim().to_string(),
             })
             .collect();
-        let recent_since = (chrono::Local::now() - chrono::Duration::days(30))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
+        let recent_since = (chrono::Local::now()
+            - chrono::Duration::days(i64::from(days.min(RECENT_DAYS))))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string();
         culprits = group_events(raw, &recent_since);
     }
 
@@ -251,20 +263,29 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
 
     let total: u32 = culprits.iter().map(|c| c.count).sum();
     let diagnosis_summary = if !culprits.is_empty() {
-        crate::tr!(
+        let found = crate::tr!(
             format!(
-                "Gevonden in de afgelopen 180 dagen: {} soort(en) probleem ({} gebeurtenis(sen) in totaal) die met freezes of crashes te maken hebben; {} daarvan in de laatste 30 dagen.",
+                "Gevonden in de afgelopen {}: {} soort(en) probleem ({} gebeurtenis(sen) in totaal) die met freezes of crashes te maken hebben.",
+                period_label(days),
                 culprits.len(),
-                total,
-                culprits.iter().filter(|c| c.is_recent).count()
+                total
             ),
             format!(
-                "Found in the last 180 days: {} kind(s) of problem ({} event(s) in total) related to freezes or crashes; {} of them in the last 30 days.",
+                "Found in the last {}: {} kind(s) of problem ({} event(s) in total) related to freezes or crashes.",
+                period_label(days),
                 culprits.len(),
-                total,
-                culprits.iter().filter(|c| c.is_recent).count()
+                total
             )
-        )
+        );
+        if days > RECENT_DAYS {
+            let recent = culprits.iter().filter(|c| c.is_recent).count();
+            crate::tr!(
+                format!("{found} Daarvan {recent} in de laatste {RECENT_DAYS} dagen."),
+                format!("{found} {recent} of them in the last {RECENT_DAYS} days.")
+            )
+        } else {
+            found
+        }
     } else if !watchdog_freezes.is_empty() {
         crate::tr!(
             format!(
@@ -277,8 +298,16 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
             )
         )
     } else {
-        crate::tr!("Geen directe freeze-events aangetroffen in recente logs. Watchdog blijft live monitoren.", "No direct freeze events found in recent logs. The Watchdog keeps monitoring live.")
-            .to_string()
+        crate::tr!(
+            format!(
+                "Geen freeze-events in het logboek van de afgelopen {}. De Watchdog blijft live meten.",
+                period_label(days)
+            ),
+            format!(
+                "No freeze events in the event log of the last {}. The Watchdog keeps monitoring live.",
+                period_label(days)
+            )
+        )
     };
 
     FreezeDiagnosticReport {
@@ -288,6 +317,15 @@ pub fn scan_freeze_diagnostic() -> FreezeDiagnosticReport {
         system_freeze_risk: risk,
         diagnosis_summary,
         recommended_actions: actions,
+        lookback_days: days,
+    }
+}
+
+/// "24 uur" / "7 dagen" / "1 dag" voor in een zin ("in de afgelopen …").
+fn period_label(days: u32) -> String {
+    match days {
+        1 => crate::tr!("24 uur", "24 hours").to_string(),
+        d => crate::tr!(format!("{d} dagen"), format!("{d} days")),
     }
 }
 
@@ -384,7 +422,7 @@ mod tests {
     #[test]
     #[ignore = "leest de echte Windows-logboeken"]
     fn live_freeze_scan() {
-        let r = scan_freeze_diagnostic();
+        let r = scan_freeze_diagnostic(DEFAULT_LOOKBACK_DAYS);
         if let Ok(path) = std::env::var("PCC_FREEZE_JSON") {
             std::fs::write(path, serde_json::to_string(&r).unwrap()).unwrap();
         }

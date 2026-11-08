@@ -19,9 +19,23 @@ pub const VERDICT_CRIT: &str = "Kritiek";
 /// Slijtage vanaf dit percentage = waarschuwing / kritiek.
 const WEAR_WARN: u32 = 70;
 const WEAR_CRIT: u32 = 90;
-/// Temperatuur (°C) vanaf waar een schijf als te heet geldt.
-const TEMP_WARN: u32 = 60;
-const TEMP_CRIT: u32 = 70;
+/// Temperatuurgrenzen (°C) per schijfsoort: (let op, te heet).
+/// - HDD: draaiende schijven slijten merkbaar sneller boven ~55 °C.
+/// - SATA-SSD: gespecificeerd tot 70 °C.
+/// - NVMe-SSD: worden onder belasting normaal 50-70 °C en remmen zichzelf pas rond 80+ °C af.
+///
+/// Onbekend type: voorzichtige middenwaarde.
+pub fn temp_limits(media_type: &str, bus_type: &str) -> (u32, u32) {
+    if bus_type.eq_ignore_ascii_case("NVMe") {
+        (75, 85)
+    } else if media_type == "SSD" {
+        (70, 80)
+    } else if media_type == "HDD" {
+        (55, 60)
+    } else {
+        (65, 75)
+    }
+}
 
 fn u64_field(v: &Value, key: &str) -> Option<u64> {
     v.get(key).and_then(|x| x.as_u64())
@@ -135,34 +149,54 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
     }
 
     if let Some(t) = entry.temperature_celsius {
-        if t >= TEMP_CRIT {
+        let (warn, crit) = temp_limits(&entry.media_type, &entry.bus_type);
+        let hdd = entry.media_type == "HDD";
+        if t >= crit {
             flag(
                 2,
-                crate::tr!(
-                    format!(
-                        "Schijftemperatuur {} °C is te hoog (thermal throttling / slijtage).",
-                        t
-                    ),
-                    format!(
-                        "Disk temperature {} °C is too high (thermal throttling / wear).",
-                        t
+                if hdd {
+                    crate::tr!(
+                        format!(
+                            "Schijftemperatuur {t} °C is te hoog voor een harde schijf (grens {crit} °C): hij slijt zo snel. Zorg dat er lucht langs de schijf kan en dat de kastventilatoren en stoffilters schoon zijn."
+                        ),
+                        format!(
+                            "Disk temperature {t} °C is too high for a hard drive (limit {crit} °C): it wears quickly at this level. Make sure air can reach the drive and that the case fans and dust filters are clean."
+                        )
                     )
-                ),
+                } else {
+                    crate::tr!(
+                        format!(
+                            "Schijftemperatuur {t} °C is te hoog (grens {crit} °C): de SSD remt zichzelf af. Controleer of de ventilatoren draaien en de luchtroosters niet vol stof zitten; bij een desktop helpt een koelplaatje (heatsink) op de SSD. Je ventilatorinstellingen hoef je hiervoor niet aan te passen."
+                        ),
+                        format!(
+                            "Disk temperature {t} °C is too high (limit {crit} °C): the SSD slows itself down. Check that the fans spin and the vents are not clogged with dust; in a desktop a heatsink on the SSD helps. You don't need to change your fan settings for this."
+                        )
+                    )
+                },
                 &mut findings,
             );
-        } else if t >= TEMP_WARN {
+        } else if t >= warn {
             flag(
                 1,
-                crate::tr!(
-                    format!(
-                        "Schijftemperatuur {} °C is aan de hoge kant; controleer de airflow.",
-                        t
-                    ),
-                    format!(
-                        "Disk temperature {} °C is on the high side; check the airflow.",
-                        t
+                if hdd {
+                    crate::tr!(
+                        format!(
+                            "Schijftemperatuur {t} °C is warm voor een harde schijf (ideaal onder {warn} °C). Geen probleem op korte termijn; houd de airflow in de kast vrij."
+                        ),
+                        format!(
+                            "Disk temperature {t} °C is warm for a hard drive (ideally below {warn} °C). Not a problem short term; keep the airflow in the case clear."
+                        )
                     )
-                ),
+                } else {
+                    crate::tr!(
+                        format!(
+                            "Schijftemperatuur {t} °C is warm, maar nog binnen de specificatie (pas vanaf {crit} °C remt de SSD af). Tijdens zware belasting is dit normaal; aan de ventilatoren hoef je niets te veranderen."
+                        ),
+                        format!(
+                            "Disk temperature {t} °C is warm, but still within spec (the SSD only slows down from {crit} °C). This is normal under heavy load; no need to change anything about the fans."
+                        )
+                    )
+                },
                 &mut findings,
             );
         }
@@ -325,13 +359,25 @@ mod tests {
             VERDICT_CRIT
         );
         assert_eq!(
-            evaluate_disk(&json!({"Temperature": 64})).verdict,
+            evaluate_disk(&json!({"Temperature": 66})).verdict,
             VERDICT_WARN
         );
         assert_eq!(
-            evaluate_disk(&json!({"Temperature": 72})).verdict,
+            evaluate_disk(&json!({"Temperature": 76})).verdict,
             VERDICT_CRIT
         );
+        // NVMe op 60-65 °C is normaal (feedback: "klaagt bij 60 °C").
+        let nvme = |t: u32| {
+            evaluate_disk(&json!({"MediaType": "SSD", "BusType": "NVMe", "Temperature": t})).verdict
+        };
+        assert_eq!(nvme(60), VERDICT_GOOD);
+        assert_eq!(nvme(65), VERDICT_GOOD);
+        assert_eq!(nvme(78), VERDICT_WARN);
+        assert_eq!(nvme(86), VERDICT_CRIT);
+        let hdd = |t: u32| evaluate_disk(&json!({"MediaType": "HDD", "Temperature": t})).verdict;
+        assert_eq!(hdd(50), VERDICT_GOOD);
+        assert_eq!(hdd(57), VERDICT_WARN);
+        assert_eq!(hdd(61), VERDICT_CRIT);
     }
 
     #[test]

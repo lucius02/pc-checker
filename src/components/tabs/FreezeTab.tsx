@@ -8,6 +8,8 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { FreezeDiagnosticReport } from "../../types";
+import { useDiagnosticsStore } from "../../store/diagnosticsStore";
+import { FREEZE_LOOKBACK_OPTIONS } from "../../lib/freezeLookback";
 import { cn } from "../../utils/cn";
 import { AdviceCard, type AdviceTone } from "../AdviceCard";
 import { api, errorMessage } from "../../lib/api";
@@ -19,7 +21,7 @@ const SEVERITY_BADGE: Record<string, string> = {
   Hoog: "bg-orange-950 border-orange-800 text-orange-300",
   Middel: "bg-amber-950 border-amber-800 text-amber-300",
 };
-import { useT } from "../../i18n";
+import { useT, type MessageKey } from "../../i18n";
 import { RichText } from "../../i18n/RichText";
 import { useStatusLabel } from "../../i18n/status";
 
@@ -36,6 +38,9 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
 }) => {
   const t = useT();
   const status = useStatusLabel();
+  const lookbackDays = useDiagnosticsStore((s) => s.freezeLookbackDays);
+  const setLookbackDays = useDiagnosticsStore((s) => s.setFreezeLookbackDays);
+  const periodLabel = (d: number) => t(`freeze.period.${d}` as MessageKey);
   const openEventViewer = () => {
     api.openEventViewer().catch((err) => toast.error(t("freeze.openEventViewerFailed"), errorMessage(err)));
   };
@@ -59,7 +64,22 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-end gap-3">
+            <label className="text-xs text-slate-400 flex flex-col gap-1">
+              {t("freeze.periodLabel")}
+              <select
+                value={lookbackDays}
+                disabled={isScanningFreeze}
+                onChange={(e) => setLookbackDays(Number(e.target.value))}
+                className="bg-slate-950 border border-slate-700 rounded-lg px-2 py-2 text-slate-200 cursor-pointer disabled:opacity-50"
+              >
+                {FREEZE_LOOKBACK_OPTIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {periodLabel(d)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               type="button"
               onClick={scanFreezeDiagnostic}
@@ -166,7 +186,7 @@ export const FreezeTab: React.FC<FreezeTabProps> = ({
                     {culprit.count > 1 && (
                       <span
                         className="px-1.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-slate-200 font-mono"
-                        title={t("freeze.countTitle", { n: culprit.count })}
+                        title={t("freeze.countTitle", { n: culprit.count, d: periodLabel(freezeData?.lookback_days ?? lookbackDays).toLowerCase() })}
                       >
                         {t("freeze.count", { n: culprit.count })}
                       </span>

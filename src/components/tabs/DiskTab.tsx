@@ -14,6 +14,7 @@ import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
 import { useT } from "../../i18n";
 import { RichText } from "../../i18n/RichText";
+import { DiskSpeedResult } from "./disk/DiskSpeedResult";
 
 interface DiskTabProps {
   data: SystemOverview;
@@ -227,10 +228,13 @@ export const DiskTab: React.FC<DiskTabProps> = ({
                 )}
                 <span>{diskResult.test_name} - {diskResult.success ? t("common.passed") : t("common.failed")}</span>
               </div>
-              <span className="font-mono font-bold text-lg">
-                {diskResult.score_or_speed.toFixed(1)} {diskResult.unit}
-              </span>
+              {!diskResult.disk_speeds && (
+                <span className="font-mono font-bold text-lg">
+                  {diskResult.score_or_speed.toFixed(1)} {diskResult.unit}
+                </span>
+              )}
             </div>
+            {diskResult.disk_speeds && <DiskSpeedResult speeds={diskResult.disk_speeds} />}
             <p className="text-xs opacity-90">{diskResult.details}</p>
           </div>
         )}

@@ -28,4 +28,8 @@ diagnosis_summary: string,
 /**
  * Stapsgewijs actieplan om hardware- of driver-freezes definitief op te lossen.
  */
-recommended_actions: Array<string>, };
+recommended_actions: Array<string>, 
+/**
+ * Hoeveel dagen terug in het logboek is gekeken (door de gebruiker gekozen).
+ */
+lookback_days: number, };

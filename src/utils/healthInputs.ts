@@ -89,5 +89,10 @@ export function buildHealthInputs(src: HealthInputSources): HealthInputs {
     disk_test_ok: diskResult ? diskResult.success : null,
     storage_smart_warning_count: storageReport?.is_available ? storageReport.warning_count : null,
     storage_smart_critical_count: storageReport?.is_available ? storageReport.critical_count : null,
+    storage_smart_findings: storageReport?.is_available
+      ? storageReport.disks
+          .filter((d) => d.verdict !== "Goed")
+          .flatMap((d) => d.findings.map((f) => `${d.model}: ${f}`))
+      : null,
   };
 }

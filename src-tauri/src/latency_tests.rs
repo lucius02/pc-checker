@@ -185,6 +185,7 @@ fn entry(name: &str, class: &str, status: &str) -> DriverEntry {
         problem_code: None,
         advice: String::new(),
         advice_detail: Default::default(),
+        support: None,
     }
 }
 
@@ -197,6 +198,7 @@ fn latency_suspected_drivers_ordering_and_fallback() {
         outdated_count: 1,
         problem_count: 0,
         unsigned_count: 0,
+        unsupported_count: 0,
         entries: vec![
             entry("Intel Wi-Fi 6", "Net", "OK"),
             entry("Generic USB Hub", "USB", "OK"),

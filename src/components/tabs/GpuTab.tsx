@@ -5,6 +5,7 @@ import { useT } from "../../i18n";
 import { useDiagnosticsStore } from "../../store/diagnosticsStore";
 import { toast } from "../../store/toastStore";
 import { cn } from "../../utils/cn";
+import { TimedProgress } from "../TimedProgress";
 
 const DURATIONS = [30, 60, 180, 600];
 
@@ -19,6 +20,7 @@ export const GpuTab: React.FC = () => {
   const [stats, setStats] = useState<GpuStressStats | null>(null);
   const [renderer, setRenderer] = useState("");
   const [final, setFinal] = useState<GpuStressStats | null>(null);
+  const [startedAt, setStartedAt] = useState(0);
   const setGpuResult = useDiagnosticsStore((s) => s.setGpuResult);
   const supported = GpuStress.isSupported();
 
@@ -63,6 +65,7 @@ export const GpuTab: React.FC = () => {
     }
     stressRef.current = s;
     setRenderer(s.renderer);
+    setStartedAt(Date.now());
     setRunning(true);
     s.startLoop();
     timerRef.current = window.setTimeout(finish, duration * 1000);
@@ -127,6 +130,8 @@ export const GpuTab: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {running && <TimedProgress startedAt={startedAt} durationMs={duration * 1000} barClass="bg-fuchsia-400" />}
 
           {renderer && (
             <p className="text-xs text-slate-500">

@@ -30,7 +30,7 @@ export const api = {
   getPowerAndBatteryInfo: () => invoke<PowerInfo>("get_power_and_battery_info"),
   runBatteryHealthCheck: () => invoke<BatteryHealthReport>("run_battery_health_check"),
   getCoolingAndFanInfo: () => invoke<CoolingOverview>("get_cooling_and_fan_info"),
-  scanFreezeDiagnostic: () => invoke<FreezeDiagnosticReport>("scan_freeze_diagnostic"),
+  scanFreezeDiagnostic: (days: number) => invoke<FreezeDiagnosticReport>("scan_freeze_diagnostic", { days }),
   runCpuStressTest: (durationSecs: number, threadCount: number | null = null) =>
     invoke<StressTestResult>("run_cpu_stress_test", { durationSecs, threadCount }),
   runRamStressTest: (sizeMb: number, passes = 1) =>

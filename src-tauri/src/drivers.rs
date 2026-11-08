@@ -137,6 +137,7 @@ fn unavailable_report(scanned_at: String, summary: &str) -> DriverReport {
         outdated_count: 0,
         problem_count: 0,
         unsigned_count: 0,
+        unsupported_count: 0,
         entries: Vec::new(),
         summary: summary.to_string(),
     }
@@ -268,14 +269,25 @@ fn build_report(
         .iter()
         .filter(|e| e.status == "Niet ondertekend")
         .count();
+    let unsupported_count = entries.iter().filter(|e| e.support.is_some()).count();
 
-    let summary = build_summary(
+    let mut summary = build_summary(
         total_drivers,
         problem_count,
         outdated_count,
         unsigned_count,
         &entries,
     );
+    if unsupported_count > 0 {
+        summary.push_str(&crate::tr!(
+            format!(
+                " {unsupported_count} driver(s) worden door de fabrikant niet meer (volledig) ondersteund. Dat is geen fout: je hoeft alleen iets te doen als je problemen merkt met dat apparaat."
+            ),
+            format!(
+                " {unsupported_count} driver(s) are no longer (fully) supported by the manufacturer. That is not an error: you only need to act if you notice problems with that device."
+            )
+        ));
+    }
 
     DriverReport {
         is_available: true,
@@ -284,6 +296,7 @@ fn build_report(
         outdated_count,
         problem_count,
         unsigned_count,
+        unsupported_count,
         entries,
         summary,
     }
@@ -627,6 +640,10 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
         )
     };
     let advice = flatten_advice(&detail);
+    let parsed_date = NaiveDate::parse_from_str(&d.date, "%Y-%m-%d")
+        .ok()
+        .filter(|x| !is_placeholder_date(x, &d.date));
+    let support = crate::driver_support::support_for(&d.name, &d.class, parsed_date, inbox);
 
     DriverEntry {
         device_name: if d.name.is_empty() {
@@ -644,6 +661,7 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
         problem_code,
         advice,
         advice_detail: detail,
+        support,
     }
 }
 

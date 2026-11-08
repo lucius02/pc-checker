@@ -495,7 +495,23 @@ pub fn eval_storage(i: &HealthInputs) -> Eval {
             ));
         }
     }
-    let detail = format!("{}.", parts.join(", "));
+    // De concrete reden(en) uit de schijfgezondheid-scan, zodat zichtbaar is wáárom opslag lager
+    // scoort (bijv. "Samsung 980: temperatuur 78 °C ...").
+    let reasons: Vec<&str> = i
+        .storage_smart_findings
+        .as_deref()
+        .unwrap_or_default()
+        .iter()
+        .map(|s| s.trim().trim_end_matches('.'))
+        .filter(|s| !s.is_empty())
+        .collect();
+    let mut detail = format!("{}.", parts.join(", "));
+    if !reasons.is_empty() {
+        detail.push_str(&crate::tr!(
+            format!(" Reden: {}.", reasons.join("; ")),
+            format!(" Reason: {}.", reasons.join("; "))
+        ));
+    }
 
     let issue = if smart_crit > 0 {
         Some(crate::tr!(
@@ -513,6 +529,17 @@ pub fn eval_storage(i: &HealthInputs) -> Eval {
             crate::tr!("De schijftest is mislukt (schrijf-/leesfout of verificatiefout); controleer de schijf met CrystalDiskInfo en maak een back-up.", "The disk test failed (write/read error or verification error); check the disk with CrystalDiskInfo and make a backup.")
                 .to_string(),
         )
+    } else if smart_warn > 0 && !reasons.is_empty() {
+        Some(crate::tr!(
+            format!(
+                "Schijfgezondheid: {}. Zie het tabblad Schijfgezondheid voor uitleg.",
+                reasons[0]
+            ),
+            format!(
+                "Disk health: {}. See the Disk health tab for details.",
+                reasons[0]
+            )
+        ))
     } else if smart_warn > 0 {
         Some(crate::tr!(
             format!(

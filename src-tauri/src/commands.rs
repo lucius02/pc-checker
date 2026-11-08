@@ -63,10 +63,11 @@ pub async fn get_cooling_and_fan_info() -> Result<CoolingOverview, String> {
 }
 
 #[tauri::command]
-pub async fn scan_freeze_diagnostic() -> Result<FreezeDiagnosticReport, String> {
+pub async fn scan_freeze_diagnostic(days: Option<u32>) -> Result<FreezeDiagnosticReport, String> {
+    let days = days.unwrap_or(freeze::DEFAULT_LOOKBACK_DAYS);
     blocking(
         crate::tr!("Freeze-diagnose", "Freeze diagnosis"),
-        freeze::scan_freeze_diagnostic,
+        move || freeze::scan_freeze_diagnostic(days),
     )
     .await
 }

@@ -8,4 +8,9 @@ storage_smart_warning_count: number | null,
 /**
  * Aantal schijven met een kritieke SMART-status (None = niet gescand).
  */
-storage_smart_critical_count: number | null, };
+storage_smart_critical_count: number | null, 
+/**
+ * Bevindingen van schijven die niet "Goed" zijn ("Model: reden"), zodat de score kan noemen
+ * wáárom opslag lager scoort.
+ */
+storage_smart_findings: Array<string> | null, };

@@ -98,6 +98,7 @@ describe("buildOverviewBlocks", () => {
           system_freeze_risk: risk,
           diagnosis_summary: "",
           recommended_actions: [],
+          lookback_days: 7,
         },
       }).freeze.status;
     expect(freeze("Laag")).toBe("good");

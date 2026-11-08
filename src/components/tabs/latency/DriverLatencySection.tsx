@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { TimedProgress } from "../../TimedProgress";
 import { Cpu, Play, ShieldAlert, AlertTriangle } from "lucide-react";
 import { useT } from "../../../i18n";
 import { useDiagnosticsStore } from "../../../store/diagnosticsStore";
@@ -31,6 +32,7 @@ export const DriverLatencySection: React.FC = () => {
   const [duration, setDuration] = useState(30);
   const report = useDiagnosticsStore((s) => s.driverLatency);
   const running = useDiagnosticsStore((s) => !!s.busy.driverLatency);
+  const runInfo = useDiagnosticsStore((s) => s.driverLatencyRun);
   const runTrace = useDiagnosticsStore((s) => s.runDriverLatencyTrace);
   const elevation = useDiagnosticsStore((s) => s.elevation);
   const restartAsAdmin = useDiagnosticsStore((s) => s.restartAsAdmin);
@@ -85,7 +87,12 @@ export const DriverLatencySection: React.FC = () => {
         </div>
       )}
 
-      {running && <p className="text-xs text-slate-400 animate-pulse">{t("driverLatency.runningHint", { s: duration })}</p>}
+      {running && (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-400">{t("driverLatency.runningHint", { s: runInfo ? runInfo.durationMs / 1000 : duration })}</p>
+          {runInfo && <TimedProgress startedAt={runInfo.startedAt} durationMs={runInfo.durationMs} barClass="bg-orange-400" />}
+        </div>
+      )}
 
       {report && (
         <div className="space-y-3">

@@ -3,6 +3,7 @@ import { api, errorMessage } from "../lib/api";
 import { t, type MessageKey } from "../i18n";
 import { toast } from "./toastStore";
 import { planHealthTests, type HealthTestId, type HealthTestStep } from "../lib/healthTests";
+import { LOOKBACK_KEY, readLookbackDays } from "../lib/freezeLookback";
 import type {
   BatteryHealthReport,
   CoolingOverview,
@@ -52,6 +53,8 @@ export interface DiagnosticsState {
   driverReport: DriverReport | null;
   latencyResult: LatencyTestResult | null;
   driverLatency: DriverLatencyReport | null;
+  /** Loopt er een per-driver-meting: wanneer gestart en hoe lang (voor de voortgangsbalk). */
+  driverLatencyRun: { startedAt: number; durationMs: number } | null;
   storageReport: StorageHealthReport | null;
   history: HistoryData | null;
   elevation: ElevationStatus | null;
@@ -68,6 +71,8 @@ export interface DiagnosticsState {
   cpuDuration: number;
   ramSizeMb: number;
   diskSizeMb: number;
+  /** Hoeveel dagen de Freeze Detective terugkijkt in het logboek. */
+  freezeLookbackDays: number;
 
   busy: Partial<Record<BusyKey, boolean>>;
 
@@ -79,6 +84,8 @@ export interface DiagnosticsState {
   setCpuDuration: (v: number) => void;
   setRamSizeMb: (v: number) => void;
   setDiskSizeMb: (v: number) => void;
+  /** Kiest een andere periode en scant het logboek opnieuw. */
+  setFreezeLookbackDays: (days: number) => void;
   setPeripheral: <K extends keyof PeripheralTestResults>(key: K, value: PeripheralTestResults[K]) => void;
   setGpuResult: (v: string | null) => void;
   setBurninResult: (v: BurnInResult | null) => void;
@@ -151,6 +158,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     driverReport: null,
     latencyResult: null,
     driverLatency: null,
+    driverLatencyRun: null,
     storageReport: null,
     history: null,
     elevation: null,
@@ -166,6 +174,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     cpuDuration: 5,
     ramSizeMb: 512,
     diskSizeMb: 256,
+    freezeLookbackDays: readLookbackDays(),
 
     busy: {},
     healthRun: null,
@@ -175,6 +184,15 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     setCpuDuration: (cpuDuration) => set({ cpuDuration }),
     setRamSizeMb: (ramSizeMb) => set({ ramSizeMb }),
     setDiskSizeMb: (diskSizeMb) => set({ diskSizeMb }),
+    setFreezeLookbackDays: (freezeLookbackDays) => {
+      try {
+        localStorage.setItem(LOOKBACK_KEY, String(freezeLookbackDays));
+      } catch {
+        /* niet erg: dan geldt bij de volgende start weer de standaard */
+      }
+      set({ freezeLookbackDays });
+      void get().scanFreezeDiagnostic();
+    },
     setPeripheral: (key, value) =>
       set((s) =>
         // Zelfde resultaat opnieuw gemeld? Geen update (voorkomt onnodige renders/lussen).
@@ -210,7 +228,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     },
 
     scanFreezeDiagnostic: async () => {
-      const r = await run("freeze", "error.freeze", api.scanFreezeDiagnostic);
+      const r = await run("freeze", "error.freeze", () => api.scanFreezeDiagnostic(get().freezeLookbackDays));
       if (r) set({ freezeData: r });
     },
     runBatteryTest: async () => {
@@ -231,9 +249,13 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
       if (r) set({ latencyResult: r });
     },
     runDriverLatencyTrace: async (durationSecs) => {
-      set({ driverLatency: null });
-      const r = await run("driverLatency", "error.driverLatency", () => api.runDriverLatencyTrace(durationSecs));
-      if (r) set({ driverLatency: r });
+      set({ driverLatency: null, driverLatencyRun: { startedAt: Date.now(), durationMs: durationSecs * 1000 } });
+      try {
+        const r = await run("driverLatency", "error.driverLatency", () => api.runDriverLatencyTrace(durationSecs));
+        if (r) set({ driverLatency: r });
+      } finally {
+        set({ driverLatencyRun: null });
+      }
     },
     scanStorageHealth: async () => {
       const r = await run("storage", "error.storage", api.scanStorageHealth);

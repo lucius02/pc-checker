@@ -1,4 +1,5 @@
 import type { MessageKey } from "../i18n";
+import { compareDisk } from "./diskReference";
 import type { DiagnosticsState } from "../store/diagnosticsStore";
 import { burnInPassed, type TabType } from "../types";
 
@@ -172,9 +173,16 @@ function blockFor(id: TabType, s: OverviewSlice): Result {
         : {};
       const r = s.diskResult;
       if (!r) return untested("blk.disk.hint", usage);
-      return r.success
-        ? { ...usage, status: "good", detail: { key: "blk.score", vars: { v: `${r.score_or_speed.toFixed(0)} ${r.unit}` } } }
-        : { ...usage, status: "bad", detail: { key: "blk.disk.failed" } };
+      if (!r.success) return { ...usage, status: "bad", detail: { key: "blk.disk.failed" } };
+      const sp = r.disk_speeds;
+      if (!sp) return { ...usage, status: "good", detail: { key: "blk.score", vars: { v: `${r.score_or_speed.toFixed(0)} ${r.unit}` } } };
+      const cmp = compareDisk(sp);
+      const slow = [cmp.read, cmp.write].some((x) => x === "bad");
+      return {
+        ...usage,
+        status: slow ? "warn" : "good",
+        detail: { key: "blk.disk.speeds", vars: { r: Math.round(sp.read_mbps), w: Math.round(sp.write_mbps) } },
+      };
     }
     case "gpu": {
       const r = s.gpuResult;

@@ -23,6 +23,7 @@ fn all_good() -> HealthInputs {
         disk_test_ok: Some(true),
         storage_smart_warning_count: Some(0),
         storage_smart_critical_count: Some(0),
+        storage_smart_findings: Some(Vec::new()),
     }
 }
 
@@ -215,6 +216,7 @@ fn health_score_and_grade_always_in_range() {
             disk_test_ok: Some(false),
             storage_smart_warning_count: Some(usize::MAX),
             storage_smart_critical_count: Some(usize::MAX),
+            storage_smart_findings: Some(vec![String::new(); 3]),
         },
         HealthInputs {
             is_throttling_suspected: true,
@@ -279,6 +281,28 @@ fn smart_warning_lowers_storage_to_warn() {
         ..all_good()
     });
     assert_eq!(cat(&h, "storage").unwrap().status, STATUS_WARN);
+}
+
+#[test]
+fn smart_warning_names_the_reason() {
+    let h = compute_health_score(HealthInputs {
+        storage_smart_warning_count: Some(1),
+        storage_smart_findings: Some(vec!["Samsung 980: Schijftemperatuur 78 °C is warm.".into()]),
+        ..all_good()
+    });
+    let storage = cat(&h, "storage").unwrap();
+    assert!(
+        storage
+            .detail
+            .contains("Samsung 980: Schijftemperatuur 78 °C"),
+        "{}",
+        storage.detail
+    );
+    assert!(
+        h.top_issues.iter().any(|t| t.contains("Samsung 980")),
+        "{:?}",
+        h.top_issues
+    );
 }
 
 #[test]

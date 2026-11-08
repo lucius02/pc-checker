@@ -180,19 +180,27 @@ fn drivers_last_report_is_cached_shape() {
 fn drivers_live_scan() {
     let r = super::scan_drivers_blocking();
     println!(
-        "available={} total={} entries={} problems={} outdated={} unsigned={}\n{}",
+        "available={} total={} entries={} problems={} outdated={} unsigned={} unsupported={}\n{}",
         r.is_available,
         r.total_drivers,
         r.entries.len(),
         r.problem_count,
         r.outdated_count,
         r.unsigned_count,
+        r.unsupported_count,
         r.summary
     );
     for e in &r.entries {
         println!(
-            "[{}] {} | {} | {} | {} | {} | {:?}",
-            e.status, e.device_class, e.device_name, e.provider, e.version, e.date, e.age_years
+            "[{}] {} | {} | {} | {} | {} | {:?} | support: {:?}",
+            e.status,
+            e.device_class,
+            e.device_name,
+            e.provider,
+            e.version,
+            e.date,
+            e.age_years,
+            e.support.as_ref().map(|s| &s.level)
         );
     }
     assert!(super::last_report().is_some());

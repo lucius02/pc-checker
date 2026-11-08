@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod cooling;
 pub mod driver_latency;
+pub mod driver_support;
 pub mod drivers;
 pub mod elevation;
 pub mod freeze;
@@ -146,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_freeze_diagnostic_scanner() {
-        let diag = scan_freeze_diagnostic();
+        let diag = scan_freeze_diagnostic(7);
         assert!(!diag.system_freeze_risk.is_empty());
         assert!(!diag.recommended_actions.is_empty());
     }
