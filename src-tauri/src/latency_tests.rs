@@ -164,16 +164,6 @@ fn latency_parse_counters_empty_and_malformed() {
 }
 
 #[test]
-fn latency_base64_vectors() {
-    assert_eq!(base64_encode(b""), "");
-    assert_eq!(base64_encode(b"f"), "Zg==");
-    assert_eq!(base64_encode(b"fo"), "Zm8=");
-    assert_eq!(base64_encode(b"foo"), "Zm9v");
-    assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
-    assert_eq!(encode_ps_command("a"), "YQA=");
-}
-
-#[test]
 fn latency_script_contains_indices_and_samples() {
     let s = counter_script(7);
     assert!(s.contains("obj = 238"));

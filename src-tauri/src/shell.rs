@@ -2,9 +2,14 @@
 //!
 //! Alle aanroepen gaan via [`hidden_command`], zodat er op Windows nooit een
 //! knipperend consolevenster verschijnt (`CREATE_NO_WINDOW`). PowerShell-scripts gaan via
-//! `-EncodedCommand` (geen quoting-problemen), met UTF-8 uitvoer en een harde time-out.
+//! stdin (geen quoting-problemen), met UTF-8 in- en uitvoer en een harde time-out.
+//!
+//! Bewust géén `-EncodedCommand` en géén `-ExecutionPolicy Bypass`: dat is het klassieke patroon
+//! van malware die zijn opdrachten verbergt, en virusscanners (o.a. Bitdefender) sluiten de app
+//! dan af. De uitvoeringsbeleid-instelling geldt alleen voor scriptbestanden, niet voor tekst die
+//! we zelf aanleveren, dus Bypass was ook nooit nodig.
 
-use std::io::Read;
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -30,63 +35,32 @@ pub fn hidden_command(exe: &str) -> Command {
     cmd
 }
 
-/// Minimale base64-encoder (voor `-EncodedCommand`, geen extra dependency).
-pub fn base64_encode(data: &[u8]) -> String {
-    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
-    for chunk in data.chunks(3) {
-        let b = [
-            chunk[0],
-            *chunk.get(1).unwrap_or(&0),
-            *chunk.get(2).unwrap_or(&0),
-        ];
-        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
-        out.push(T[(n >> 18) as usize & 63] as char);
-        out.push(T[(n >> 12) as usize & 63] as char);
-        out.push(if chunk.len() > 1 {
-            T[(n >> 6) as usize & 63] as char
-        } else {
-            '='
-        });
-        out.push(if chunk.len() > 2 {
-            T[n as usize & 63] as char
-        } else {
-            '='
-        });
-    }
-    out
-}
-
-/// PowerShell `-EncodedCommand` verwacht base64 van UTF-16LE.
-pub fn encode_ps_command(script: &str) -> String {
-    let bytes: Vec<u8> = script
-        .encode_utf16()
-        .flat_map(|u| u.to_le_bytes())
-        .collect();
-    base64_encode(&bytes)
-}
+/// Leest het volledige script als UTF-8 van stdin en voert het als één geheel uit. (`-Command -`
+/// leest regel voor regel, zoals een interactieve console, en breekt dan op bijv. `if` / `else`
+/// op aparte regels.)
+const PS_STDIN_LOADER: &str = "[Console]::InputEncoding=[Text.Encoding]::UTF8; & ([scriptblock]::Create([Console]::In.ReadToEnd()))";
 
 /// Start PowerShell met het script en wacht maximaal `timeout`; daarna wordt het proces gekild.
 /// Probeert `powershell` en daarna `powershell.exe` (WSL-interop). `None` als geen van beide start.
 pub fn run_powershell(script: &str, timeout: Duration) -> Option<String> {
-    let encoded = encode_ps_command(script);
     for exe in ["powershell", "powershell.exe"] {
         let mut cmd = hidden_command(exe);
-        cmd.args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-EncodedCommand",
-            &encoded,
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
+        cmd.args(["-NoProfile", "-NonInteractive", "-Command", PS_STDIN_LOADER])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(_) => continue, // probeer de volgende naam
         };
+        // Script wegschrijven en stdin sluiten (= einde invoer). In een aparte thread, zodat een
+        // groot script niet vastloopt als PowerShell tegelijk uitvoer schrijft.
+        if let Some(mut stdin) = child.stdin.take() {
+            let bytes = script.as_bytes().to_vec();
+            std::thread::spawn(move || {
+                let _ = stdin.write_all(&bytes);
+            });
+        }
         let mut stdout = child.stdout.take()?;
         let reader = std::thread::spawn(move || {
             let mut buf = Vec::new();
@@ -165,6 +139,31 @@ pub fn str_field(value: &Value, key: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Het script gaat via stdin; meerregelige blokken, `if`/`else` op aparte regels, lege regels
+    /// en niet-ASCII-tekens moeten heel blijven.
+    #[cfg(windows)]
+    #[test]
+    fn run_ps_reads_whole_script_from_stdin() {
+        let script = "$x = 1
+
+if ($x -eq 2) {
+  'two'
+}
+else {
+  'not two'
+}
+$h = @{
+  a = 1
+
+  b = 2
+}
+\"$($h.b) héllo ✓\"
+";
+        let out = run_ps(script).expect("PowerShell should start");
+        let lines: Vec<&str> = out.lines().map(str::trim).collect();
+        assert_eq!(lines, ["not two", "2 héllo ✓"]);
+    }
 
     #[test]
     fn json_items_normalizes_shapes() {

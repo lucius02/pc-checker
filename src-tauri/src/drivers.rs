@@ -58,18 +58,30 @@ pub fn last_report() -> Option<DriverReport> {
 }
 
 /// Opent een Windows-beheerprogramma of instellingenpagina (no-op op andere platformen).
+/// Opent een Windows-beheeronderdeel (`*.msc` uit System32) of een `ms-settings:`-pagina, op
+/// dezelfde manier als dubbelklikken in Verkenner (ShellExecute).
+///
+/// Bewust niet via een verborgen `cmd /c start`: een onzichtbare cmd.exe die `eventvwr.msc` start
+/// is precies hoe een bekende UAC-omzeiling werkt, en virusscanners (o.a. Bitdefender) sluiten de
+/// app daarom af.
 fn open_windows_target(target: &str, what: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
-        crate::shell::hidden_command("cmd")
-            .args(["/c", "start", "", target])
-            .spawn()
-            .map_err(|e| {
-                crate::tr!(
-                    format!("Kon {} niet openen: {}", what, e),
-                    format!("Could not open {}: {}", what, e)
-                )
-            })?;
+        let result = if target.contains(':') {
+            tauri_plugin_opener::open_url(target, None::<&str>)
+        } else {
+            let root = std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into());
+            tauri_plugin_opener::open_path(
+                std::path::Path::new(&root).join("System32").join(target),
+                None::<&str>,
+            )
+        };
+        result.map_err(|e| {
+            crate::tr!(
+                format!("Kon {} niet openen: {}", what, e),
+                format!("Could not open {}: {}", what, e)
+            )
+        })?;
     }
     #[cfg(not(windows))]
     {

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-pub use crate::shell::{base64_encode, encode_ps_command, run_powershell};
+pub use crate::shell::run_powershell;
 
 /// Performance-counter-index (Perflib) → Engelse naam.
 pub const COUNTER_IDS: [(&str, u32, &str); 4] = [
