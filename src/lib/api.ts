@@ -16,6 +16,7 @@ import type {
   NetworkHealthReport,
   PowerInfo,
   ProcessSnapshot,
+  SpaceReport,
   StorageHealthReport,
   StressTestResult,
   SystemOverview,
@@ -53,6 +54,8 @@ export const api = {
   checkHardwarePowerDelivery: () =>
     invoke<HardwarePowerCheckReport>("check_hardware_power_delivery"),
   scanStorageHealth: () => invoke<StorageHealthReport>("scan_storage_health"),
+  analyzeDiskSpace: (path: string) => invoke<SpaceReport>("analyze_disk_space", { path }),
+  cancelDiskSpaceScan: () => invoke<void>("cancel_disk_space_scan"),
   getHistory: () => invoke<HistoryData>("get_history"),
   clearHistory: () => invoke<void>("clear_history"),
   getElevationStatus: () => invoke<ElevationStatus>("get_elevation_status"),

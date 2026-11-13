@@ -23,6 +23,7 @@ import { ProcessesTab } from "./components/tabs/ProcessesTab";
 import { DriversTab } from "./components/tabs/DriversTab";
 import { LatencyTab } from "./components/tabs/LatencyTab";
 import { StorageTab } from "./components/tabs/StorageTab";
+import { SpaceTab } from "./components/tabs/SpaceTab";
 import { HistoryTab } from "./components/tabs/HistoryTab";
 import { GpuTab } from "./components/tabs/GpuTab";
 import { BurnInTab } from "./components/tabs/BurnInTab";
@@ -210,6 +211,7 @@ export default function App() {
                 )}
 
                 {activeTab === "storage" && <StorageTab />}
+                {activeTab === "space" && <SpaceTab />}
                 {activeTab === "history" && <HistoryTab />}
 
                 {activeTab === "power" && (

@@ -94,28 +94,33 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 * Leest per fysieke schijf `HealthStatus`, slijtage (SSD wear), temperatuur, draaiuren en (niet-)corrigeerbare fouten via `Get-PhysicalDisk` + `Get-StorageReliabilityCounter`.
 * Het oordeel Goed / Let op / Kritiek telt mee in de gezondheidsscore. Sommige tellers zijn alleen met beheerdersrechten leesbaar.
 
-### 16. 🕓 Historie over sessies heen
+### 16. 📊 Ruimtegebruik
+* Analyseert een schijf of zelfgekozen map en toont welke mappen en bestanden de meeste ruimte innemen (een lichte WinDirStat): doorklikbare mappenlijst met balken, een schijfbalk met de grootste mappen en de 50 grootste bestanden, met *Toon in Verkenner*.
+* Parallelle scan (rayon) met live voortgang en een stopknop. Volgt geen symlinks/junctions en telt hardlinks en online-only OneDrive-bestanden niet dubbel of onterecht mee. Mappen zonder toegang worden gemeld (beheerdersmodus geeft een vollediger beeld).
+* Er wordt niets verwijderd of gewijzigd.
+
+### 17. 🕓 Historie over sessies heen
 * Freezes van de Watchdog en gezondheidsscores worden bewaard in `history.json` in de app-datamap.
 * Toont freezes per dag (14 dagen), totalen over 7/30 dagen, de langste freeze en het verloop van de score.
 
-### 17. 🎮 GPU Stresstest & 🔥 Burn-in
+### 18. 🎮 GPU Stresstest & 🔥 Burn-in
 * **GPU:** WebGL2 fragment-shader op volledige resolutie met instelbare intensiteit; meet FPS (gemiddeld/minimum) en detecteert driver-resets (WebGL context lost, vergelijkbaar met een TDR).
 * **Burn-in:** CPU + RAM + GPU tegelijk (5 tot 60 min) met temperatuurlogging en freeze-telling. Vindt instabiele voedingen en overclocks.
 
-### 18. 📄 Rapport exporteren
+### 19. 📄 Rapport exporteren
 * **HTML-rapport** (zelfstandig, afdrukbaar, licht/donker) met systeem, gezondheidsscore, alle testresultaten, freeze-oorzaken, SMART en drivers. Via *Afdrukken* ook als PDF op te slaan.
 * **JSON** met alle ruwe data.
 
-### 19. 🛡️ Beheerdersmodus
+### 20. 🛡️ Beheerdersmodus
 * De header toont of de app verhoogde rechten heeft en kan zichzelf via UAC herstarten als beheerder (Windows). Dat ontgrendelt SMART-temperatuur/slijtage en realtime-prioriteit voor de latency-test.
 * Met verhoogde rechten is ook de per-driver DPC/ISR-meting (ETW) in het DPC Latency-tabblad beschikbaar.
 
-### 20. 🌐 Taal
+### 21. 🌐 Taal
 * Volledig Nederlands en Engels: alle tabbladen, het rapport en de teksten die de Rust-backend teruggeeft (samenvattingen, adviezen).
 * De taal volgt standaard de systeemtaal en is in de header om te schakelen. Al uitgevoerde tests houden hun taal; nieuwe metingen komen in de gekozen taal.
 * Technisch: frontendteksten staan in `src/i18n/` (per tabblad een bestand in `tabs/`), backendteksten via de `tr!`-macro (`src-tauri/src/i18n.rs`). Statuscodes (`Goed`, `Let op`, `Kritiek`, …) blijven bewust Nederlands, omdat de frontend erop vergelijkt; ze worden alleen voor weergave vertaald (`src/i18n/status.ts`).
 
-### 21. ⚡ Prestatie- & Caching Engine (Anti-Lag Architecture)
+### 22. ⚡ Prestatie- & Caching Engine (Anti-Lag Architecture)
 * **Alle Tauri-commando's zijn `async`:** het werk draait via `spawn_blocking` op worker-threads, zodat stresstests en WMI-queries het venster niet bevriezen (en de eigen freeze/latency-metingen niet verstoren).
 * **Native WMI (`wmi`-crate)** voor de vaak gepolde gegevens (GPU, moederbord, thermal zones, fans) in plaats van een PowerShell-proces per poll.
 * **Geen knipperende consoles:** alle externe processen gaan via één helper (`shell.rs`) met `CREATE_NO_WINDOW` en een harde time-out.

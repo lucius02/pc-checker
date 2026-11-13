@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { api, errorMessage } from "../lib/api";
 import { t, type MessageKey } from "../i18n";
 import { toast } from "./toastStore";
@@ -17,6 +18,8 @@ import type {
   LatencyTestResult,
   PeripheralTestResults,
   PowerInfo,
+  SpaceReport,
+  SpaceScanProgress,
   StorageHealthReport,
   StressTestResult,
   SystemOverview,
@@ -32,6 +35,7 @@ export type BusyKey =
   | "latency"
   | "driverLatency"
   | "storage"
+  | "space"
   | "history"
   | "cpu"
   | "ram"
@@ -58,6 +62,10 @@ export interface DiagnosticsState {
   /** Loopt er een per-driver-meting: wanneer gestart en hoe lang (voor de voortgangsbalk). */
   driverLatencyRun: { startedAt: number; durationMs: number } | null;
   storageReport: StorageHealthReport | null;
+  /** Laatste ruimte-analyse (welke mappen/bestanden de meeste ruimte innemen). */
+  spaceReport: SpaceReport | null;
+  /** Tussenstand van een lopende ruimte-analyse. */
+  spaceProgress: SpaceScanProgress | null;
   history: HistoryData | null;
   elevation: ElevationStatus | null;
   cpuResult: StressTestResult | null;
@@ -101,6 +109,9 @@ export interface DiagnosticsState {
   runLatencyTest: () => Promise<void>;
   runDriverLatencyTrace: (durationSecs: number) => Promise<void>;
   scanStorageHealth: () => Promise<void>;
+  analyzeSpace: (path: string) => Promise<void>;
+  /** Vraagt de lopende ruimte-analyse te stoppen; het (onvolledige) rapport komt daarna binnen. */
+  cancelSpaceScan: () => void;
   loadHistory: () => Promise<void>;
   clearHistory: () => Promise<void>;
   loadElevation: () => Promise<void>;
@@ -126,6 +137,9 @@ function failedStress(name: string, unit: string, err: unknown): StressTestResul
     error: errorMessage(err),
   };
 }
+
+/** Zelfde naam als `space::PROGRESS_EVENT` in de backend. */
+const SPACE_PROGRESS_EVENT = "space-scan-progress";
 
 let overviewInFlight = false;
 
@@ -163,6 +177,8 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     driverLatency: null,
     driverLatencyRun: null,
     storageReport: null,
+    spaceReport: null,
+    spaceProgress: null,
     history: null,
     elevation: null,
     cpuResult: null,
@@ -271,6 +287,27 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     scanStorageHealth: async () => {
       const r = await run("storage", "error.storage", api.scanStorageHealth);
       if (r) set({ storageReport: r });
+    },
+    analyzeSpace: async (path) => {
+      set({ spaceProgress: null });
+      let unlisten: UnlistenFn | undefined;
+      try {
+        unlisten = await listen<SpaceScanProgress>(SPACE_PROGRESS_EVENT, (e) => set({ spaceProgress: e.payload }));
+      } catch {
+        /* zonder tussenstand werkt de analyse ook */
+      }
+      try {
+        const r = await run("space", "error.space", () => api.analyzeDiskSpace(path));
+        if (r) set({ spaceReport: r });
+      } finally {
+        unlisten?.();
+        set({ spaceProgress: null });
+      }
+    },
+    cancelSpaceScan: () => {
+      api.cancelDiskSpaceScan().catch(() => {
+        /* scan was al klaar */
+      });
     },
     loadHistory: async () => {
       const r = await run("history", "error.history", api.getHistory);

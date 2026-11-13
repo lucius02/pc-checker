@@ -31,4 +31,9 @@ is_removable: boolean,
 /**
  * Schijfcategorie (bijv. "SSD", "HDD" of "Onbekend").
  */
-disk_type: string, };
+disk_type: string, 
+/**
+ * Zelfde waarde = zelfde onderliggende opslag (btrfs-subvolumes, bind mounts). Gebruik dit
+ * om capaciteit niet dubbel op te tellen; zie `system::storage_id`.
+ */
+storage_id: string, };

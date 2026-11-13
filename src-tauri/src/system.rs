@@ -207,6 +207,33 @@ pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
     (kernel_uptime, default_str)
 }
 
+/// Bestandssystemen zonder eigen, beschrijfbare opslag: container-lagen, ingepakte apps
+/// (snap/AppImage), RAM-schijven en optische schijven of gekoppelde ISO's. Die staan altijd op
+/// "0% vrij" of 0 B en gaven anders een vals "schijf vol"/"Kritiek" in de gezondheidsscore.
+const NON_STORAGE_FS: &[&str] = &[
+    "overlay", "squashfs", "tmpfs", "devtmpfs", "ramfs", "iso9660", "udf", "cdfs",
+];
+
+/// Hoort dit volume in de schijvenlijst (capaciteit, "bijna vol"-waarschuwingen, score)?
+pub fn is_storage_volume(file_system: &str, total_bytes: u64) -> bool {
+    let fs = file_system.to_ascii_lowercase();
+    total_bytes > 0 && !NON_STORAGE_FS.contains(&fs.as_str()) && !fs.contains("appimage")
+}
+
+/// Sleutel voor de onderliggende opslag van een volume.
+///
+/// Op Linux delen btrfs-subvolumes (`/`, `/home`, `/var/log`) en bind mounts één apparaat
+/// (`/dev/mapper/root`) en melden ze allemaal dezelfde capaciteit; die krijgen één sleutel.
+/// Elders blijft elk koppelpunt apart: op Windows is `name` een volumelabel (twee schijven kunnen
+/// allebei "Data" heten) en op macOS heeft elk APFS-volume een eigen apparaatnaam.
+pub fn storage_id(name: &str, mount_point: &str) -> String {
+    if cfg!(target_os = "linux") && name.starts_with("/dev/") {
+        name.to_string()
+    } else {
+        mount_point.to_string()
+    }
+}
+
 pub fn get_system_overview() -> SystemOverview {
     ensure_watchdog_started();
 
@@ -300,11 +327,15 @@ pub fn get_system_overview() -> SystemOverview {
     let disks = match disks_obj {
         Ok(d_list) => d_list
             .iter()
+            .filter(|d| is_storage_volume(&d.file_system().to_string_lossy(), d.total_space()))
             .map(|d| {
                 let disk_kind = format!("{:?}", d.kind());
+                let name = d.name().to_string_lossy().to_string();
+                let mount_point = d.mount_point().to_string_lossy().to_string();
                 DiskInfo {
-                    name: d.name().to_string_lossy().to_string(),
-                    mount_point: d.mount_point().to_string_lossy().to_string(),
+                    storage_id: storage_id(&name, &mount_point),
+                    name,
+                    mount_point,
                     file_system: d.file_system().to_string_lossy().to_string(),
                     total_bytes: d.total_space(),
                     available_bytes: d.available_space(),
@@ -352,5 +383,40 @@ mod tests {
             "Intel Corporation TigerLake GT2 [Iris Xe Graphics]"
         );
         assert!(gpus[1].name.contains("RTX 3050"));
+    }
+
+    #[test]
+    fn subvolumes_share_storage_but_drive_letters_do_not() {
+        if cfg!(target_os = "linux") {
+            assert_eq!(
+                storage_id("/dev/mapper/root", "/"),
+                storage_id("/dev/mapper/root", "/home")
+            );
+            assert_ne!(
+                storage_id("/dev/sda1", "/boot"),
+                storage_id("/dev/mapper/root", "/")
+            );
+        }
+        // Volumelabels zijn niet uniek: twee schijven met label "Data" blijven apart.
+        assert_ne!(storage_id("Data", "D:\\"), storage_id("Data", "E:\\"));
+        // Netwerk-/fuse-namen zonder apparaatpad: per koppelpunt.
+        assert_ne!(
+            storage_id("server:/x", "/mnt/a"),
+            storage_id("server:/x", "/mnt/b")
+        );
+    }
+
+    #[test]
+    fn pseudo_and_read_only_volumes_are_not_storage() {
+        assert!(is_storage_volume("NTFS", 500 << 30));
+        assert!(is_storage_volume("btrfs", 500 << 30));
+        assert!(is_storage_volume("fuseblk", 1 << 40)); // NTFS-schijf via ntfs-3g
+        assert!(!is_storage_volume("ext4", 0));
+        assert!(!is_storage_volume("overlay", 0)); // Docker
+        assert!(!is_storage_volume("fuse.orca-linux.AppImage", 256 << 20));
+        assert!(!is_storage_volume("squashfs", 100 << 20)); // snap
+        assert!(!is_storage_volume("CDFS", 4 << 30)); // dvd-station (Windows)
+        assert!(!is_storage_volume("UDF", 4 << 30));
+        assert!(!is_storage_volume("iso9660", 700 << 20));
     }
 }

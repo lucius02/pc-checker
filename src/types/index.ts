@@ -34,6 +34,10 @@ export type { PowerInfo } from "./generated/PowerInfo";
 export type { ProcessInfo } from "./generated/ProcessInfo";
 export type { ProcessSnapshot } from "./generated/ProcessSnapshot";
 export type { RamInfo } from "./generated/RamInfo";
+export type { LargeFile } from "./generated/LargeFile";
+export type { SpaceEntry } from "./generated/SpaceEntry";
+export type { SpaceReport } from "./generated/SpaceReport";
+export type { SpaceScanProgress } from "./generated/SpaceScanProgress";
 export type { StorageHealthEntry } from "./generated/StorageHealthEntry";
 export type { StorageHealthReport } from "./generated/StorageHealthReport";
 export type { StressTestResult } from "./generated/StressTestResult";
@@ -62,6 +66,7 @@ export type TabType =
   | "drivers"
   | "latency"
   | "storage"
+  | "space"
   | "history"
   | "gpu"
   | "burnin"
