@@ -5,12 +5,12 @@
 //! Daarom is hier elk commando `async` en gaat het eigenlijke werk via `spawn_blocking` naar een
 //! worker-thread. Fouten (incl. een panic in een worker) komen als `Err(String)` bij de UI aan.
 
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 use crate::models::*;
 use crate::{
     cooling, driver_latency, drivers, elevation, freeze, health, history, latency, monitor,
-    network, power, power_delivery, processes, storage, stress, system,
+    network, power, power_delivery, processes, space, storage, stress, system,
 };
 
 async fn blocking<T, F>(what: &str, f: F) -> Result<T, String>
@@ -188,6 +188,23 @@ pub async fn scan_storage_health() -> Result<StorageHealthReport, String> {
         storage::scan_storage_health,
     )
     .await
+}
+
+/// Analyseert welke mappen en bestanden in `path` de meeste ruimte innemen. Tussenstanden gaan
+/// als event `space-scan-progress` naar de UI.
+#[tauri::command]
+pub async fn analyze_disk_space(app: AppHandle, path: String) -> Result<SpaceReport, String> {
+    blocking(crate::tr!("Ruimte-analyse", "Space analysis"), move || {
+        space::analyze(&path, move |p| {
+            let _ = app.emit(space::PROGRESS_EVENT, &p);
+        })
+    })
+    .await?
+}
+
+#[tauri::command]
+pub async fn cancel_disk_space_scan() {
+    space::cancel();
 }
 
 #[tauri::command]

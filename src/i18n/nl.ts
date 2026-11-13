@@ -16,6 +16,7 @@ import { driversNl } from "./tabs/drivers";
 import { coolingFreezeNl } from "./tabs/coolingFreeze";
 import { powerNl } from "./tabs/power";
 import { stressNl } from "./tabs/stress";
+import { spaceNl } from "./tabs/space";
 
 export const coreNl = {
   "app.subtitle": "Hardware tests, ventilatoren, stroom & freeze detective",
@@ -64,6 +65,7 @@ export const coreNl = {
   "nav.latency": "DPC Latency",
   "nav.drivers": "Drivers",
   "nav.storage": "Schijfgezondheid",
+  "nav.space": "Ruimtegebruik",
   "nav.history": "Historie",
   "nav.power": "Stroom & Batterij",
   "nav.cooling": "Koeling & Fans",
@@ -106,6 +108,7 @@ export const coreNl = {
   "error.drivers": "Driver-scan mislukt",
   "error.latency": "Latency-test mislukt",
   "error.storage": "Schijfgezondheid scannen mislukt",
+  "error.space": "Ruimte-analyse mislukt",
   "error.history": "Historie laden mislukt",
   "error.export": "Rapport exporteren mislukt",
   "error.admin": "Herstarten als beheerder mislukt",
@@ -226,4 +229,5 @@ export const nl = {
   ...coolingFreezeNl,
   ...powerNl,
   ...stressNl,
+  ...spaceNl,
 } as const;

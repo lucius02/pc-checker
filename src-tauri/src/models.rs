@@ -768,3 +768,68 @@ pub struct NetworkHealthReport {
     pub issues: Vec<NetworkIssue>,
     pub summary: String,
 }
+
+// ===== Ruimtegebruik (welke mappen/bestanden nemen de meeste ruimte in) =====
+
+/// Eén map in de ruimte-analyse. Submappen staan aflopend op grootte; kleine of diepe mappen
+/// zijn samengevoegd in `other_bytes`/`other_count` (opnieuw scannen vanaf die map geeft details).
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct SpaceEntry {
+    pub name: String,
+    pub path: String,
+    /// Ruimte op schijf van alles in deze map (recursief).
+    pub size_bytes: u64,
+    /// Aantal bestanden (recursief).
+    pub file_count: u64,
+    /// Aantal submappen (recursief).
+    pub dir_count: u64,
+    /// Bestanden direct in deze map (niet in submappen).
+    pub own_files_bytes: u64,
+    pub own_file_count: u64,
+    pub children: Vec<SpaceEntry>,
+    /// Submappen die niet in `children` staan (te klein of voorbij de dieptegrens).
+    pub other_bytes: u64,
+    pub other_count: u64,
+    /// Map (of een deel ervan) kon niet gelezen worden, meestal door ontbrekende rechten.
+    pub access_denied: bool,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
+pub struct LargeFile {
+    pub name: String,
+    pub path: String,
+    pub size_bytes: u64,
+    /// Laatst gewijzigd (ms sinds epoch), indien bekend.
+    pub modified_epoch_ms: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
+pub struct SpaceReport {
+    pub root: SpaceEntry,
+    pub scanned_at: String,
+    pub duration_ms: u64,
+    /// Grootste losse bestanden, aflopend.
+    pub largest_files: Vec<LargeFile>,
+    /// Mappen die niet gelezen konden worden.
+    pub skipped_dirs: u64,
+    /// De gebruiker heeft de scan afgebroken; de cijfers zijn onvolledig.
+    pub cancelled: bool,
+    pub is_elevated: bool,
+    /// Volume waarop de gescande map staat (koppelpunt, totaal, vrij), indien gevonden.
+    pub volume_mount: Option<String>,
+    pub volume_total_bytes: Option<u64>,
+    pub volume_available_bytes: Option<u64>,
+}
+
+/// Tussenstand tijdens een ruimte-analyse (event `space-scan-progress`).
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
+pub struct SpaceScanProgress {
+    pub files: u64,
+    pub dirs: u64,
+    pub bytes: u64,
+    pub current: String,
+}

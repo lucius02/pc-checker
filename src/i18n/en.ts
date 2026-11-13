@@ -13,6 +13,7 @@ import { driversEn } from "./tabs/drivers";
 import { coolingFreezeEn } from "./tabs/coolingFreeze";
 import { powerEn } from "./tabs/power";
 import { stressEn } from "./tabs/stress";
+import { spaceEn } from "./tabs/space";
 
 /** English translations. Must contain every key from `nl.ts` (checked by the type and by tests). */
 const coreEn: Record<keyof typeof coreNl, string> = {
@@ -62,6 +63,7 @@ const coreEn: Record<keyof typeof coreNl, string> = {
   "nav.latency": "DPC Latency",
   "nav.drivers": "Drivers",
   "nav.storage": "Disk Health",
+  "nav.space": "Space Usage",
   "nav.history": "History",
   "nav.power": "Power & Battery",
   "nav.cooling": "Cooling & Fans",
@@ -104,6 +106,7 @@ const coreEn: Record<keyof typeof coreNl, string> = {
   "error.drivers": "Driver scan failed",
   "error.latency": "Latency test failed",
   "error.storage": "Disk health scan failed",
+  "error.space": "Space analysis failed",
   "error.history": "Failed to load history",
   "error.export": "Failed to export report",
   "error.admin": "Failed to restart as administrator",
@@ -224,4 +227,5 @@ export const en: Record<keyof typeof nl, string> = {
   ...coolingFreezeEn,
   ...powerEn,
   ...stressEn,
+  ...spaceEn,
 };

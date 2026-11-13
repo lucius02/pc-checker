@@ -18,6 +18,7 @@ pub mod power;
 pub mod power_delivery;
 pub mod processes;
 pub mod shell;
+pub mod space;
 pub mod storage;
 pub mod stress;
 pub mod system;
@@ -78,6 +79,8 @@ pub fn run() {
             commands::compute_health_score,
             commands::check_hardware_power_delivery,
             commands::scan_storage_health,
+            commands::analyze_disk_space,
+            commands::cancel_disk_space_scan,
             commands::get_history,
             commands::clear_history,
             commands::get_elevation_status,
