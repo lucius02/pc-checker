@@ -8,13 +8,12 @@
 //! probleemcode) als JSON teruggeeft. Op Linux/macOS (geen PowerShell) degradeert de scan
 //! netjes naar `is_available: false`.
 
-use std::process::Command;
 use std::sync::Mutex;
 
 use chrono::{Datelike, NaiveDate};
 use serde_json::Value;
 
-use crate::models::{DriverEntry, DriverReport};
+use crate::models::{Advice, DriverEntry, DriverReport};
 
 #[path = "drivers_helpers.rs"]
 mod drivers_helpers;
@@ -58,41 +57,52 @@ pub fn last_report() -> Option<DriverReport> {
         .clone()
 }
 
-/// Async zodat de WMI-scan (3-4 s) niet de UI-thread blokkeert.
-#[tauri::command]
-pub async fn scan_drivers() -> DriverReport {
-    tauri::async_runtime::spawn_blocking(scan_drivers_blocking)
-        .await
-        .unwrap_or_else(|_| {
-            unavailable_report(
-                chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-                "Driver-scan is onverwacht afgebroken.",
+/// Opent een Windows-beheerprogramma of instellingenpagina (no-op op andere platformen).
+/// Opent een Windows-beheeronderdeel (`*.msc` uit System32) of een `ms-settings:`-pagina, op
+/// dezelfde manier als dubbelklikken in Verkenner (ShellExecute).
+///
+/// Bewust niet via een verborgen `cmd /c start`: een onzichtbare cmd.exe die `eventvwr.msc` start
+/// is precies hoe een bekende UAC-omzeiling werkt, en virusscanners (o.a. Bitdefender) sluiten de
+/// app daarom af.
+fn open_windows_target(target: &str, what: &str) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let result = if target.contains(':') {
+            tauri_plugin_opener::open_url(target, None::<&str>)
+        } else {
+            let root = std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into());
+            tauri_plugin_opener::open_path(
+                std::path::Path::new(&root).join("System32").join(target),
+                None::<&str>,
             )
-        })
+        };
+        result.map_err(|e| {
+            crate::tr!(
+                format!("Kon {} niet openen: {}", what, e),
+                format!("Could not open {}: {}", what, e)
+            )
+        })?;
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (target, what);
+    }
+    Ok(())
 }
 
-#[tauri::command]
 pub fn open_device_manager() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        Command::new("cmd")
-            .args(["/c", "start", "devmgmt.msc"])
-            .spawn()
-            .map_err(|e| format!("Kon Apparaatbeheer niet openen: {}", e))?;
-    }
-    Ok(())
+    open_windows_target(
+        "devmgmt.msc",
+        crate::tr!("Apparaatbeheer", "Device Manager"),
+    )
 }
 
-#[tauri::command]
+pub fn open_event_viewer() -> Result<(), String> {
+    open_windows_target("eventvwr.msc", crate::tr!("Logboeken", "Event Viewer"))
+}
+
 pub fn open_windows_update() -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        Command::new("cmd")
-            .args(["/c", "start", "ms-settings:windowsupdate"])
-            .spawn()
-            .map_err(|e| format!("Kon Windows Update niet openen: {}", e))?;
-    }
-    Ok(())
+    open_windows_target("ms-settings:windowsupdate", "Windows Update")
 }
 
 pub fn scan_drivers_blocking() -> DriverReport {
@@ -103,7 +113,10 @@ pub fn scan_drivers_blocking() -> DriverReport {
         Some(raw) => parse_report(&raw, today, scanned_at),
         None => unavailable_report(
             scanned_at,
-            "Driver Check is alleen beschikbaar op Windows (PowerShell/WMI niet gevonden).",
+            crate::tr!(
+                "Driver Check is alleen beschikbaar op Windows (PowerShell/WMI niet gevonden).",
+                "The Driver Check is only available on Windows (PowerShell/WMI not found)."
+            ),
         ),
     };
 
@@ -111,23 +124,9 @@ pub fn scan_drivers_blocking() -> DriverReport {
     report
 }
 
-/// Voert het script uit via `powershell` en valt terug op `powershell.exe` (WSL-interop).
-/// Geeft `None` als geen van beide gestart kan worden.
+/// Voert het script uit via de gedeelde PowerShell-helper (verborgen venster, time-out).
 fn run_powershell(script: &str) -> Option<String> {
-    for exe in ["powershell", "powershell.exe"] {
-        let mut cmd = Command::new(exe);
-        cmd.args(["-NoProfile", "-NonInteractive", "-Command", script]);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-        if let Ok(out) = cmd.output() {
-            return Some(String::from_utf8_lossy(&out.stdout).into_owned());
-        }
-    }
-    None
+    crate::shell::run_powershell(script, std::time::Duration::from_secs(60))
 }
 
 fn unavailable_report(scanned_at: String, summary: &str) -> DriverReport {
@@ -138,6 +137,7 @@ fn unavailable_report(scanned_at: String, summary: &str) -> DriverReport {
         outdated_count: 0,
         problem_count: 0,
         unsigned_count: 0,
+        unsupported_count: 0,
         entries: Vec::new(),
         summary: summary.to_string(),
     }
@@ -151,7 +151,10 @@ fn parse_report(raw: &str, today: NaiveDate, scanned_at: String) -> DriverReport
     if !(trimmed.starts_with('{') || trimmed.starts_with('[')) {
         return unavailable_report(
             scanned_at,
-            "Driver-informatie kon niet worden uitgelezen (geen geldige WMI-uitvoer van PowerShell). Probeer de scan opnieuw of controleer of de WMI-service (Winmgmt) draait.",
+            crate::tr!(
+                "Driver-informatie kon niet worden uitgelezen (geen geldige WMI-uitvoer van PowerShell). Probeer de scan opnieuw of controleer of de WMI-service (Winmgmt) draait.",
+                "Driver information could not be read (no valid WMI output from PowerShell). Try the scan again or check that the WMI service (Winmgmt) is running."
+            ),
         );
     }
     let parsed: Value = match serde_json::from_str(trimmed) {
@@ -159,18 +162,25 @@ fn parse_report(raw: &str, today: NaiveDate, scanned_at: String) -> DriverReport
         Err(_) => {
             return unavailable_report(
                 scanned_at,
-                "Driver-informatie kon niet worden verwerkt (ongeldige JSON van PowerShell).",
-            )
+                crate::tr!(
+                    "Driver-informatie kon niet worden verwerkt (ongeldige JSON van PowerShell).",
+                    "Driver information could not be processed (invalid JSON from PowerShell)."
+                ),
+            );
         }
     };
 
     // Normaal: {"Signed":[...],"Problems":[...]}. Wees tolerant voor een losse
     // driver-array of een los driver-object.
-    let (signed_vals, problem_vals) = if parsed.get("Signed").is_some() || parsed.get("Problems").is_some() {
-        (as_list(parsed.get("Signed")), as_list(parsed.get("Problems")))
-    } else {
-        (as_list(Some(&parsed)), Vec::new())
-    };
+    let (signed_vals, problem_vals) =
+        if parsed.get("Signed").is_some() || parsed.get("Problems").is_some() {
+            (
+                as_list(parsed.get("Signed")),
+                as_list(parsed.get("Problems")),
+            )
+        } else {
+            (as_list(Some(&parsed)), Vec::new())
+        };
 
     let drivers: Vec<RawDriver> = signed_vals.iter().map(parse_raw_driver).collect();
     let problems: Vec<RawProblem> = problem_vals
@@ -182,7 +192,10 @@ fn parse_report(raw: &str, today: NaiveDate, scanned_at: String) -> DriverReport
     if drivers.is_empty() && problems.is_empty() {
         return unavailable_report(
             scanned_at,
-            "WMI gaf geen driverinformatie terug. Probeer de scan opnieuw (eventueel als administrator).",
+            crate::tr!(
+                "WMI gaf geen driverinformatie terug. Probeer de scan opnieuw (eventueel als administrator).",
+                "WMI returned no driver information. Try the scan again (possibly as administrator)."
+            ),
         );
     }
 
@@ -206,9 +219,9 @@ fn build_report(
     let mut entries: Vec<DriverEntry> = Vec::new();
 
     for d in &real_drivers {
-        let problem_idx = problems
-            .iter()
-            .position(|p| !p.device_id.is_empty() && p.device_id.eq_ignore_ascii_case(&d.device_id));
+        let problem_idx = problems.iter().position(|p| {
+            !p.device_id.is_empty() && p.device_id.eq_ignore_ascii_case(&d.device_id)
+        });
         let problem_code = problem_idx.map(|i| {
             matched_problem[i] = true;
             problems[i].code
@@ -227,7 +240,11 @@ fn build_report(
             continue;
         }
         let d = RawDriver {
-            name: if p.name.is_empty() { p.device_id.clone() } else { p.name.clone() },
+            name: if p.name.is_empty() {
+                p.device_id.clone()
+            } else {
+                p.name.clone()
+            },
             class: p.class.clone(),
             device_id: p.device_id.clone(),
             ..Default::default()
@@ -239,14 +256,38 @@ fn build_report(
         status_rank(&a.status)
             .cmp(&status_rank(&b.status))
             .then(class_rank(&a.device_class).cmp(&class_rank(&b.device_class)))
-            .then(a.device_name.to_lowercase().cmp(&b.device_name.to_lowercase()))
+            .then(
+                a.device_name
+                    .to_lowercase()
+                    .cmp(&b.device_name.to_lowercase()),
+            )
     });
 
     let problem_count = entries.iter().filter(|e| e.status == "Probleem").count();
     let outdated_count = entries.iter().filter(|e| e.status == "Verouderd").count();
-    let unsigned_count = entries.iter().filter(|e| e.status == "Niet ondertekend").count();
+    let unsigned_count = entries
+        .iter()
+        .filter(|e| e.status == "Niet ondertekend")
+        .count();
+    let unsupported_count = entries.iter().filter(|e| e.support.is_some()).count();
 
-    let summary = build_summary(total_drivers, problem_count, outdated_count, unsigned_count, &entries);
+    let mut summary = build_summary(
+        total_drivers,
+        problem_count,
+        outdated_count,
+        unsigned_count,
+        &entries,
+    );
+    if unsupported_count > 0 {
+        summary.push_str(&crate::tr!(
+            format!(
+                " {unsupported_count} driver(s) worden door de fabrikant niet meer (volledig) ondersteund. Dat is geen fout: je hoeft alleen iets te doen als je problemen merkt met dat apparaat."
+            ),
+            format!(
+                " {unsupported_count} driver(s) are no longer (fully) supported by the manufacturer. That is not an error: you only need to act if you notice problems with that device."
+            )
+        ));
+    }
 
     DriverReport {
         is_available: true,
@@ -255,6 +296,7 @@ fn build_report(
         outdated_count,
         problem_count,
         unsigned_count,
+        unsupported_count,
         entries,
         summary,
     }
@@ -268,20 +310,35 @@ fn build_summary(
     entries: &[DriverEntry],
 ) -> String {
     if problems == 0 && outdated == 0 && unsigned == 0 {
-        return format!(
-            "{} drivers gescand: geen probleemapparaten, verouderde of niet-ondertekende drivers gevonden in de freeze-gevoelige klassen.",
-            total
+        return crate::tr!(
+            format!(
+                "{} drivers gescand: geen probleemapparaten, verouderde of niet-ondertekende drivers gevonden in de freeze-gevoelige klassen.",
+                total
+            ),
+            format!(
+                "{} drivers scanned: no problem devices, outdated or unsigned drivers found in the freeze-sensitive classes.",
+                total
+            )
         );
     }
     let mut parts = Vec::new();
     if problems > 0 {
-        parts.push(format!("{} apparaat/apparaten met een foutcode", problems));
+        parts.push(crate::tr!(
+            format!("{} apparaat/apparaten met een foutcode", problems),
+            format!("{} device(s) with an error code", problems)
+        ));
     }
     if unsigned > 0 {
-        parts.push(format!("{} niet-ondertekende driver(s)", unsigned));
+        parts.push(crate::tr!(
+            format!("{} niet-ondertekende driver(s)", unsigned),
+            format!("{} unsigned driver(s)", unsigned)
+        ));
     }
     if outdated > 0 {
-        parts.push(format!("{} mogelijk verouderde driver(s)", outdated));
+        parts.push(crate::tr!(
+            format!("{} mogelijk verouderde driver(s)", outdated),
+            format!("{} possibly outdated driver(s)", outdated)
+        ));
     }
     let gpu_flag = entries
         .iter()
@@ -289,15 +346,21 @@ fn build_summary(
     let storage_flag = entries
         .iter()
         .any(|e| is_storage_class(&e.device_class) && e.status != "OK");
-    let mut s = format!("{} drivers gescand: {}.", total, parts.join(", "));
+    let mut s = crate::tr!(
+        format!("{} drivers gescand: {}.", total, parts.join(", ")),
+        format!("{} drivers scanned: {}.", total, parts.join(", "))
+    );
     if gpu_flag {
-        s.push_str(" Let op: de videokaartdriver is gemarkeerd — een bekende oorzaak van freezes (TDR).");
+        s.push_str(crate::tr!(
+            " Let op: de videokaartdriver is gemarkeerd — een bekende oorzaak van freezes (TDR).",
+            " Note: the graphics driver is flagged — a known cause of freezes (TDR)."
+        ));
     }
     if storage_flag {
-        s.push_str(" Let op: een opslagcontroller-driver is gemarkeerd — kan schijf-time-outs en freezes van enkele seconden veroorzaken.");
+        s.push_str(crate::tr!(" Let op: een opslagcontroller-driver is gemarkeerd — kan schijf-time-outs en freezes van enkele seconden veroorzaken.", " Note: a storage controller driver is flagged — it can cause disk timeouts and freezes of a few seconds."));
     }
     if outdated > 0 {
-        s.push_str(" Controleer verouderde drivers bij de fabrikant (moederbord/laptop of chip-leverancier).");
+        s.push_str(crate::tr!(" Controleer verouderde drivers bij de fabrikant (moederbord/laptop of chip-leverancier).", " Check outdated drivers with the manufacturer (motherboard/laptop or chip vendor)."));
     }
     s
 }
@@ -346,7 +409,10 @@ fn is_relevant(d: &RawDriver) -> bool {
         if d.class == "DISPLAY" {
             return true;
         }
-        let hw_class = matches!(d.class.as_str(), "SCSIADAPTER" | "HDC" | "USB" | "NET" | "MEDIA");
+        let hw_class = matches!(
+            d.class.as_str(),
+            "SCSIADAPTER" | "HDC" | "USB" | "NET" | "MEDIA"
+        );
         return hw_class && d.device_id.to_uppercase().starts_with("PCI\\");
     }
     true
@@ -402,58 +468,189 @@ fn class_rank(class: &str) -> u8 {
 fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> DriverEntry {
     let age = age_years(&d.date, today);
     let inbox = is_microsoft_inbox(d);
-    let is_basic_display = d.class == "DISPLAY"
-        && d.name.to_lowercase().contains("basic display");
+    let is_basic_display = d.class == "DISPLAY" && d.name.to_lowercase().contains("basic display");
 
-    let (status, advice) = if let Some(code) = problem_code {
-        let meaning = problem_code_meaning(code);
-        let action = match code {
-            22 => "Heb je dit apparaat bewust uitgeschakeld, dan is er geen actie nodig. Zo niet: schakel het weer in via Apparaatbeheer.".to_string(),
-            14 | 38 => "Herstart de computer en scan opnieuw.".to_string(),
-            28 | 18 | 39 | 31 | 37 | 10 | 43 | 52 => format!(
-                "Veilige oplossing: open Apparaatbeheer, klik met de rechtermuisknop op dit apparaat en kies 'Apparaat verwijderen' (laat 'stuurprogramma verwijderen' UIT). Klik daarna op 'Actie' -> 'Zoeken naar gewijzigde apparaten' zodat Windows de schone driver lokaal herstelt (geen downloads nodig). Blijft de fout? Update via Windows Update (Optionele updates) of de officiële fabrikantsite. {}",
-                class_advice(&d.class)
+    let t = |nl: &str, en: &str| crate::tr!(nl, en).to_string();
+    let guide = class_guidance(&d.class);
+
+    let (status, detail) = if let Some(code) = problem_code {
+        let title = problem_code_meaning(code).to_string();
+        match code {
+            22 => (
+                "Probleem",
+                Advice {
+                    title,
+                    steps: vec![
+                        t(
+                            "Heb je dit apparaat bewust uitgeschakeld? Dan hoef je niets te doen.",
+                            "Did you disable this device on purpose? Then there is nothing to do.",
+                        ),
+                        t(
+                            "Zo niet: open Apparaatbeheer, klik met rechts op het apparaat en kies 'Apparaat inschakelen'.",
+                            "If not: open Device Manager, right-click the device and choose 'Enable device'.",
+                        ),
+                    ],
+                    ..Default::default()
+                },
             ),
-            _ => class_advice(&d.class).to_string(),
-        };
-        ("Probleem", format!("{} {}", meaning, action))
+            14 | 38 => (
+                "Probleem",
+                Advice {
+                    title,
+                    steps: vec![
+                        t("Herstart de computer.", "Restart the computer."),
+                        t(
+                            "Voer de driver-scan opnieuw uit.",
+                            "Run the driver scan again.",
+                        ),
+                    ],
+                    ..Default::default()
+                },
+            ),
+            28 | 18 | 39 | 31 | 37 | 10 | 43 | 52 => (
+                "Probleem",
+                Advice {
+                    title,
+                    why: Some(t(
+                        "De juiste driver staat meestal al op je pc. Zo laat je Windows hem veilig opnieuw installeren, zonder iets te downloaden:",
+                        "The right driver is usually already on your PC. This lets Windows reinstall it safely, without downloading anything:",
+                    )),
+                    steps: vec![
+                        t(
+                            "Open Apparaatbeheer (knop hieronder).",
+                            "Open Device Manager (button below).",
+                        ),
+                        t(
+                            "Klik met rechts op dit apparaat en kies 'Apparaat verwijderen'. Laat het vinkje 'Stuurprogramma verwijderen' UIT staan.",
+                            "Right-click this device and choose 'Uninstall device'. Leave 'Delete the driver software' UNCHECKED.",
+                        ),
+                        t(
+                            "Klik bovenin op 'Actie' → 'Zoeken naar gewijzigde apparaten'. Windows installeert de driver opnieuw.",
+                            "Click 'Action' → 'Scan for hardware changes' at the top. Windows reinstalls the driver.",
+                        ),
+                    ],
+                    fallback_title: Some(t(
+                        "Blijft de fout daarna? Werk de driver bij:",
+                        "Still failing after that? Update the driver:",
+                    )),
+                    fallback_steps: guide.steps,
+                },
+            ),
+            _ => (
+                "Probleem",
+                Advice {
+                    title,
+                    why: guide.why,
+                    steps: guide.steps,
+                    ..Default::default()
+                },
+            ),
+        }
     } else if d.is_signed == Some(false) {
         (
             "Niet ondertekend",
-            "Deze driver is niet digitaal ondertekend. Niet-ondertekende kernel-drivers kunnen instabiliteit, blauwe schermen en freezes veroorzaken; verwijder de bijbehorende software of vervang de driver door een ondertekende versie van de fabrikant.".to_string(),
+            Advice {
+                title: t(
+                    "Deze driver is niet digitaal ondertekend.",
+                    "This driver is not digitally signed.",
+                ),
+                why: Some(t(
+                    "Niet-ondertekende kernel-drivers kunnen instabiliteit, blauwe schermen en freezes veroorzaken.",
+                    "Unsigned kernel drivers can cause instability, blue screens and freezes.",
+                )),
+                steps: vec![
+                    t(
+                        "Zoek uit bij welke software deze driver hoort (de leverancier staat hierboven).",
+                        "Find out which software this driver belongs to (the vendor is shown above).",
+                    ),
+                    t(
+                        "Verwijder die software, of vervang de driver door een ondertekende versie van de fabrikant.",
+                        "Uninstall that software, or replace the driver with a signed version from the manufacturer.",
+                    ),
+                ],
+                ..Default::default()
+            },
         )
     } else if is_basic_display {
         (
             "Verouderd",
-            "Windows gebruikt de generieke 'Microsoft Basic Display Adapter': er is geen echte videokaartdriver geïnstalleerd. Dit geeft schokkerig beeld en geen hardwareversnelling. Installeer de driver van NVIDIA, AMD of Intel (bij problemen eerst opschonen met DDU).".to_string(),
+            Advice {
+                title: t(
+                    "Er is geen echte videokaartdriver geïnstalleerd.",
+                    "No real graphics driver is installed.",
+                ),
+                why: Some(t(
+                    "Windows gebruikt nu de generieke 'Microsoft Basic Display Adapter'. Dat geeft schokkerig beeld en geen hardwareversnelling.",
+                    "Windows is using the generic 'Microsoft Basic Display Adapter'. That causes choppy video and no hardware acceleration.",
+                )),
+                steps: guide.steps,
+                ..Default::default()
+            },
         )
     } else if let (false, Some(a), Some(max)) = (inbox, age, max_age_for_class(&d.class)) {
         if a > max {
             (
                 "Verouderd",
-                format!(
-                    "Mogelijk verouderd: deze driver is {:.1} jaar oud (drempel voor deze klasse: {} jaar). {}",
-                    a, max, class_advice(&d.class)
-                ),
+                Advice {
+                    title: crate::tr!(
+                        format!(
+                            "Mogelijk verouderd: deze driver is {:.1} jaar oud (grens voor dit type: {} jaar).",
+                            a, max
+                        ),
+                        format!(
+                            "Possibly outdated: this driver is {:.1} years old (limit for this type: {} years).",
+                            a, max
+                        )
+                    ),
+                    why: guide.why,
+                    steps: guide.steps,
+                    ..Default::default()
+                },
             )
         } else {
-            ("OK", "Geen actie nodig.".to_string())
+            (
+                "OK",
+                Advice {
+                    title: t("Geen actie nodig.", "No action needed."),
+                    ..Default::default()
+                },
+            )
         }
     } else if inbox {
         (
             "OK",
-            if is_storage_class(&d.class) {
-                "Microsoft standaard-driver (bijv. stornvme/storahci), wordt bijgewerkt via Windows Update. Meestal stabiel; overweeg alleen bij schijf-freezes de driver van de fabrikant.".to_string()
-            } else {
-                "Microsoft standaard-driver, wordt bijgewerkt via Windows Update.".to_string()
+            Advice {
+                title: t("Microsoft-standaarddriver, wordt bijgewerkt via Windows Update.", "Microsoft inbox driver, updated via Windows Update."),
+                why: is_storage_class(&d.class).then(|| {
+                    t(
+                        "Meestal stabiel. Alleen bij schijf-freezes is de driver van de fabrikant het proberen waard.",
+                        "Usually stable. Only if you get disk freezes is the manufacturer's driver worth trying.",
+                    )
+                }),
+                ..Default::default()
             },
         )
     } else {
-        ("OK", "Geen actie nodig.".to_string())
+        (
+            "OK",
+            Advice {
+                title: t("Geen actie nodig.", "No action needed."),
+                ..Default::default()
+            },
+        )
     };
+    let advice = flatten_advice(&detail);
+    let parsed_date = NaiveDate::parse_from_str(&d.date, "%Y-%m-%d")
+        .ok()
+        .filter(|x| !is_placeholder_date(x, &d.date));
+    let support = crate::driver_support::support_for(&d.name, &d.class, parsed_date, inbox);
 
     DriverEntry {
-        device_name: if d.name.is_empty() { "(onbekend apparaat)".to_string() } else { d.name.clone() },
+        device_name: if d.name.is_empty() {
+            crate::tr!("(onbekend apparaat)", "(unknown device)").to_string()
+        } else {
+            d.name.clone()
+        },
         device_class: d.class.clone(),
         provider: d.provider.clone(),
         version: d.version.clone(),
@@ -463,7 +660,14 @@ fn classify(d: &RawDriver, problem_code: Option<u32>, today: NaiveDate) -> Drive
         status: status.to_string(),
         problem_code,
         advice,
+        advice_detail: detail,
+        support,
     }
+}
+
+/// Platte tekstversie van het advies (rapport, tests, oudere weergaven).
+pub fn flatten_advice(a: &Advice) -> String {
+    a.flatten()
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@ import {
   Sun,
 } from "lucide-react";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
 
 interface CameraTabProps {
   onUpdateResult?: (data: {
@@ -26,6 +27,7 @@ interface VideoDevice {
 }
 
 export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -42,7 +44,7 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
   const [resolution, setResolution] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [fps, setFps] = useState<number>(0);
   const [brightness, setBrightness] = useState<number>(0);
-  const [cameraLabel, setCameraLabel] = useState<string>("Onbekende Webcam");
+  const [cameraLabel, setCameraLabel] = useState<string>("");
   const [hasTested, setHasTested] = useState<boolean>(false);
   const [snapshotUri, setSnapshotUri] = useState<string | null>(null);
 
@@ -74,7 +76,7 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
   useEffect(() => {
     onUpdateResult?.({
       cameraName: cameraLabel,
-      resolution: resolution.width > 0 ? `${resolution.width}x${resolution.height}` : "Niet gedetecteerd",
+      resolution: resolution.width > 0 ? `${resolution.width}x${resolution.height}` : "-",
       fps,
       tested: hasTested,
     });
@@ -126,7 +128,7 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
 
       const track = stream.getVideoTracks()[0];
       const settings = track.getSettings();
-      setCameraLabel(track.label || "Standaard Webcam");
+      setCameraLabel(track.label || t("cam.default"));
       setResolution({
         width: settings.width || 1280,
         height: settings.height || 720,
@@ -180,7 +182,9 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
                 const avgLuma = Math.round((sum / (32 * 32) / 255) * 100);
                 setBrightness(avgLuma);
               }
-            } catch {}
+            } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
           }
         }
 
@@ -190,7 +194,7 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
       animFrameRef.current = requestAnimationFrame(sampleLoop);
     } catch (err) {
       console.error("Camera access error:", err);
-      setErrorMsg("Cameratoegang geweigerd of camera is al in gebruik door een andere app.");
+      setErrorMsg(t("cam.denied"));
       setIsActive(false);
     }
   };
@@ -227,13 +231,13 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">Webcam &amp; Video Diagnosetest</h2>
+                <h2 className="text-lg font-bold text-white">{t("cam.title")}</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-950/80 border border-rose-700/60 text-rose-300">
                   WebRTC MediaStream
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Controleer de sensorresolutie, framerate (FPS), sensorbelichting en privacy-afsluiting van je ingebouwde of USB-camera.
+                {t("cam.intro")}
               </p>
             </div>
           </div>
@@ -242,20 +246,20 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
             {isActive ? (
               <button
                 onClick={stopCamera}
-                aria-label="Camera uitschakelen"
+                aria-label={t("cam.ariaOff")}
                 className="px-3.5 py-2 rounded-xl bg-rose-950/80 border border-rose-700 hover:border-rose-600 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
               >
                 <CameraOff className="w-4 h-4 text-rose-400" />
-                Camera Uitschakelen
+                {t("cam.off")}
               </button>
             ) : (
               <button
                 onClick={() => startCamera()}
-                aria-label="Start cameracheck"
+                aria-label={t("cam.ariaStart")}
                 className="px-3.5 py-2 rounded-xl bg-emerald-950/80 border border-emerald-700 hover:border-emerald-600 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
               >
                 <Play className="w-4 h-4 text-emerald-400" />
-                Start Cameracheck
+                {t("cam.start")}
               </button>
             )}
           </div>
@@ -264,30 +268,30 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
         {/* Telemetry Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Sensor Resolutie</span>
+            <span className="text-slate-400 block">{t("cam.resolution")}</span>
             <span className="text-lg font-bold font-mono text-rose-400">
               {resolution.width > 0 ? `${resolution.width} × ${resolution.height}` : "—"}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Gemeten Framerate</span>
+            <span className="text-slate-400 block">{t("cam.fps")}</span>
             <span className="text-lg font-bold font-mono text-cyan-400">
               {fps > 0 ? `${fps} FPS` : "—"}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Belichting &amp; Contrast</span>
+            <span className="text-slate-400 block">{t("cam.exposure")}</span>
             <span className="text-lg font-bold font-mono text-amber-400">
               {brightness > 0 ? `${brightness}% Luma` : "—"}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Actieve Camera</span>
+            <span className="text-slate-400 block">{t("cam.active")}</span>
             <span className="text-xs font-mono font-bold text-slate-200 truncate block mt-1" title={cameraLabel}>
-              {cameraLabel}
+              {cameraLabel || t("cam.unknown")}
             </span>
           </div>
         </div>
@@ -318,7 +322,7 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsMirrored((m) => !m)}
-              aria-label="Camerabeeld spiegelen toggle"
+              aria-label={t("cam.ariaMirror")}
               className={cn(
                 "px-2.5 py-1 rounded-lg border text-xs font-medium flex items-center gap-1 transition-all cursor-pointer",
                 isMirrored
@@ -327,17 +331,17 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
               )}
             >
               <RotateCw className="w-3 h-3" />
-              Spiegelen ({isMirrored ? "Aan" : "Uit"})
+              {t("cam.mirror", { s: isMirrored ? t("cam.on") : t("cam.offShort") })}
             </button>
 
             {isActive && (
               <button
                 onClick={takeSnapshot}
-                aria-label="Diagnostische testfoto maken"
+                aria-label={t("cam.ariaSnap")}
                 className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1 cursor-pointer"
               >
                 <Sparkles className="w-3 h-3 text-amber-400" />
-                Testfoto Maken
+                {t("cam.snap")}
               </button>
             )}
           </div>
@@ -370,9 +374,9 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
                 <CameraOff className="w-8 h-8" />
               </span>
               <div>
-                <h4 className="text-sm font-semibold text-slate-300">Camera staat uitgeschakeld</h4>
+                <h4 className="text-sm font-semibold text-slate-300">{t("cam.disabledTitle")}</h4>
                 <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                  Klik hierboven op &lsquo;Start Cameracheck&rsquo; om het live beeld, de scherpte en de framerate te verifiëren.
+                  {t("cam.disabledHint")}
                 </p>
               </div>
             </div>
@@ -393,13 +397,13 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-slate-300 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Vastgelegde Testfoto:
+                {t("cam.snapshot")}
               </span>
               <button
                 onClick={() => setSnapshotUri(null)}
                 className="text-slate-400 hover:text-slate-200 text-xs font-mono"
               >
-                Sluiten ✕
+                {t("cam.close")}
               </button>
             </div>
             <div className="max-h-48 overflow-hidden rounded-lg border border-slate-800 flex justify-center bg-black">
@@ -414,22 +418,20 @@ export const CameraTab: React.FC<CameraTabProps> = ({ onUpdateResult }) => {
         <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
           <h4 className="font-semibold text-slate-200 flex items-center gap-2">
             <Sun className="w-4 h-4 text-amber-400" />
-            Belichting &amp; Ruis Tips
+            {t("cam.lightTitle")}
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            Als het beeld donker of korrelig (ruis) is, compenseert de camerasensor door de ISO-gevoeligheid te verhogen. 
-            Zorg voor indirect daglicht of een lamp vóór je gezicht in plaats van achter je om tegenlicht te voorkomen.
+            {t("cam.light")}
           </p>
         </div>
 
         <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-2">
           <h4 className="font-semibold text-slate-200 flex items-center gap-2">
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            Privacy &amp; Beveiliging
+            {t("cam.privacyTitle")}
           </h4>
           <p className="text-slate-400 text-xs leading-relaxed">
-            Zodra je op &lsquo;Camera Uitschakelen&rsquo; klikt of van tab wisselt, worden alle hardware-streams 
-            direct losgekoppeld. Het fysieke privacy-lampje (LED) naast je webcam moet dan direct doven.
+            {t("cam.privacy")}
           </p>
         </div>
       </div>

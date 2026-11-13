@@ -12,6 +12,9 @@ import {
 import { SystemOverview, StressTestResult } from "../../types";
 import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
+import { DiskSpeedResult } from "./disk/DiskSpeedResult";
 
 interface DiskTabProps {
   data: SystemOverview;
@@ -30,6 +33,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
   handleDiskBenchmark,
   diskResult,
 }) => {
+  const t = useT();
   // Vind schijven die vol dreigen te raken (>85% bezet)
   const fullDisks = data.disks.filter((d) => {
     const usedPercent = Math.round(
@@ -45,16 +49,16 @@ export const DiskTab: React.FC<DiskTabProps> = ({
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <HardDrive className="w-5 h-5 text-amber-400" />
-              Opslag Snelheid &amp; Data-Integriteit Benchmark
+              {t("disk.title")}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Meet sequentiële schrijf- en leessnelheden op de hoofdschijf en verifieert de geschreven data byte-voor-byte om corrupte sectoren op te sporen.
+              {t("disk.intro")}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl p-1 text-xs">
-              {[32, 64, 128].map((mb) => (
+              {[64, 256, 1024].map((mb) => (
                 <button
                   key={mb}
                   type="button"
@@ -86,12 +90,12 @@ export const DiskTab: React.FC<DiskTabProps> = ({
               {isTestingDisk ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Schijf Testen...
+                  {t("disk.running")}
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-slate-950" />
-                  Start Benchmark
+                  {t("disk.start")}
                 </>
               )}
             </button>
@@ -104,10 +108,10 @@ export const DiskTab: React.FC<DiskTabProps> = ({
             <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <span className="font-bold text-sm text-amber-300 block">
-                Waarschuwing: Schijfruimte raakt vol op {fullDisks.map((d) => d.mount_point || d.name).join(", ")}!
+                {t("disk.fullWarning", { disks: fullDisks.map((d) => d.mount_point || d.name).join(", ") })}
               </span>
               <p className="text-xs text-amber-300/90 leading-relaxed">
-                Een of meerdere schijven zijn voor meer dan 85% bezet. SSD's verliezen schrijfprestaties en levensduur wanneer de vrije capaciteit onder 10-15% zakt. We raden aan onnodige bestanden op te schonen om vertragingen en Windows crashes te voorkomen.
+                {t("disk.fullBody")}
               </p>
             </div>
           </div>
@@ -116,7 +120,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
         {/* Connected Disks List */}
         <div className="space-y-3">
           <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            Gedetecteerde Schijven ({data.disks.length})
+            {t("disk.detected", { n: data.disks.length })}
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {data.disks.map((d, i) => {
@@ -155,7 +159,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
                           {d.name || d.mount_point}
                         </span>
                         <span className="text-xs text-slate-500 block">
-                          Koppelpunt: {d.mount_point} ({d.file_system})
+                          {t("disk.mount", { m: d.mount_point, fs: d.file_system })}
                         </span>
                       </div>
                     </div>
@@ -166,8 +170,8 @@ export const DiskTab: React.FC<DiskTabProps> = ({
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs text-slate-400">
-                      <span>{formatBytes(d.total_bytes - d.available_bytes)} gebruikt</span>
-                      <span>{formatBytes(d.total_bytes)} totaal</span>
+                      <span>{t("disk.used", { v: formatBytes(d.total_bytes - d.available_bytes) })}</span>
+                      <span>{t("disk.total", { v: formatBytes(d.total_bytes) })}</span>
                     </div>
                     <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                       <div
@@ -184,7 +188,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-500">
-                        {usedPercent}% bezet
+                        {t("disk.usedPct", { p: usedPercent })}
                       </span>
                       <span
                         className={cn(
@@ -195,7 +199,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
                             : "text-emerald-400"
                         )}
                       >
-                        {formatBytes(d.available_bytes)} vrij ({100 - usedPercent}%)
+                        {t("disk.free", { v: formatBytes(d.available_bytes), p: 100 - usedPercent })}
                       </span>
                     </div>
                   </div>
@@ -222,12 +226,15 @@ export const DiskTab: React.FC<DiskTabProps> = ({
                 ) : (
                   <AlertTriangle className="w-5 h-5 text-red-400" />
                 )}
-                <span>{diskResult.test_name} - {diskResult.success ? "Geslaagd" : "Mislukt"}</span>
+                <span>{diskResult.test_name} - {diskResult.success ? t("common.passed") : t("common.failed")}</span>
               </div>
-              <span className="font-mono font-bold text-lg">
-                {diskResult.score_or_speed.toFixed(1)} {diskResult.unit}
-              </span>
+              {!diskResult.disk_speeds && (
+                <span className="font-mono font-bold text-lg">
+                  {diskResult.score_or_speed.toFixed(1)} {diskResult.unit}
+                </span>
+              )}
             </div>
+            {diskResult.disk_speeds && <DiskSpeedResult speeds={diskResult.disk_speeds} />}
             <p className="text-xs opacity-90">{diskResult.details}</p>
           </div>
         )}
@@ -238,7 +245,7 @@ export const DiskTab: React.FC<DiskTabProps> = ({
         <div className="flex items-center gap-2">
           <Info className="w-5 h-5 text-amber-400" />
           <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            Opslagrichtlijnen &amp; Aanbevelingen bij Volle Schijven
+            {t("disk.guideTitle")}
           </h3>
         </div>
 
@@ -247,26 +254,26 @@ export const DiskTab: React.FC<DiskTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <HardDrive className="w-4 h-4 text-cyan-400" />
-              Waarom heeft een SSD 15% tot 20% vrije ruimte nodig?
+              {t("disk.ssdTitle")}
             </h4>
             <p className="text-slate-400 leading-relaxed text-xs">
-              Solid State Drives (SSD's) gebruiken interne flash-blokken. Om data snel te kunnen overschrijven, voert de schijf op de achtergrond <em>wear-leveling</em> en <em>TRIM-garbage collection</em> uit.
+              <RichText text={t("disk.ssd1")} />
             </p>
             <p className="text-slate-300 text-xs">
-              Wanneer de schijf voor &gt;85% vol raakt, moet de schijfcontroller continu datablokken verplaatsen (write amplification). Hierdoor daalt de schrijfsnelheid tot wel 70% en slijt het flash-geheugen aanzienlijk sneller.
+              {t("disk.ssd2")}
             </p>
           </div>
 
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <Layers className="w-4 h-4 text-amber-400" />
-              Wat gebeurt er als de C: schijf 100% vol raakt?
+              {t("disk.cTitle")}
             </h4>
             <p className="text-slate-400 leading-relaxed text-xs">
-              De C: schijf bevat het virtuele geheugenbestand (<code>pagefile.sys</code>) en het slaapstandbestand (<code>hiberfil.sys</code>).
+              <RichText text={t("disk.c1")} />
             </p>
             <p className="text-slate-300 text-xs">
-              Als Windows geen tijdelijke swapruimte meer kan toewijzen, crashen applicaties direct met "Out of Memory", mislukken Windows Updates, en kunnen er desktop freezes of Blue Screens optreden.
+              {t("disk.c2")}
             </p>
           </div>
         </div>
@@ -275,39 +282,39 @@ export const DiskTab: React.FC<DiskTabProps> = ({
         <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3 text-xs">
           <div className="flex items-center gap-2 text-amber-300 font-semibold">
             <Trash2 className="w-4 h-4 text-amber-400" />
-            <span>Aanbevolen Stappen om Snel Veel Schijfruimte Vrij te Maken</span>
+            <span>{t("disk.stepsTitle")}</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-slate-300">
             {/* Stap 1 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">1. Windows Schijfopruiming</span>
+              <span className="font-medium text-white block">{t("disk.step1Title")}</span>
               <p className="text-xs text-slate-400">
-                Druk op <kbd className="px-1 py-0.5 rounded bg-slate-800 text-slate-300 text-xs font-mono">Win + R</kbd>, typ <code>cleanmgr</code> en klik op <em>Systeembestanden opschonen</em>. Dit ruimt oude Windows updates en logs op.
+                <RichText text={t("disk.step1")} />
               </p>
             </div>
 
             {/* Stap 2 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">2. Opslaginzicht (Storage Sense)</span>
+              <span className="font-medium text-white block">{t("disk.step2Title")}</span>
               <p className="text-xs text-slate-400">
-                Ga naar <em>Instellingen &gt; Systeem &gt; Opslag</em> en activeer <strong>Opslaginzicht</strong>. Windows verwijdert dan periodiek automatische tijdelijke app-bestanden en caches.
+                <RichText text={t("disk.step2")} />
               </p>
             </div>
 
             {/* Stap 3 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">3. Downloads &amp; Tijdelijke Mappen</span>
+              <span className="font-medium text-white block">{t("disk.step3Title")}</span>
               <p className="text-xs text-slate-400">
-                Controleer je map <code>C:\Users\...\Downloads</code> op oude installatiebestanden (.exe, .zip, .iso) en leeg de Prullenbak. Dit levert vaak tientallen gigabytes op.
+                <RichText text={t("disk.step3")} />
               </p>
             </div>
 
             {/* Stap 4 */}
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">4. Grote Games &amp; Media</span>
+              <span className="font-medium text-white block">{t("disk.step4Title")}</span>
               <p className="text-xs text-slate-400">
-                Verplaats geïnstalleerde games (via bijv. Steam Bibliotheekbeheer) of grote videobestanden naar een tweede SSD of externe harde schijf.
+                {t("disk.step4")}
               </p>
             </div>
           </div>

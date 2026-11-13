@@ -1,4 +1,5 @@
 import { formatBytes } from "../../utils/formatters";
+import { intlLocale } from "../../i18n";
 
 /** Categorische series-kleuren (dark-stappen), gevalideerd tegen het kaartoppervlak #0c1326. */
 export const SERIES_COLORS = ["#3987e5", "#d95926"] as const;
@@ -39,7 +40,7 @@ export function formatRate(bytesPerSec: number): string {
 }
 
 export function formatClock(epochMs: number): string {
-  return new Date(epochMs).toLocaleTimeString("nl-NL", {
+  return new Date(epochMs).toLocaleTimeString(intlLocale(), {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",

@@ -1,90 +1,43 @@
 use chrono::Local;
-use std::process::Command;
 use std::sync::Mutex;
 use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, MemoryRefreshKind, RefreshKind, System};
 
-use crate::models::{CpuCoreInfo, CpuInfo, DiskInfo, GpuInfo, MotherboardInfo, RamInfo, SystemOverview};
+use crate::models::{
+    CpuCoreInfo, CpuInfo, DiskInfo, GpuInfo, MotherboardInfo, RamInfo, SystemOverview,
+};
 use crate::watchdog::ensure_watchdog_started;
 
 static HARDWARE_CACHE: Mutex<Option<(Vec<GpuInfo>, MotherboardInfo)>> = Mutex::new(None);
 static SESSION_START_CACHE: Mutex<Option<(chrono::NaiveDateTime, String)>> = Mutex::new(None);
 
 fn get_static_hardware() -> (Vec<GpuInfo>, MotherboardInfo) {
-    if let Ok(guard) = HARDWARE_CACHE.lock() {
-        if let Some(cached) = guard.as_ref() {
-            return cached.clone();
-        }
+    if let Ok(guard) = HARDWARE_CACHE.lock()
+        && let Some(cached) = guard.as_ref()
+    {
+        return cached.clone();
     }
 
     let mut gpus = Vec::new();
     let mut motherboard = MotherboardInfo {
-        manufacturer: "Generiek Moederbord".to_string(),
-        product: "Systeemkaart".to_string(),
+        manufacturer: crate::tr!("Generiek Moederbord", "Generic motherboard").to_string(),
+        product: crate::tr!("Systeemkaart", "System board").to_string(),
         bios_vendor: "UEFI / BIOS".to_string(),
-        bios_version: "Onbekend".to_string(),
+        bios_version: crate::tr!("Onbekend", "Unknown").to_string(),
     };
 
-    #[cfg(target_os = "windows")]
-    {
-        let ps_cmd = r#"@{ Gpus = @(Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Select-Object Name, DriverVersion, AdapterRAM); Board = (Get-CimInstance Win32_BaseBoard -ErrorAction SilentlyContinue | Select-Object Manufacturer, Product); Bios = (Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue | Select-Object Manufacturer, SMBIOSBIOSVersion) } | ConvertTo-Json -Compress"#;
-        let output = Command::new("powershell")
-            .args(&["-NoProfile", "-Command", ps_cmd])
-            .output();
-
-        if let Ok(out) = output {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
-                // GPUs
-                if let Some(arr) = val["Gpus"].as_array() {
-                    for it in arr {
-                        let name = it["Name"].as_str().unwrap_or("").trim().to_string();
-                        if !name.is_empty() {
-                            let driver_version = it["DriverVersion"].as_str().unwrap_or("").trim().to_string();
-                            let vram_bytes = it["AdapterRAM"].as_u64().unwrap_or(0);
-                            gpus.push(GpuInfo {
-                                name,
-                                driver_version,
-                                vram_bytes,
-                            });
-                        }
-                    }
-                }
-
-                // Motherboard
-                if let Some(mfg) = val["Board"]["Manufacturer"].as_str() {
-                    let trimmed = mfg.trim();
-                    if !trimmed.is_empty() {
-                        motherboard.manufacturer = trimmed.to_string();
-                    }
-                }
-                if let Some(prod) = val["Board"]["Product"].as_str() {
-                    let trimmed = prod.trim();
-                    if !trimmed.is_empty() {
-                        motherboard.product = trimmed.to_string();
-                    }
-                }
-
-                // BIOS
-                if let Some(v) = val["Bios"]["Manufacturer"].as_str() {
-                    let trimmed = v.trim();
-                    if !trimmed.is_empty() {
-                        motherboard.bios_vendor = trimmed.to_string();
-                    }
-                }
-                if let Some(v) = val["Bios"]["SMBIOSBIOSVersion"].as_str() {
-                    let trimmed = v.trim();
-                    if !trimmed.is_empty() {
-                        motherboard.bios_version = trimmed.to_string();
-                    }
-                }
-            }
-        }
-    }
+    #[cfg(windows)]
+    query_static_hardware_wmi(&mut gpus, &mut motherboard);
+    #[cfg(target_os = "linux")]
+    query_static_hardware_linux(&mut gpus, &mut motherboard);
 
     if gpus.is_empty() {
         gpus.push(GpuInfo {
-            name: "Geïntegreerde Grafische Adapter".to_string(),
+            name: crate::tr!(
+                "Geïntegreerde Grafische Adapter",
+                "Integrated graphics adapter"
+            )
+            .to_string(),
             driver_version: "".to_string(),
             vram_bytes: 0,
         });
@@ -98,55 +51,162 @@ fn get_static_hardware() -> (Vec<GpuInfo>, MotherboardInfo) {
     result
 }
 
+fn set_if_present(target: &mut String, value: Option<String>) {
+    if let Some(v) = value
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+    {
+        *target = v;
+    }
+}
+
+/// Native WMI-query (geen PowerShell-proces): GPU's, moederbord en BIOS.
+#[cfg(windows)]
+fn query_static_hardware_wmi(gpus: &mut Vec<GpuInfo>, motherboard: &mut MotherboardInfo) {
+    use serde::Deserialize;
+    use wmi::WMIConnection;
+
+    #[derive(Deserialize)]
+    #[serde(rename = "Win32_VideoController", rename_all = "PascalCase")]
+    struct VideoController {
+        name: Option<String>,
+        driver_version: Option<String>,
+        #[serde(rename = "AdapterRAM")]
+        adapter_ram: Option<u32>,
+    }
+    #[derive(Deserialize)]
+    #[serde(rename = "Win32_BaseBoard", rename_all = "PascalCase")]
+    struct BaseBoard {
+        manufacturer: Option<String>,
+        product: Option<String>,
+    }
+    #[derive(Deserialize)]
+    #[serde(rename = "Win32_BIOS")]
+    struct Bios {
+        #[serde(rename = "Manufacturer")]
+        manufacturer: Option<String>,
+        #[serde(rename = "SMBIOSBIOSVersion")]
+        version: Option<String>,
+    }
+
+    let Ok(con) = WMIConnection::new() else {
+        return;
+    };
+    if let Ok(list) = con.query::<VideoController>() {
+        for vc in list {
+            let name = vc.name.unwrap_or_default().trim().to_string();
+            if !name.is_empty() {
+                gpus.push(GpuInfo {
+                    name,
+                    driver_version: vc.driver_version.unwrap_or_default().trim().to_string(),
+                    vram_bytes: vc.adapter_ram.unwrap_or(0) as u64,
+                });
+            }
+        }
+    }
+    if let Some(board) = con
+        .query::<BaseBoard>()
+        .ok()
+        .and_then(|v| v.into_iter().next())
+    {
+        set_if_present(&mut motherboard.manufacturer, board.manufacturer);
+        set_if_present(&mut motherboard.product, board.product);
+    }
+    if let Some(bios) = con.query::<Bios>().ok().and_then(|v| v.into_iter().next()) {
+        set_if_present(&mut motherboard.bios_vendor, bios.manufacturer);
+        set_if_present(&mut motherboard.bios_version, bios.version);
+    }
+}
+
+/// Linux: DMI-gegevens uit sysfs en GPU's via `lspci` (indien aanwezig).
+#[cfg(target_os = "linux")]
+fn query_static_hardware_linux(gpus: &mut Vec<GpuInfo>, motherboard: &mut MotherboardInfo) {
+    let dmi = |f: &str| std::fs::read_to_string(format!("/sys/class/dmi/id/{f}")).ok();
+    set_if_present(&mut motherboard.manufacturer, dmi("board_vendor"));
+    set_if_present(&mut motherboard.product, dmi("board_name"));
+    set_if_present(&mut motherboard.bios_vendor, dmi("bios_vendor"));
+    set_if_present(&mut motherboard.bios_version, dmi("bios_version"));
+
+    if let Ok(out) = crate::shell::hidden_command("lspci").output() {
+        gpus.extend(parse_lspci_gpus(&String::from_utf8_lossy(&out.stdout)));
+    }
+}
+
+/// Haalt GPU-regels uit `lspci`-uitvoer ("00:02.0 VGA compatible controller: Intel ...").
+pub fn parse_lspci_gpus(text: &str) -> Vec<GpuInfo> {
+    text.lines()
+        .filter(|l| {
+            l.contains("VGA compatible controller")
+                || l.contains("3D controller")
+                || l.contains("Display controller")
+        })
+        .filter_map(|l| l.splitn(3, ':').nth(2))
+        .map(|name| GpuInfo {
+            name: name.trim().to_string(),
+            driver_version: String::new(),
+            vram_bytes: 0,
+        })
+        .collect()
+}
+
 pub fn calculate_session_uptime(kernel_uptime: u64) -> (u64, String) {
     let now = Local::now().naive_local();
 
     // Check if session start was already calculated once (persists for the entire app session)
-    if let Ok(guard) = SESSION_START_CACHE.lock() {
-        if let Some((dt, ref started_at)) = *guard {
-            let diff = now.signed_duration_since(dt);
-            let secs = if diff.num_seconds() > 0 { diff.num_seconds() as u64 } else { kernel_uptime };
-            return (secs, started_at.clone());
-        }
+    if let Ok(guard) = SESSION_START_CACHE.lock()
+        && let Some((dt, ref started_at)) = *guard
+    {
+        let diff = now.signed_duration_since(dt);
+        let secs = if diff.num_seconds() > 0 {
+            diff.num_seconds() as u64
+        } else {
+            kernel_uptime
+        };
+        return (secs, started_at.clone());
     }
 
-    let output = Command::new("powershell")
-        .args(&[
-            "-NoProfile",
-            "-Command",
+    // Laatste ontwaak-/opstartmoment (slaapstand en Fast Startup tellen niet als "nieuwe boot").
+    let output = if cfg!(windows) {
+        crate::shell::run_ps(
             "(Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Microsoft-Windows-Kernel-Power','Microsoft-Windows-Power-Troubleshooter'; Id=507, 107, 1} -MaxEvents 1 -ErrorAction SilentlyContinue).TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')",
-        ])
-        .output();
+        )
+    } else {
+        None
+    };
 
-    if let Ok(out) = output {
-        let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if !text.is_empty() {
-            if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(&text, "%Y-%m-%d %H:%M:%S") {
-                let diff = now.signed_duration_since(dt);
-                if diff.num_seconds() > 0 {
-                    let secs = diff.num_seconds() as u64;
-                    let started_at = if dt.date() == now.date() {
-                        format!("Vandaag om {}", dt.format("%H:%M"))
-                    } else {
-                        dt.format("%d-%m om %H:%M").to_string()
-                    };
-                    if let Ok(mut guard) = SESSION_START_CACHE.lock() {
-                        *guard = Some((dt, started_at.clone()));
-                    }
-                    return (secs, started_at);
-                }
+    if let Some(text) = output.map(|o| o.trim().to_string())
+        && !text.is_empty()
+        && let Ok(dt) = chrono::NaiveDateTime::parse_from_str(&text, "%Y-%m-%d %H:%M:%S")
+    {
+        let diff = now.signed_duration_since(dt);
+        if diff.num_seconds() > 0 {
+            let secs = diff.num_seconds() as u64;
+            let started_at = if dt.date() == now.date() {
+                crate::tr!(
+                    format!("Vandaag om {}", dt.format("%H:%M")),
+                    format!("Today at {}", dt.format("%H:%M"))
+                )
+            } else {
+                dt.format(crate::tr!("%d-%m om %H:%M", "%d-%m at %H:%M"))
+                    .to_string()
+            };
+            if let Ok(mut guard) = SESSION_START_CACHE.lock() {
+                *guard = Some((dt, started_at.clone()));
             }
+            return (secs, started_at);
         }
     }
 
-    let default_str = "Sinds koude systeemstart".to_string();
+    let default_str = crate::tr!("Sinds koude systeemstart", "Since cold boot").to_string();
     if let Ok(mut guard) = SESSION_START_CACHE.lock() {
-        *guard = Some((now - chrono::Duration::seconds(kernel_uptime as i64), default_str.clone()));
+        *guard = Some((
+            now - chrono::Duration::seconds(kernel_uptime as i64),
+            default_str.clone(),
+        ));
     }
     (kernel_uptime, default_str)
 }
 
-#[tauri::command]
 pub fn get_system_overview() -> SystemOverview {
     ensure_watchdog_started();
 
@@ -187,7 +247,7 @@ pub fn get_system_overview() -> SystemOverview {
                     disks: vec![],
                     gpus,
                     motherboard,
-                }
+                };
             }
         },
     };
@@ -198,8 +258,14 @@ pub fn get_system_overview() -> SystemOverview {
 
     let cpus = sys.cpus();
     let global_usage = sys.global_cpu_usage();
-    let brand = cpus.first().map(|c| c.brand().to_string()).unwrap_or_else(|| "CPU".to_string());
-    let vendor_id = cpus.first().map(|c| c.vendor_id().to_string()).unwrap_or_default();
+    let brand = cpus
+        .first()
+        .map(|c| c.brand().to_string())
+        .unwrap_or_else(|| "CPU".to_string());
+    let vendor_id = cpus
+        .first()
+        .map(|c| c.vendor_id().to_string())
+        .unwrap_or_default();
 
     let cores = cpus
         .iter()
@@ -266,5 +332,25 @@ pub fn get_system_overview() -> SystemOverview {
         disks,
         gpus,
         motherboard,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lspci_gpu_lines_are_parsed() {
+        let out = "00:00.0 Host bridge: Intel Corporation Device 9a14
+00:02.0 VGA compatible controller: Intel Corporation TigerLake GT2 [Iris Xe Graphics]
+01:00.0 3D controller: NVIDIA Corporation GA107M [GeForce RTX 3050 Mobile]
+";
+        let gpus = parse_lspci_gpus(out);
+        assert_eq!(gpus.len(), 2);
+        assert_eq!(
+            gpus[0].name,
+            "Intel Corporation TigerLake GT2 [Iris Xe Graphics]"
+        );
+        assert!(gpus[1].name.contains("RTX 3050"));
     }
 }

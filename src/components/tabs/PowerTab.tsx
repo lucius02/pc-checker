@@ -11,6 +11,9 @@ import {
 } from "lucide-react";
 import { PowerInfo, BatteryHealthReport, HardwarePowerCheckReport } from "../../types";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
+import { useStatusLabel } from "../../i18n/status";
 import { HardwarePowerSection } from "./power/HardwarePowerSection";
 
 interface PowerTabProps {
@@ -32,6 +35,8 @@ export const PowerTab: React.FC<PowerTabProps> = ({
   isTestingPowerDelivery,
   runPowerDeliveryCheck,
 }) => {
+  const t = useT();
+  const status = useStatusLabel();
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-5">
@@ -39,10 +44,10 @@ export const PowerTab: React.FC<PowerTabProps> = ({
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <BatteryCharging className="w-5 h-5 text-amber-400" />
-              Stroomvoorziening &amp; Batterij Gezondheid
+              {t("power.title")}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Inspecteert netstroomvoeding, batterijlading, en voert een diepgaande degradatietest uit van de accucapaciteit.
+              {t("power.intro")}
             </p>
           </div>
 
@@ -60,12 +65,12 @@ export const PowerTab: React.FC<PowerTabProps> = ({
               {isTestingBattery ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Accu Meten...
+                  {t("power.measuring")}
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-slate-950" />
-                  Start Batterij Slijtagetest
+                  {t("power.start")}
                 </>
               )}
             </button>
@@ -77,7 +82,7 @@ export const PowerTab: React.FC<PowerTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             {/* Card 1: AC Netstroom */}
             <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
-              <span className="text-slate-400 block">Stroomtoevoer (AC Line)</span>
+              <span className="text-slate-400 block">{t("power.acLine")}</span>
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
@@ -86,26 +91,26 @@ export const PowerTab: React.FC<PowerTabProps> = ({
                   )}
                 />
                 <span className="text-base font-bold text-slate-200">
-                  {powerData.ac_connected ? "Netstroom Aangesloten" : "Op Batterij"}
+                  {powerData.ac_connected ? t("power.acConnected") : t("power.onBattery")}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
                 {powerData.is_laptop
-                  ? "Voedingsadapter levert stroom"
-                  : "Directe voeding via PC-voeding (PSU)"}
+                  ? t("power.adapterDelivers")
+                  : t("power.psuDirect")}
               </p>
             </div>
 
             {/* Card 2: Lading % */}
             <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
               <span className="text-slate-400 block">
-                {powerData.is_laptop ? "Actuele Batterijlading" : "Batterijstatus"}
+                {powerData.is_laptop ? t("power.charge") : t("power.batteryStatus")}
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-bold font-mono text-amber-400">
                   {powerData.battery_percent !== null && powerData.battery_percent !== undefined
                     ? `${powerData.battery_percent}%`
-                    : "Geen (N.v.t.)"}
+                    : t("power.none")}
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -115,12 +120,12 @@ export const PowerTab: React.FC<PowerTabProps> = ({
 
             {/* Card 3: Energieplan */}
             <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2">
-              <span className="text-slate-400 block">Actief Energieplan</span>
+              <span className="text-slate-400 block">{t("power.plan")}</span>
               <div className="text-base font-bold text-cyan-400">
                 {powerData.power_plan_name}
               </div>
               <p className="text-xs text-slate-500">
-                Bepaalt throttling, slaapstanden en CPU kloksnelheden
+                {t("power.planHint")}
               </p>
             </div>
           </div>
@@ -133,35 +138,35 @@ export const PowerTab: React.FC<PowerTabProps> = ({
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-amber-400" />
                 <h3 className="font-bold text-white text-sm">
-                  Resultaat Batterijslijtage &amp; Gezondheidstest
+                  {t("power.resultTitle")}
                 </h3>
               </div>
               <span className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-950 border border-amber-800 text-amber-300">
-                {batteryReport.grade}
+                {status(batteryReport.grade)}
               </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 block mb-1">Batterij Gezondheid</span>
+                <span className="text-slate-500 block mb-1">{t("power.health")}</span>
                 <span className="text-xl font-bold font-mono text-emerald-400">
                   {batteryReport.health_percent.toFixed(1)}%
                 </span>
               </div>
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 block mb-1">Capaciteitsslijtage</span>
+                <span className="text-slate-500 block mb-1">{t("power.wear")}</span>
                 <span className="text-xl font-bold font-mono text-amber-400">
                   {batteryReport.wear_percent.toFixed(1)}%
                 </span>
               </div>
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 block mb-1">Volledig Geladen</span>
+                <span className="text-slate-500 block mb-1">{t("power.full")}</span>
                 <span className="text-base font-bold font-mono text-slate-200">
                   {batteryReport.full_charge_capacity_mwh} mWh
                 </span>
               </div>
               <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                <span className="text-slate-500 block mb-1">Fabrieksontwerp</span>
+                <span className="text-slate-500 block mb-1">{t("power.design")}</span>
                 <span className="text-base font-bold font-mono text-slate-200">
                   {batteryReport.design_capacity_mwh} mWh
                 </span>
@@ -169,12 +174,12 @@ export const PowerTab: React.FC<PowerTabProps> = ({
             </div>
 
             <div className="p-3.5 bg-slate-900/70 rounded-xl border border-slate-800/80 text-xs text-slate-300 space-y-1">
-              <span className="font-semibold text-amber-300 block">Diagnose &amp; Advies:</span>
+              <span className="font-semibold text-amber-300 block">{t("power.diagnosis")}</span>
               <p>{batteryReport.advice}</p>
               <div className="text-xs text-slate-400 pt-1 flex gap-4">
-                <span>Chemie: {batteryReport.chemistry}</span>
-                <span>Fabrikant: {batteryReport.manufacturer}</span>
-                <span>Geschatte accuduur: {batteryReport.estimated_runtime}</span>
+                <span>{t("power.chemistry", { v: batteryReport.chemistry })}</span>
+                <span>{t("power.manufacturer", { v: batteryReport.manufacturer })}</span>
+                <span>{t("power.runtime", { v: batteryReport.estimated_runtime })}</span>
               </div>
             </div>
           </div>
@@ -193,7 +198,7 @@ export const PowerTab: React.FC<PowerTabProps> = ({
         <div className="flex items-center gap-2">
           <Info className="w-5 h-5 text-amber-400" />
           <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-            Richtlijnen, Accugezondheid &amp; Voedingsaanbevelingen
+            {t("power.guideTitle")}
           </h3>
         </div>
 
@@ -202,31 +207,31 @@ export const PowerTab: React.FC<PowerTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              Wat betekenen de accugezondheidspercentages?
+              {t("power.gradesTitle")}
             </h4>
             <div className="space-y-2">
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
-                  <span className="font-medium text-emerald-400 block">90% – 100% • Graad A (Uitmuntend)</span>
-                  <span className="text-xs text-slate-400">Accucellen presteren nagenoeg conform fabrieksspecificatie.</span>
+                  <span className="font-medium text-emerald-400 block">{t("power.gradeA")}</span>
+                  <span className="text-xs text-slate-400">{t("power.gradeAText")}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
-                  <span className="font-medium text-cyan-300 block">80% – 89% • Graad B (Goed)</span>
-                  <span className="text-xs text-slate-400">Normale chemische veroudering; uitstekend betrouwbaar.</span>
+                  <span className="font-medium text-cyan-300 block">{t("power.gradeB")}</span>
+                  <span className="text-xs text-slate-400">{t("power.gradeBText")}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
-                  <span className="font-medium text-amber-300 block">65% – 79% • Graad C (Matig)</span>
-                  <span className="text-xs text-slate-400">Capaciteit merkbaar verminderd; laptop loopt sneller leeg.</span>
+                  <span className="font-medium text-amber-300 block">{t("power.gradeC")}</span>
+                  <span className="text-xs text-slate-400">{t("power.gradeCText")}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800/80">
                 <div>
-                  <span className="font-medium text-rose-400 block">&lt;65% • Graad D (Versleten)</span>
-                  <span className="text-xs text-slate-400">Kans op plotselinge shutdowns bij pieken; vervanging aangeraden.</span>
+                  <span className="font-medium text-rose-400 block">{t("power.gradeD")}</span>
+                  <span className="text-xs text-slate-400">{t("power.gradeDText")}</span>
                 </div>
               </div>
             </div>
@@ -235,16 +240,16 @@ export const PowerTab: React.FC<PowerTabProps> = ({
           <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl space-y-3">
             <h4 className="font-semibold text-slate-200 flex items-center gap-2">
               <Plug className="w-4 h-4 text-cyan-400" />
-              Desktop vs. Laptop Voedingsverschillen
+              {t("power.diffTitle")}
             </h4>
             <p className="text-slate-400 text-xs leading-relaxed">
-              <strong>Desktop PC's:</strong> Zijn aangesloten op continue wisselstroom (AC Line). Een stabiele PSU (voeding) met 80 Plus certificering voorkomt spanningsdips op de 12V-lijn naar GPU en CPU.
+              <RichText text={t("power.diffDesktop")} />
             </p>
             <p className="text-slate-400 text-xs leading-relaxed">
-              <strong>Laptops:</strong> Schakelen dynamisch tussen batterij en netstroom. Veel laptops halveren de CPU en GPU klokfrequentie zodra de adapter wordt losgekoppeld om piekontlading te voorkomen.
+              <RichText text={t("power.diffLaptop")} />
             </p>
             <div className="p-2.5 bg-slate-900/80 border border-slate-800 rounded-lg text-slate-300 text-xs">
-              <strong>Laadcycli:</strong> Een lithium-ion batterij gaat gemiddeld 500 tot 800 volledige laadcycli mee voordat de slijtage merkbaar wordt.
+              <RichText text={t("power.cycles")} />
             </div>
           </div>
         </div>
@@ -253,28 +258,28 @@ export const PowerTab: React.FC<PowerTabProps> = ({
         <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3 text-xs">
           <div className="flex items-center gap-2 text-amber-300 font-semibold">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Praktische Tips om de Acculevensduur te Verlengen</span>
+            <span>{t("power.tipsTitle")}</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">1. Activeer 80% Laadlimiet</span>
+              <span className="font-medium text-white block">{t("power.tip1Title")}</span>
               <p className="text-xs text-slate-400">
-                Als je laptop meestal aan de netstroom hangt, stel dan via de fabrikantsoftware (Lenovo Vantage, ASUS MyASUS, etc.) een 80% batterijdrempel in. Dit voorkomt celspanning-slijtage.
+                {t("power.tip1")}
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">2. Vermijd Volledige Ontlading (0%)</span>
+              <span className="font-medium text-white block">{t("power.tip2Title")}</span>
               <p className="text-xs text-slate-400">
-                Lithiumcellen hebben een hekel aan diepe ontlading. Sluit de lader bij voorkeur aan zodra de batterij rond de 20% komt om celcorruptie te voorkomen.
+                {t("power.tip2")}
               </p>
             </div>
 
             <div className="p-3 bg-slate-900/60 rounded-lg border border-slate-800/70 space-y-1">
-              <span className="font-medium text-white block">3. Vermijd Hoge Accutemperaturen</span>
+              <span className="font-medium text-white block">{t("power.tip3Title")}</span>
               <p className="text-xs text-slate-400">
-                Laad een laptop niet op in direct zonlicht of op een warm dekbed. Boven de 35°C treedt versnelde chemische degradatie op in het lithium-elektrolyt.
+                {t("power.tip3")}
               </p>
             </div>
           </div>

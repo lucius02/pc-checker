@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../utils/cn";
 import { MicrophoneSection } from "./audio/MicrophoneSection";
+import { useT } from "../../i18n";
 
 interface AudioTabProps {
   onUpdateResult?: (data: {
@@ -18,6 +19,7 @@ interface AudioTabProps {
 }
 
 export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
+  const t = useT();
   // Audio output state
   const [activeChannel, setActiveChannel] = useState<"left" | "right" | "both" | null>(null);
   const [activeFrequency, setActiveFrequency] = useState<number | null>(null);
@@ -68,7 +70,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
       if (currentOscRef.current) {
         try {
           currentOscRef.current.stop();
-        } catch {}
+        } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
       }
       if (micStreamRef.current) {
         micStreamRef.current.getTracks().forEach((t) => t.stop());
@@ -79,7 +83,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
       if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
         try {
           audioCtxRef.current.close();
-        } catch {}
+        } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
       }
     };
   }, []);
@@ -165,7 +171,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
           setTimeout(() => {
             try {
               osc.stop();
-            } catch {}
+            } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
             setIsPlayingTone(false);
             setActiveFrequency(null);
           }, 120);
@@ -180,7 +188,9 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
     if (currentOscRef.current) {
       try {
         currentOscRef.current.stop();
-      } catch {}
+      } catch {
+          /* niet fataal: apparaat/stream al gestopt */
+        }
       currentOscRef.current = null;
     }
     setIsPlayingTone(false);
@@ -197,7 +207,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
       micStreamRef.current = stream;
 
       const track = stream.getAudioTracks()[0];
-      setMicDeviceName(track?.label || "Standaard Systeammicrofoon");
+      setMicDeviceName(track?.label || t("au.defaultMic"));
 
       const ctx = getAudioContext();
       const source = ctx.createMediaStreamSource(stream);
@@ -231,7 +241,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
 
       micAnimFrameRef.current = requestAnimationFrame(checkVolume);
     } catch (err) {
-      setMicError("Microfoontoegang geweigerd of geen microfoon gedetecteerd.");
+      setMicError(t("au.micDenied"));
       console.error(err);
       setIsMicTesting(false);
     }
@@ -263,13 +273,13 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-white">Luidspreker, Stereo &amp; Microfoontest</h2>
+                <h2 className="text-lg font-bold text-white">{t("au.title")}</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pink-950/80 border border-pink-700/60 text-pink-300">
-                  Web Audio Engine
+                  {t("au.badge")}
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Controleer je linker- en rechter luidsprekerkanalen, frequentierespons (bas/midden/hoog) en realtime microfoon-ingangsniveau.
+                {t("au.intro")}
               </p>
             </div>
           </div>
@@ -278,30 +288,30 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
         {/* Status Indicators */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Stereo Balans</span>
+            <span className="text-slate-400 block">{t("au.stereo")}</span>
             <span className={cn("text-base font-bold font-mono", stereoTested ? "text-emerald-400" : "text-slate-400")}>
-              {stereoTested ? "Getest ✓" : "Nog niet getest"}
+              {stereoTested ? t("au.tested") : t("au.notTested")}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Frequentiebereik</span>
+            <span className="text-slate-400 block">{t("au.range")}</span>
             <span className={cn("text-base font-bold font-mono", frequenciesTested ? "text-emerald-400" : "text-slate-400")}>
-              {frequenciesTested ? "Getest ✓" : "Nog niet getest"}
+              {frequenciesTested ? t("au.tested") : t("au.notTested")}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Microfoon Piek</span>
+            <span className="text-slate-400 block">{t("au.micPeak")}</span>
             <span className={cn("text-base font-bold font-mono", micPeak > 15 ? "text-emerald-400" : "text-slate-400")}>
               {micPeak > 0 ? `${micPeak}%` : "—"}
             </span>
           </div>
 
           <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1">
-            <span className="text-slate-400 block">Ingangsstatus</span>
+            <span className="text-slate-400 block">{t("au.inputStatus")}</span>
             <span className="text-xs font-mono font-bold text-slate-200 truncate block mt-0.5">
-              {isMicTesting ? (micClipping ? "⚠️ Te hard (clipping)" : "Actief aan het luisteren") : "Uitgeschakeld"}
+              {isMicTesting ? (micClipping ? t("au.clipping") : t("au.listening")) : t("au.off")}
             </span>
           </div>
         </div>
@@ -313,16 +323,16 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
         <div className="p-5 bg-slate-900/70 border border-slate-800 rounded-2xl space-y-5">
           <div className="flex items-center gap-2">
             <Radio className="w-4 h-4 text-pink-400" />
-            <h3 className="text-sm font-bold text-white">Stereokanaal Balanstest</h3>
+            <h3 className="text-sm font-bold text-white">{t("au.stereoTitle")}</h3>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Klik op Links of Rechts om te testen of het geluid daadwerkelijk uit het juiste fysieke luidspreker- of koptelefoonkanaal komt.
+            {t("au.stereoIntro")}
           </p>
 
           <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => playStereoBeep("left")}
-              aria-label="Test linkerkanaal audio"
+              aria-label={t("au.ariaLeft")}
               className={cn(
                 "p-4 rounded-xl border text-center transition-all cursor-pointer font-semibold text-xs flex flex-col items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2",
                 activeChannel === "left"
@@ -331,12 +341,12 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
               )}
             >
               <Volume2 className="w-5 h-5 text-pink-400" />
-              <span>Linkerkanaal (L)</span>
+              <span>{t("au.left")}</span>
             </button>
 
             <button
               onClick={() => playStereoBeep("both")}
-              aria-label="Test beide audiokanalen"
+              aria-label={t("au.ariaBoth")}
               className={cn(
                 "p-4 rounded-xl border text-center transition-all cursor-pointer font-semibold text-xs flex flex-col items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2",
                 activeChannel === "both"
@@ -345,12 +355,12 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
               )}
             >
               <Volume2 className="w-5 h-5 text-cyan-400" />
-              <span>Beide Kanalen (L+R)</span>
+              <span>{t("au.both")}</span>
             </button>
 
             <button
               onClick={() => playStereoBeep("right")}
-              aria-label="Test rechterkanaal audio"
+              aria-label={t("au.ariaRight")}
               className={cn(
                 "p-4 rounded-xl border text-center transition-all cursor-pointer font-semibold text-xs flex flex-col items-center gap-2 focus-visible:outline-2 focus-visible:outline-offset-2",
                 activeChannel === "right"
@@ -359,7 +369,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
               )}
             >
               <Volume2 className="w-5 h-5 text-purple-400" />
-              <span>Rechterkanaal (R)</span>
+              <span>{t("au.right")}</span>
             </button>
           </div>
 
@@ -368,7 +378,7 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                 <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-                Frequentie Toongenerator:
+                {t("au.generator")}
               </span>
               {isPlayingTone && (
                 <button
@@ -376,19 +386,19 @@ export const AudioTab: React.FC<AudioTabProps> = ({ onUpdateResult }) => {
                   className="px-2 py-0.5 rounded-md bg-rose-950/80 border border-rose-800 text-rose-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <Square className="w-3 h-3" />
-                  Stop Toon
+                  {t("au.stopTone")}
                 </button>
               )}
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-xs">
               {[
-                { freq: 80, label: "Lage Bas (80 Hz)" },
-                { freq: 440, label: "Midden A (440 Hz)" },
-                { freq: 1000, label: "Referentie (1 kHz)" },
-                { freq: 3500, label: "Hoge Stem (3.5 kHz)" },
-                { freq: 8000, label: "Hoge Tonen (8 kHz)" },
-                { freq: 12000, label: "Detail (12 kHz)" },
+                { freq: 80, label: t("au.f80") },
+                { freq: 440, label: t("au.f440") },
+                { freq: 1000, label: t("au.f1000") },
+                { freq: 3500, label: t("au.f3500") },
+                { freq: 8000, label: t("au.f8000") },
+                { freq: 12000, label: t("au.f12000") },
               ].map((item) => (
                 <button
                   key={item.freq}

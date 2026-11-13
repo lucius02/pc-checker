@@ -21,6 +21,9 @@ fn all_good() -> HealthInputs {
         cpu_stress_ok: Some(true),
         ram_test_ok: Some(true),
         disk_test_ok: Some(true),
+        storage_smart_warning_count: Some(0),
+        storage_smart_critical_count: Some(0),
+        storage_smart_findings: Some(Vec::new()),
     }
 }
 
@@ -89,7 +92,13 @@ fn health_untested_excluded_from_average() {
         let tested: Vec<_> = a.categories.iter().collect();
         let s: f64 = tested
             .iter()
-            .map(|c| if c.key == "cpu" { 0.0 } else { c.score as f64 * c.weight as f64 })
+            .map(|c| {
+                if c.key == "cpu" {
+                    0.0
+                } else {
+                    c.score as f64 * c.weight as f64
+                }
+            })
             .sum();
         let w: f64 = tested.iter().map(|c| c.weight as f64).sum();
         (s / w).round() as u8
@@ -116,7 +125,11 @@ fn health_only_basics_is_preliminary() {
         ..Default::default()
     });
     assert!(h.label.contains("voorlopig"), "{}", h.label);
-    assert!(h.top_issues.iter().any(|t| t.contains("nauwkeurigere score")));
+    assert!(
+        h.top_issues
+            .iter()
+            .any(|t| t.contains("nauwkeurigere score"))
+    );
     assert!(h.score <= CAP_B && GRADES.contains(&h.grade.as_str()));
     assert_eq!(h.grade, "B");
     // Ook na de (automatische) freeze-scan blijft het voorlopig.
@@ -126,7 +139,11 @@ fn health_only_basics_is_preliminary() {
         min_disk_free_percent: Some(50.0),
         ..Default::default()
     });
-    assert!(h2.label.contains("voorlopig") && h2.score <= CAP_B, "{:?}", h2);
+    assert!(
+        h2.label.contains("voorlopig") && h2.score <= CAP_B,
+        "{:?}",
+        h2
+    );
     for key in ["stability", "drivers", "latency", "cpu", "thermal"] {
         assert_eq!(cat(&h, key).unwrap().status, "Niet getest", "{}", key);
     }
@@ -197,6 +214,9 @@ fn health_score_and_grade_always_in_range() {
             cpu_stress_ok: Some(false),
             ram_test_ok: Some(false),
             disk_test_ok: Some(false),
+            storage_smart_warning_count: Some(usize::MAX),
+            storage_smart_critical_count: Some(usize::MAX),
+            storage_smart_findings: Some(vec![String::new(); 3]),
         },
         HealthInputs {
             is_throttling_suspected: true,
@@ -227,7 +247,11 @@ fn health_issues_ordered_by_severity() {
         ..all_good()
     });
     assert!(h.top_issues[0].contains("RAM-test"), "{:?}", h.top_issues);
-    assert!(h.top_issues[1].contains("verouderde driver"), "{:?}", h.top_issues);
+    assert!(
+        h.top_issues[1].contains("verouderde driver"),
+        "{:?}",
+        h.top_issues
+    );
 }
 
 #[test]
@@ -236,4 +260,59 @@ fn health_is_deterministic() {
     let b = compute_health_score(all_good());
     assert_eq!(a.score, b.score);
     assert_eq!(a.top_issues, b.top_issues);
+}
+
+#[test]
+fn smart_critical_caps_storage_category() {
+    let h = compute_health_score(HealthInputs {
+        storage_smart_critical_count: Some(1),
+        ..all_good()
+    });
+    let storage = cat(&h, "storage").unwrap();
+    assert_eq!(storage.status, STATUS_CRIT);
+    assert!(storage.score <= 25);
+    assert!(h.top_issues.iter().any(|t| t.contains("SMART")));
+}
+
+#[test]
+fn smart_warning_lowers_storage_to_warn() {
+    let h = compute_health_score(HealthInputs {
+        storage_smart_warning_count: Some(2),
+        ..all_good()
+    });
+    assert_eq!(cat(&h, "storage").unwrap().status, STATUS_WARN);
+}
+
+#[test]
+fn smart_warning_names_the_reason() {
+    let h = compute_health_score(HealthInputs {
+        storage_smart_warning_count: Some(1),
+        storage_smart_findings: Some(vec!["Samsung 980: Schijftemperatuur 78 °C is warm.".into()]),
+        ..all_good()
+    });
+    let storage = cat(&h, "storage").unwrap();
+    assert!(
+        storage
+            .detail
+            .contains("Samsung 980: Schijftemperatuur 78 °C"),
+        "{}",
+        storage.detail
+    );
+    assert!(
+        h.top_issues.iter().any(|t| t.contains("Samsung 980")),
+        "{:?}",
+        h.top_issues
+    );
+}
+
+#[test]
+fn english_texts_when_language_is_english() {
+    let h = crate::i18n::with_language(true, || compute_health_score(all_good()));
+    assert_eq!(h.label, "Excellent");
+    let storage = cat(&h, "storage").unwrap();
+    assert_eq!(storage.label, "Storage");
+    // Statuscodes blijven Nederlands: de frontend vergelijkt erop.
+    assert_eq!(storage.status, STATUS_GOOD);
+    let nl = crate::i18n::with_language(false, || compute_health_score(all_good()));
+    assert_eq!(nl.label, "Uitstekend");
 }

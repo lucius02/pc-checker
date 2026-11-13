@@ -7,6 +7,7 @@ import {
   DriverReport,
   LatencyTestResult,
   HealthInputs,
+  StorageHealthReport,
 } from "../types";
 
 export interface HealthInputSources {
@@ -19,6 +20,7 @@ export interface HealthInputSources {
   cpuResult: StressTestResult | null;
   ramResult: StressTestResult | null;
   diskResult: StressTestResult | null;
+  storageReport?: StorageHealthReport | null;
 }
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -41,6 +43,7 @@ export function buildHealthInputs(src: HealthInputSources): HealthInputs {
     cpuResult,
     ramResult,
     diskResult,
+    storageReport,
   } = src;
 
   const temps = (coolingData?.temperatures ?? [])
@@ -84,5 +87,12 @@ export function buildHealthInputs(src: HealthInputSources): HealthInputs {
     cpu_stress_ok: cpuResult ? cpuResult.success : null,
     ram_test_ok: ramResult ? ramResult.success : null,
     disk_test_ok: diskResult ? diskResult.success : null,
+    storage_smart_warning_count: storageReport?.is_available ? storageReport.warning_count : null,
+    storage_smart_critical_count: storageReport?.is_available ? storageReport.critical_count : null,
+    storage_smart_findings: storageReport?.is_available
+      ? storageReport.disks
+          .filter((d) => d.verdict !== "Goed")
+          .flatMap((d) => d.findings.map((f) => `${d.model}: ${f}`))
+      : null,
   };
 }

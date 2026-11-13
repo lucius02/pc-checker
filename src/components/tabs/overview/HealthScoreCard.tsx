@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api, errorMessage } from "../../../lib/api";
+import { useDiagnosticsStore } from "../../../store/diagnosticsStore";
 import {
   HeartPulse,
   Thermometer,
@@ -32,6 +33,9 @@ import {
 } from "../../../types";
 import { buildHealthInputs } from "../../../utils/healthInputs";
 import { cn } from "../../../utils/cn";
+import { useI18nStore, useT } from "../../../i18n";
+import { useStatusLabel } from "../../../i18n/status";
+import { HealthTestButton } from "./HealthTestButton";
 
 export interface HealthScoreCardProps {
   data: SystemOverview;
@@ -106,6 +110,7 @@ const gradeTone = (grade: string): keyof typeof STATUS_COLOR => {
 
 /** Ringmeter: gevulde boog draagt de ernst, de baan is dezelfde kleur, lichter. */
 const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade }) => {
+  const t = useT();
   const size = 132;
   const stroke = 10;
   const r = (size - stroke) / 2;
@@ -121,7 +126,7 @@ const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade })
         viewBox={`0 0 ${size} ${size}`}
         className="block"
         role="img"
-        aria-label={`Gezondheidsscore ${score} van 100, cijfer ${grade}`}
+        aria-label={t("hs.aria", { s: score, g: grade })}
       >
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeOpacity={0.18} strokeWidth={stroke} />
         <circle
@@ -139,7 +144,7 @@ const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade })
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-5xl font-bold text-white leading-none">{score}</span>
-        <span className="text-xs text-slate-400 mt-1">van 100</span>
+        <span className="text-xs text-slate-400 mt-1">{t("hs.of100")}</span>
       </div>
     </div>
   );
@@ -149,6 +154,8 @@ const CategoryRow: React.FC<{
   cat: HealthCategoryScore;
   onOpen: (tab: TabType) => void;
 }> = ({ cat, onOpen }) => {
+  const t = useT();
+  const status = useStatusLabel();
   const meta = CATEGORY_META[cat.key];
   const st = statusStyle(cat.status);
   const Icon = meta?.icon ?? Info;
@@ -160,7 +167,7 @@ const CategoryRow: React.FC<{
     <button
       type="button"
       onClick={() => meta && onOpen(meta.tab)}
-      title={`${cat.label}: ${cat.detail}${untested ? "" : ` (score ${cat.score}/100)`} — klik om te openen`}
+      title={t("hs.rowTitle", { label: cat.label, detail: cat.detail, score: untested ? "" : t("hs.rowScore", { s: cat.score }) })}
       className="group w-full text-left px-3 py-2 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-600 hover:bg-slate-950 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
     >
       <div className="flex items-center gap-2">
@@ -176,7 +183,7 @@ const CategoryRow: React.FC<{
           )}
         >
           <StatusIcon className="w-3 h-3" />
-          {cat.status}
+          {status(cat.status)}
         </span>
         <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-300 shrink-0" />
       </div>
@@ -208,6 +215,11 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
   diskResult,
   setActiveTab,
 }) => {
+  const t = useT();
+  const status = useStatusLabel();
+  const lang = useI18nStore((s) => s.lang);
+  const storageReport = useDiagnosticsStore((s) => s.storageReport);
+  const setHealthScore = useDiagnosticsStore((s) => s.setHealthScore);
   // `data` ververst elke 3 s; buildHealthInputs rondt live waarden af zodat deze
   // sleutel alleen verandert als de invoer echt verschuift.
   const inputsKey = useMemo(
@@ -223,9 +235,10 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
           cpuResult,
           ramResult,
           diskResult,
+          storageReport,
         })
       ),
-    [data, coolingData, freezeData, batteryReport, driverReport, latencyResult, cpuResult, ramResult, diskResult]
+    [data, coolingData, freezeData, batteryReport, driverReport, latencyResult, cpuResult, ramResult, diskResult, storageReport]
   );
 
   const [health, setHealth] = useState<HealthScore | null>(null);
@@ -233,27 +246,28 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
 
   useEffect(() => {
     let cancelled = false;
-    invoke<HealthScore>("compute_health_score", { inputs: JSON.parse(inputsKey) })
+    api
+      .computeHealthScore(JSON.parse(inputsKey))
       .then((res) => {
         if (cancelled) return;
         setHealth(res);
+        setHealthScore(res);
         setError(null);
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error("Fout bij berekenen gezondheidsscore:", err);
-        setError(String(err));
+        setError(errorMessage(err));
       });
     return () => {
       cancelled = true;
     };
-  }, [inputsKey]);
+  }, [inputsKey, setHealthScore, lang]);
 
   if (!health) {
     return (
       <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-2xl flex items-center gap-3 text-xs text-slate-400">
         <HeartPulse className="w-4 h-4 text-cyan-400" />
-        {error ? `Gezondheidsscore kon niet worden berekend: ${error}` : "Gezondheidsscore berekenen…"}
+        {error ? t("hs.failed", { e: error }) : t("hs.computing")}
       </div>
     );
   }
@@ -261,7 +275,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
   const untested = health.categories.filter((c) => c.status === "Niet getest");
   // De "Nog niet getest: ..."-zin staat hieronder al als klikbare rij.
   const issues = untested.length > 0
-    ? health.top_issues.filter((t) => !t.startsWith("Nog niet getest"))
+    ? health.top_issues.filter((s) => !s.startsWith("Nog niet getest") && !s.startsWith("Not yet tested"))
     : health.top_issues;
   const tone = gradeTone(health.grade);
   const gradeStyle = statusStyle(tone === "good" ? "Goed" : tone === "warning" ? "Let op" : "Kritiek");
@@ -272,13 +286,14 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
           <HeartPulse className="w-4 h-4 text-cyan-400" />
-          <span>Gezondheidsscore</span>
+          <span>{t("hs.title")}</span>
+          {error && (
+            <span className="text-xs font-normal text-amber-300 truncate" title={error}>
+              {t("hs.lastFailed")}
+            </span>
+          )}
         </div>
-        {error && (
-          <span className="text-xs text-amber-300 truncate" title={error}>
-            Laatste berekening mislukt — vorige score getoond
-          </span>
-        )}
+        <HealthTestButton />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5">
@@ -287,7 +302,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
           <ScoreRing score={health.score} grade={health.grade} />
           <div className="space-y-2 min-w-0">
             <div className="flex items-baseline gap-2">
-              <span className="text-xs text-slate-400">Cijfer</span>
+              <span className="text-xs text-slate-400">{t("hs.grade")}</span>
               <span className="text-3xl font-bold text-white leading-none">{health.grade}</span>
             </div>
             <span
@@ -297,11 +312,10 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
               )}
             >
               <GradeIcon className="w-3.5 h-3.5" />
-              {health.label}
+              {status(health.label)}
             </span>
             <p className="text-xs text-slate-400 leading-snug">
-              Gebaseerd op {health.categories.length - untested.length} van {health.categories.length} onderdelen;
-              freeze-oorzaken wegen het zwaarst.
+              {t("hs.basedOn", { n: health.categories.length - untested.length, m: health.categories.length })}
             </p>
           </div>
         </div>
@@ -317,7 +331,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
       {issues.length > 0 && (
         <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-1.5">
           <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Belangrijkste aandachtspunten
+            {t("hs.issues")}
           </div>
           <ol className="space-y-1">
             {issues.map((issue, idx) => (
@@ -333,7 +347,7 @@ export const HealthScoreCard: React.FC<HealthScoreCardProps> = ({
       {untested.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
           <Info className="w-3.5 h-3.5 shrink-0" />
-          <span>Niet getest (telt niet mee; test voor een nauwkeurigere score):</span>
+          <span>{t("hs.untested")}</span>
           {untested.map((c) => {
             const meta = CATEGORY_META[c.key];
             return (

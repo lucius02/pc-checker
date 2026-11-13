@@ -1,4 +1,3 @@
-use std::process::Command;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use sysinfo::Components;
@@ -15,7 +14,108 @@ struct WmiCoolingCache {
 
 static WMI_COOLING_CACHE: Mutex<Option<WmiCoolingCache>> = Mutex::new(None);
 
-#[tauri::command]
+/// ACPI-thermal-zone in tienden van Kelvin → °C; `None` voor onrealistische waarden.
+pub fn decikelvin_to_celsius(raw: u32) -> Option<f32> {
+    let c = (raw as f32 - 2732.0) / 10.0;
+    (c > 0.0 && c < 125.0).then_some(c)
+}
+
+/// Thermal zones + ventilatoren via native WMI (geen PowerShell-proces per poll).
+#[cfg(windows)]
+fn query_cooling_wmi() -> (Vec<TemperatureSensorInfo>, Vec<FanInfo>, Option<u32>) {
+    use serde::Deserialize;
+    use wmi::WMIConnection;
+
+    #[derive(Deserialize)]
+    #[serde(
+        rename = "Win32_PerfFormattedData_Counters_ThermalZoneInformation",
+        rename_all = "PascalCase"
+    )]
+    struct ThermalZone {
+        name: Option<String>,
+        high_precision_temperature: Option<u32>,
+        percent_passive_limit: Option<u32>,
+    }
+    #[derive(Deserialize)]
+    #[serde(rename = "Win32_Fan", rename_all = "PascalCase")]
+    struct Fan {
+        name: Option<String>,
+        status: Option<String>,
+        desired_speed: Option<u64>,
+    }
+
+    let mut zones = Vec::new();
+    let mut fans = Vec::new();
+    let mut passive = None;
+    let Ok(con) = WMIConnection::new() else {
+        return (zones, fans, passive);
+    };
+    for tz in con.query::<ThermalZone>().unwrap_or_default() {
+        let name = tz.name.unwrap_or_else(|| "ACPI Thermal Zone".to_string());
+        if let Some(c) = tz
+            .high_precision_temperature
+            .and_then(decikelvin_to_celsius)
+        {
+            zones.push(TemperatureSensorInfo {
+                label: crate::tr!(
+                    format!("CPU / Moederbord Zone ({})", name),
+                    format!("CPU / motherboard zone ({})", name)
+                ),
+                temperature_celsius: c,
+                max_celsius: Some(100.0),
+                critical_celsius: Some(105.0),
+            });
+        }
+        if let Some(pl) = tz.percent_passive_limit {
+            passive = Some(pl);
+        }
+    }
+    for f in con.query::<Fan>().unwrap_or_default() {
+        fans.push(FanInfo {
+            name: f
+                .name
+                .unwrap_or_else(|| crate::tr!("Systeem Ventilator", "System fan").to_string()),
+            status: f
+                .status
+                .unwrap_or_else(|| crate::tr!("Actief", "Active").to_string()),
+            speed_rpm: f.desired_speed.map(|n| n.min(u32::MAX as u64) as u32),
+        });
+    }
+    (zones, fans, passive)
+}
+
+/// Linux/macOS: sysinfo levert hwmon/SMC-temperaturen al; ventilatoren uit hwmon `fan*_input`.
+#[cfg(not(windows))]
+fn query_cooling_wmi() -> (Vec<TemperatureSensorInfo>, Vec<FanInfo>, Option<u32>) {
+    let mut fans = Vec::new();
+    #[cfg(target_os = "linux")]
+    if let Ok(dirs) = std::fs::read_dir("/sys/class/hwmon") {
+        for dir in dirs.flatten() {
+            let path = dir.path();
+            let chip = std::fs::read_to_string(path.join("name"))
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            for i in 1..=8 {
+                if let Ok(raw) = std::fs::read_to_string(path.join(format!("fan{i}_input")))
+                    && let Ok(rpm) = raw.trim().parse::<u32>()
+                {
+                    fans.push(FanInfo {
+                        name: format!("{} fan{}", chip, i),
+                        status: if rpm > 0 {
+                            crate::tr!("Actief", "Active").into()
+                        } else {
+                            crate::tr!("Stil", "Idle").into()
+                        },
+                        speed_rpm: Some(rpm),
+                    });
+                }
+            }
+        }
+    }
+    (Vec::new(), fans, None)
+}
+
 pub fn get_cooling_and_fan_info() -> CoolingOverview {
     ensure_watchdog_started();
 
@@ -57,76 +157,11 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
     };
 
     if needs_wmi_refresh {
-        // Query ACPI High Precision Thermal Zone
-        let tz_output = Command::new("powershell")
-            .args(&[
-                "-NoProfile",
-                "-Command",
-                "Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInformation -ErrorAction SilentlyContinue | Select-Object Name, HighPrecisionTemperature, PercentPassiveLimit | ConvertTo-Json -Compress",
-            ])
-            .output();
-
-        if let Ok(out) = tz_output {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !text.is_empty() && (text.starts_with('{') || text.starts_with('[')) {
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
-                    let items = if let Some(arr) = val.as_array() {
-                        arr.clone()
-                    } else if val.is_object() {
-                        vec![val]
-                    } else {
-                        vec![]
-                    };
-
-                    for it in items {
-                        let name = it["Name"].as_str().unwrap_or("ACPI Thermal Zone").to_string();
-                        if let Some(raw_kelvin) = it["HighPrecisionTemperature"].as_u64() {
-                            let celsius = (raw_kelvin as f32 - 2732.0) / 10.0;
-                            if celsius > 0.0 && celsius < 125.0 {
-                                cached_tz.push(TemperatureSensorInfo {
-                                    label: format!("CPU / Moederbord Zone ({})", name),
-                                    temperature_celsius: celsius,
-                                    max_celsius: Some(100.0),
-                                    critical_celsius: Some(105.0),
-                                });
-                            }
-                        }
-                        if let Some(pl) = it["PercentPassiveLimit"].as_u64() {
-                            passive_limit = pl as u32;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Query Fans via Win32 WMI / CIM
-        let fan_output = Command::new("powershell")
-            .args(&[
-                "-NoProfile",
-                "-Command",
-                "Get-CimInstance Win32_Fan -ErrorAction SilentlyContinue | Select-Object Name, Status, DesiredSpeed | ConvertTo-Json -Compress",
-            ])
-            .output();
-
-        if let Ok(out) = fan_output {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !text.is_empty() && (text.starts_with('{') || text.starts_with('[')) {
-                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
-                    if let Some(arr) = val.as_array() {
-                        for item in arr {
-                            let name = item["Name"].as_str().unwrap_or("Systeem Ventilator").to_string();
-                            let status = item["Status"].as_str().unwrap_or("Actief").to_string();
-                            let rpm = item["DesiredSpeed"].as_u64().map(|n| n as u32);
-                            fans.push(FanInfo { name, status, speed_rpm: rpm });
-                        }
-                    } else if let Some(obj) = val.as_object() {
-                        let name = obj.get("Name").and_then(|v| v.as_str()).unwrap_or("Systeem Ventilator").to_string();
-                        let status = obj.get("Status").and_then(|v| v.as_str()).unwrap_or("Actief").to_string();
-                        let rpm = obj.get("DesiredSpeed").and_then(|v| v.as_u64()).map(|n| n as u32);
-                        fans.push(FanInfo { name, status, speed_rpm: rpm });
-                    }
-                }
-            }
+        let (tz, wmi_fans, pl) = query_cooling_wmi();
+        cached_tz = tz;
+        fans = wmi_fans;
+        if let Some(pl) = pl {
+            passive_limit = pl;
         }
 
         if let Ok(mut guard) = WMI_COOLING_CACHE.lock() {
@@ -144,8 +179,15 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
     // If no RPM fan is directly exposed via WMI, add the Embedded Controller fan curve status
     if fans.is_empty() {
         fans.push(FanInfo {
-            name: "Systeem Ventilator & Koelprofiel (Moederbord EC/BIOS)".to_string(),
-            status: format!("{}% Koelcapaciteit Actief", passive_limit),
+            name: crate::tr!(
+                "Systeem Ventilator & Koelprofiel (Moederbord EC/BIOS)",
+                "System fan & cooling profile (motherboard EC/BIOS)"
+            )
+            .to_string(),
+            status: crate::tr!(
+                format!("{}% Koelcapaciteit Actief", passive_limit),
+                format!("{}% cooling capacity active", passive_limit)
+            ),
             speed_rpm: None,
         });
     }
@@ -153,11 +195,17 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
     let is_throttling_suspected = temps.iter().any(|t| t.temperature_celsius >= 90.0);
 
     let summary = if is_throttling_suspected {
-        "⚠️ WAARSCHUWING: Temperatuur overschrijdt 90°C! Dit kan CPU thermal throttling en prestatiedips veroorzaken.".to_string()
+        crate::tr!("⚠️ WAARSCHUWING: Temperatuur overschrijdt 90°C! Dit kan CPU thermal throttling en prestatiedips veroorzaken.", "⚠️ WARNING: temperature exceeds 90°C! This can cause CPU thermal throttling and performance drops.").to_string()
     } else {
-        format!(
-            "Koeling actief en stabiel. {} temperatuursensor(en) live gemonitord.",
-            temps.len()
+        crate::tr!(
+            format!(
+                "Koeling actief en stabiel. {} temperatuursensor(en) live gemonitord.",
+                temps.len()
+            ),
+            format!(
+                "Cooling active and stable. {} temperature sensor(s) monitored live.",
+                temps.len()
+            )
         )
     };
 
@@ -166,5 +214,17 @@ pub fn get_cooling_and_fan_info() -> CoolingOverview {
         temperatures: temps,
         is_throttling_suspected,
         summary,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decikelvin_conversion() {
+        assert_eq!(decikelvin_to_celsius(3132), Some(40.0));
+        assert_eq!(decikelvin_to_celsius(2732), None);
+        assert_eq!(decikelvin_to_celsius(5000), None);
     }
 }

@@ -12,12 +12,30 @@ fn stats_from(gaps_ns: &[u64]) -> GapStats {
 #[test]
 fn latency_fine_buckets_are_monotonic_and_cover_values() {
     let mut prev = 0;
-    for ns in [0u64, 1, 15, 16, 17, 100, 999, 50_000, 1_000_000, 16_000_000, 10_000_000_000, u64::MAX] {
+    for ns in [
+        0u64,
+        1,
+        15,
+        16,
+        17,
+        100,
+        999,
+        50_000,
+        1_000_000,
+        16_000_000,
+        10_000_000_000,
+        u64::MAX,
+    ] {
         let idx = fine_index(ns);
         assert!(idx >= prev, "index niet monotoon bij {ns}");
         assert!(idx < FINE_BUCKETS);
         if ns < u64::MAX / 2 {
-            assert!(fine_upper_ns(idx) >= ns, "bovengrens {} < {}", fine_upper_ns(idx), ns);
+            assert!(
+                fine_upper_ns(idx) >= ns,
+                "bovengrens {} < {}",
+                fine_upper_ns(idx),
+                ns
+            );
             if idx > 0 {
                 assert!(fine_upper_ns(idx - 1) < ns, "vorige bucket bevat {ns} al");
             }
@@ -29,8 +47,8 @@ fn latency_fine_buckets_are_monotonic_and_cover_values() {
 #[test]
 fn latency_histogram_bucket_edges() {
     let s = stats_from(&[
-        49_999, 50_000, 249_999, 250_000, 999_999, 1_000_000, 3_999_999, 4_000_000,
-        15_999_999, 16_000_000, 50_000_000,
+        49_999, 50_000, 249_999, 250_000, 999_999, 1_000_000, 3_999_999, 4_000_000, 15_999_999,
+        16_000_000, 50_000_000,
     ]);
     let h = s.histogram();
     let counts: Vec<u64> = h.iter().map(|b| b.count).collect();
@@ -64,7 +82,10 @@ fn latency_p99_relative_error_bounded() {
     let gaps: Vec<u64> = (1..=100_000).collect();
     let s = stats_from(&gaps);
     let p99_ns = s.percentile_us(99.0) * 1000.0;
-    assert!(p99_ns >= 99_000.0 && p99_ns <= 99_000.0 * 1.125, "p99 = {p99_ns}");
+    assert!(
+        (99_000.0..=99_000.0 * 1.125).contains(&p99_ns),
+        "p99 = {p99_ns}"
+    );
     assert_eq!(GapStats::new().percentile_us(99.0), 0.0);
 }
 
@@ -88,7 +109,11 @@ fn latency_counter_verdict_thresholds() {
     assert_eq!(counter_verdict(Some(1.0), Some(2.0)), "Matig");
     assert_eq!(counter_verdict(Some(0.3), Some(10.0)), "Matig");
     assert_eq!(counter_verdict(Some(3.0), Some(4.0)), "Slecht");
-    let c = CounterStats { irq_avg: Some(4.0), irq_max: Some(6.0), ..Default::default() };
+    let c = CounterStats {
+        irq_avg: Some(4.0),
+        irq_max: Some(6.0),
+        ..Default::default()
+    };
     assert_eq!(overall_verdict(100.0, 0, &c), "Slecht");
     assert_eq!(overall_verdict(100.0, 0, &CounterStats::default()), "Goed");
     assert_eq!(overall_verdict(800.0, 0, &CounterStats::default()), "Matig");
@@ -121,22 +146,21 @@ fn latency_parse_counters_single_sample_object() {
 #[test]
 fn latency_parse_counters_empty_and_malformed() {
     let c = parse_counter_json(r#"{"source":"en","samples":[]}"#);
-    assert_eq!(c, CounterStats { name_source: Some("en".into()), ..Default::default() });
+    assert_eq!(
+        c,
+        CounterStats {
+            name_source: Some("en".into()),
+            ..Default::default()
+        }
+    );
     assert!(!c.any());
     assert_eq!(parse_counter_json(""), CounterStats::default());
-    assert_eq!(parse_counter_json("Get-Counter : fout"), CounterStats::default());
+    assert_eq!(
+        parse_counter_json("Get-Counter : fout"),
+        CounterStats::default()
+    );
     let c = parse_counter_json(r#"{"samples":[{"k":"dpc"},{"v":1.0},{"k":"zzz","v":1.0}]}"#);
     assert!(!c.any());
-}
-
-#[test]
-fn latency_base64_vectors() {
-    assert_eq!(base64_encode(b""), "");
-    assert_eq!(base64_encode(b"f"), "Zg==");
-    assert_eq!(base64_encode(b"fo"), "Zm8=");
-    assert_eq!(base64_encode(b"foo"), "Zm9v");
-    assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
-    assert_eq!(encode_ps_command("a"), "YQA=");
 }
 
 #[test]
@@ -160,6 +184,8 @@ fn entry(name: &str, class: &str, status: &str) -> DriverEntry {
         status: status.into(),
         problem_code: None,
         advice: String::new(),
+        advice_detail: Default::default(),
+        support: None,
     }
 }
 
@@ -172,6 +198,7 @@ fn latency_suspected_drivers_ordering_and_fallback() {
         outdated_count: 1,
         problem_count: 0,
         unsigned_count: 0,
+        unsupported_count: 0,
         entries: vec![
             entry("Intel Wi-Fi 6", "Net", "OK"),
             entry("Generic USB Hub", "USB", "OK"),
@@ -195,21 +222,56 @@ fn latency_suspected_drivers_ordering_and_fallback() {
     for _ in 0..10 {
         bad.record(5_000_000);
     }
-    let r = build_result(&bad, Duration::from_secs(5), true, &CounterStats::default(), None);
+    let r = build_result(
+        &bad,
+        Duration::from_secs(5),
+        true,
+        &CounterStats::default(),
+        None,
+    );
     assert_eq!(r.verdict, "Slecht");
     assert!(r.suspected_drivers.is_empty());
-    assert!(r.advice.iter().any(|a| a.starts_with("Voer eerst de Driver Check uit")));
+    assert!(
+        r.advice
+            .iter()
+            .any(|a| a.starts_with("Voer eerst de Driver Check uit"))
+    );
 
-    let r = build_result(&bad, Duration::from_secs(5), true, &CounterStats::default(), Some(&report));
+    let r = build_result(
+        &bad,
+        Duration::from_secs(5),
+        true,
+        &CounterStats::default(),
+        Some(&report),
+    );
     assert_eq!(r.suspected_drivers.len(), 3);
-    assert!(!r.advice.iter().any(|a| a.starts_with("Voer eerst de Driver Check uit")));
+    assert!(
+        !r.advice
+            .iter()
+            .any(|a| a.starts_with("Voer eerst de Driver Check uit"))
+    );
 
-    let unavailable = DriverReport { is_available: false, ..report.clone() };
-    let r = build_result(&bad, Duration::from_secs(5), true, &CounterStats::default(), Some(&unavailable));
+    let unavailable = DriverReport {
+        is_available: false,
+        ..report.clone()
+    };
+    let r = build_result(
+        &bad,
+        Duration::from_secs(5),
+        true,
+        &CounterStats::default(),
+        Some(&unavailable),
+    );
     assert!(r.suspected_drivers.is_empty());
 
     let good = stats_from(&[100, 200, 300]);
-    let r = build_result(&good, Duration::from_secs(5), true, &CounterStats::default(), Some(&report));
+    let r = build_result(
+        &good,
+        Duration::from_secs(5),
+        true,
+        &CounterStats::default(),
+        Some(&report),
+    );
     assert_eq!(r.verdict, "Goed");
     assert!(r.suspected_drivers.is_empty());
     assert!(r.success);
@@ -223,7 +285,13 @@ fn latency_real_spin_loop_short_run() {
     assert!(s.percentile_us(99.0) <= s.max_us());
     let total: u64 = s.histogram().iter().map(|b| b.count).sum();
     assert_eq!(total, s.samples);
-    let r = build_result(&s, Duration::from_secs(1), false, &CounterStats::default(), None);
+    let r = build_result(
+        &s,
+        Duration::from_secs(1),
+        false,
+        &CounterStats::default(),
+        None,
+    );
     assert!(r.success);
     assert!(["Goed", "Matig", "Slecht"].contains(&r.verdict.as_str()));
 }

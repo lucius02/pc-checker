@@ -1,6 +1,6 @@
-use std::io::Read;
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+pub use crate::shell::run_powershell;
 
 /// Performance-counter-index (Perflib) → Engelse naam.
 pub const COUNTER_IDS: [(&str, u32, &str); 4] = [
@@ -68,82 +68,6 @@ Get-Counter -Counter $paths -SampleInterval 1 -MaxSamples {samples} -ErrorAction
     )
 }
 
-/// Minimale base64-encoder (voor `-EncodedCommand`, geen extra dependency).
-pub fn base64_encode(data: &[u8]) -> String {
-    const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
-    for chunk in data.chunks(3) {
-        let b = [
-            chunk[0],
-            *chunk.get(1).unwrap_or(&0),
-            *chunk.get(2).unwrap_or(&0),
-        ];
-        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
-        out.push(T[(n >> 18) as usize & 63] as char);
-        out.push(T[(n >> 12) as usize & 63] as char);
-        out.push(if chunk.len() > 1 { T[(n >> 6) as usize & 63] as char } else { '=' });
-        out.push(if chunk.len() > 2 { T[n as usize & 63] as char } else { '=' });
-    }
-    out
-}
-
-/// PowerShell `-EncodedCommand` verwacht base64 van UTF-16LE.
-pub fn encode_ps_command(script: &str) -> String {
-    let bytes: Vec<u8> = script.encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
-    base64_encode(&bytes)
-}
-
-/// Start PowerShell met het script en wacht maximaal `timeout`; daarna wordt het proces gekild.
-pub fn run_powershell(script: &str, timeout: Duration) -> Option<String> {
-    let encoded = encode_ps_command(script);
-    for exe in ["powershell", "powershell.exe"] {
-        let mut cmd = Command::new(exe);
-        cmd.args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-EncodedCommand",
-            &encoded,
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-        let mut child = match cmd.spawn() {
-            Ok(c) => c,
-            Err(_) => continue, // probeer de volgende naam
-        };
-        let mut stdout = child.stdout.take()?;
-        let reader = std::thread::spawn(move || {
-            let mut s = String::new();
-            let _ = stdout.read_to_string(&mut s);
-            s
-        });
-        let started = Instant::now();
-        loop {
-            match child.try_wait() {
-                Ok(Some(_)) => break,
-                Ok(None) if started.elapsed() < timeout => {
-                    std::thread::sleep(Duration::from_millis(100))
-                }
-                _ => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break;
-                }
-            }
-        }
-        return reader.join().ok();
-    }
-    None
-}
-
 pub fn avg_max(values: &[f64]) -> (Option<f64>, Option<f64>) {
     if values.is_empty() {
         return (None, None);
@@ -169,7 +93,10 @@ pub fn parse_counter_json(raw: &str) -> CounterStats {
     let mut irq = Vec::new();
     let mut dpcq = Vec::new();
     for s in &samples {
-        let (Some(k), Some(v)) = (s.get("k").and_then(|k| k.as_str()), s.get("v").and_then(|v| v.as_f64())) else {
+        let (Some(k), Some(v)) = (
+            s.get("k").and_then(|k| k.as_str()),
+            s.get("v").and_then(|v| v.as_f64()),
+        ) else {
             continue;
         };
         if !v.is_finite() {

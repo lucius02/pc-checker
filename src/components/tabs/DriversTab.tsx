@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api, errorMessage } from "../../lib/api";
+import { toast } from "../../store/toastStore";
 import {
   CircuitBoard,
   Clock,
@@ -22,6 +23,15 @@ import {
 } from "lucide-react";
 import { DriverEntry, DriverReport } from "../../types";
 import { cn } from "../../utils/cn";
+import { intlLocale, useT, type MessageKey } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
+import { useStatusLabel } from "../../i18n/status";
+import { AdviceCard, type AdviceTone } from "../AdviceCard";
+import { DriverSupportNote, SupportBadge } from "./drivers/DriverSupportNote";
+
+const DRIVER_TONE: Record<string, AdviceTone> = { Probleem: "critical", "Niet ondertekend": "high", Verouderd: "medium" };
+
+type TFn = (key: MessageKey, vars?: Record<string, string | number>) => string;
 
 interface DriversTabProps {
   driverReport: DriverReport | null;
@@ -29,21 +39,24 @@ interface DriversTabProps {
   scanDrivers: () => void;
 }
 
-type FilterMode = "all" | "issues";
+type FilterMode = "all" | "issues" | "support";
 
-const CLASS_INFO: Record<string, { label: string; icon: React.ElementType }> = {
-  DISPLAY: { label: "Videokaart", icon: Monitor },
-  SYSTEM: { label: "Chipset / Systeem", icon: Cpu },
-  SCSIADAPTER: { label: "Opslagcontroller", icon: HardDrive },
-  HDC: { label: "Opslagcontroller", icon: HardDrive },
-  NET: { label: "Netwerk", icon: Network },
-  MEDIA: { label: "Audio", icon: Volume2 },
-  AUDIOENDPOINT: { label: "Audio-eindpunt", icon: Volume2 },
-  USB: { label: "USB", icon: Usb },
+const CLASS_INFO: Record<string, { label: MessageKey; icon: React.ElementType }> = {
+  DISPLAY: { label: "drivers.class.DISPLAY", icon: Monitor },
+  SYSTEM: { label: "drivers.class.SYSTEM", icon: Cpu },
+  SCSIADAPTER: { label: "drivers.class.STORAGE", icon: HardDrive },
+  HDC: { label: "drivers.class.STORAGE", icon: HardDrive },
+  NET: { label: "drivers.class.NET", icon: Network },
+  MEDIA: { label: "drivers.class.MEDIA", icon: Volume2 },
+  AUDIOENDPOINT: { label: "drivers.class.AUDIOENDPOINT", icon: Volume2 },
+  USB: { label: "drivers.class.USB", icon: Usb },
 };
 
-const classInfo = (cls: string) =>
-  CLASS_INFO[cls] ?? { label: cls ? cls.charAt(0) + cls.slice(1).toLowerCase() : "Onbekend", icon: Puzzle };
+const classInfo = (cls: string, t: TFn) => {
+  const known = CLASS_INFO[cls];
+  if (known) return { label: t(known.label), icon: known.icon };
+  return { label: cls ? cls.charAt(0) + cls.slice(1).toLowerCase() : t("drivers.unknown"), icon: Puzzle };
+};
 
 const STATUS_STYLE: Record<string, { badge: string; card: string; icon: React.ElementType }> = {
   Probleem: {
@@ -70,36 +83,41 @@ const STATUS_STYLE: Record<string, { badge: string; card: string; icon: React.El
 
 const statusStyle = (status: string) => STATUS_STYLE[status] ?? STATUS_STYLE.OK;
 
-const formatDate = (entry: DriverEntry) => {
-  if (!entry.date) return "Onbekend";
-  if (entry.age_years === null) return `${entry.date} (generieke datum)`;
-  const age = entry.age_years < 1 ? "< 1 jaar" : `${entry.age_years.toFixed(1).replace(".", ",")} jaar`;
+const formatDate = (entry: DriverEntry, t: TFn) => {
+  if (!entry.date) return t("drivers.unknown");
+  if (entry.age_years === null) return t("drivers.genericDate", { d: entry.date });
+  const age =
+    entry.age_years < 1
+      ? t("drivers.lessThanYear")
+      : t("drivers.years", { n: entry.age_years.toLocaleString(intlLocale(), { maximumFractionDigits: 1, minimumFractionDigits: 1 }) });
   return `${entry.date} (${age})`;
 };
 
-const signedLabel = (signed: boolean | null) =>
-  signed === null ? "—" : signed ? "Ja" : "Nee";
+const signedLabel = (signed: boolean | null, t: TFn) =>
+  signed === null ? "—" : signed ? t("drivers.yes") : t("drivers.no");
 
 export const DriversTab: React.FC<DriversTabProps> = ({
   driverReport,
   isScanningDrivers,
   scanDrivers,
 }) => {
+  const t = useT();
+  const status = useStatusLabel();
   const [filter, setFilter] = useState<FilterMode>("all");
 
   const handleOpenDeviceManager = async () => {
     try {
-      await invoke("open_device_manager");
+      await api.openDeviceManager();
     } catch (err) {
-      console.error("Fout bij openen Apparaatbeheer:", err);
+      toast.error(t("drivers.openDmFailed"), errorMessage(err));
     }
   };
 
   const handleOpenWindowsUpdate = async () => {
     try {
-      await invoke("open_windows_update");
+      await api.openWindowsUpdate();
     } catch (err) {
-      console.error("Fout bij openen Windows Update:", err);
+      toast.error(t("drivers.openWuFailed"), errorMessage(err));
     }
   };
 
@@ -109,17 +127,17 @@ export const DriversTab: React.FC<DriversTabProps> = ({
 
   const visibleEntries = useMemo(() => {
     if (!driverReport) return [];
-    return filter === "issues"
-      ? driverReport.entries.filter((e) => e.status !== "OK")
-      : driverReport.entries;
+    if (filter === "issues") return driverReport.entries.filter((e) => e.status !== "OK");
+    if (filter === "support") return driverReport.entries.filter((e) => e.support);
+    return driverReport.entries;
   }, [driverReport, filter]);
 
   const counters = driverReport
     ? [
-        { label: "Drivers gescand", value: driverReport.total_drivers, color: "text-cyan-400", icon: Layers },
-        { label: "Problemen", value: driverReport.problem_count, color: driverReport.problem_count > 0 ? "text-rose-400" : "text-slate-300", icon: OctagonAlert },
-        { label: "Verouderd", value: driverReport.outdated_count, color: driverReport.outdated_count > 0 ? "text-amber-400" : "text-slate-300", icon: Clock },
-        { label: "Niet ondertekend", value: driverReport.unsigned_count, color: driverReport.unsigned_count > 0 ? "text-orange-400" : "text-slate-300", icon: ShieldOff },
+        { label: t("drivers.cScanned"), value: driverReport.total_drivers, color: "text-cyan-400", icon: Layers },
+        { label: t("drivers.cProblems"), value: driverReport.problem_count, color: driverReport.problem_count > 0 ? "text-rose-400" : "text-slate-300", icon: OctagonAlert },
+        { label: t("drivers.cOutdated"), value: driverReport.outdated_count, color: driverReport.outdated_count > 0 ? "text-amber-400" : "text-slate-300", icon: Clock },
+        { label: t("drivers.cUnsigned"), value: driverReport.unsigned_count, color: driverReport.unsigned_count > 0 ? "text-orange-400" : "text-slate-300", icon: ShieldOff },
       ]
     : [];
 
@@ -135,8 +153,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             <div>
               <h2 className="text-lg font-bold text-white">Driver Check</h2>
               <p className="text-xs text-slate-400 mt-1">
-                Zoekt verouderde, niet-ondertekende en probleem-drivers (Apparaatbeheer-foutcodes) in de klassen die
-                het vaakst freezes en stotteringen veroorzaken: videokaart, chipset, opslag, netwerk, audio en USB.
+                {t("drivers.intro")}
               </p>
             </div>
           </div>
@@ -145,16 +162,16 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             <button
               onClick={handleOpenDeviceManager}
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-              title="Open Windows Apparaatbeheer (devmgmt.msc)"
+              title={t("drivers.dmTitle")}
             >
               <Wrench className="w-3.5 h-3.5 text-blue-400" />
-              Apparaatbeheer
+              {t("drivers.dm")}
             </button>
 
             <button
               onClick={handleOpenWindowsUpdate}
               className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-              title="Open Windows Update voor optionele stuurprogramma-updates"
+              title={t("drivers.wuTitle")}
             >
               <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
               Windows Update
@@ -166,7 +183,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition-all cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
             >
               <Search className={cn("w-4 h-4", isScanningDrivers && "animate-spin")} />
-              {isScanningDrivers ? "Drivers scannen..." : driverReport ? "Opnieuw scannen" : "Start driver-scan"}
+              {isScanningDrivers ? t("drivers.scanning") : driverReport ? t("drivers.rescan") : t("drivers.start")}
             </button>
           </div>
         </div>
@@ -190,7 +207,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             <div className="space-y-1">
               <span>{driverReport.summary}</span>
               {driverReport.scanned_at && (
-                <span className="block text-xs text-slate-500">Gescand op {driverReport.scanned_at}</span>
+                <span className="block text-xs text-slate-500">{t("drivers.scannedAt", { t: driverReport.scanned_at })}</span>
               )}
             </div>
           </div>
@@ -208,12 +225,12 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             )}
           </span>
           <h3 className="text-sm font-bold text-slate-200">
-            {isScanningDrivers ? "Bezig met het uitlezen van alle drivers..." : "Nog geen driver-scan uitgevoerd"}
+            {isScanningDrivers ? t("drivers.readingAll") : t("drivers.notScanned")}
           </h3>
           <p className="text-xs text-slate-400 max-w-md">
             {isScanningDrivers
-              ? "Windows wordt via WMI bevraagd naar alle geïnstalleerde drivers en apparaten met foutcodes. Dit duurt meestal enkele seconden."
-              : "Klik op 'Start driver-scan' om alle geïnstalleerde drivers te controleren op leeftijd, digitale handtekening en Apparaatbeheer-foutcodes."}
+              ? t("drivers.readingHint")
+              : t("drivers.startHint")}
           </p>
         </div>
       )}
@@ -224,10 +241,10 @@ export const DriversTab: React.FC<DriversTabProps> = ({
           <span className="p-3 rounded-2xl bg-slate-950 border border-slate-800 text-slate-500">
             <Monitor className="w-8 h-8" />
           </span>
-          <h3 className="text-sm font-bold text-slate-200">Driver-informatie niet beschikbaar</h3>
+          <h3 className="text-sm font-bold text-slate-200">{t("drivers.unavailable")}</h3>
           <p className="text-xs text-slate-400 max-w-md">{driverReport.summary}</p>
           <p className="text-xs text-slate-500 max-w-md">
-            De Driver Check gebruikt Windows Management Instrumentation (WMI) via PowerShell en werkt alleen op Windows.
+            {t("drivers.unavailableHint")}
           </p>
         </div>
       )}
@@ -259,31 +276,29 @@ export const DriversTab: React.FC<DriversTabProps> = ({
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
                 <h3 className="text-sm font-bold text-white">
-                  Veilig probleem-drivers oplossen (zonder risicovolle downloads)
+                  {t("drivers.safeTitle")}
                 </h3>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Een foutcode zoals <strong>Code 39</strong> betekent meestal dat een registratiebestand of pad in Windows beschadigd is. 
-                De officiële, geteste driver staat in 95% van de gevallen al op je computer opgeslagen in de interne Windows DriverStore. 
-                Je hoeft dus <strong>geen</strong> losse bestanden van het internet te downloaden!
+                <RichText text={t("drivers.safeIntro")} />
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-1">
                 <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="font-semibold text-cyan-400 block">Stap 1: Apparaatbeheer herstel</span>
+                  <span className="font-semibold text-cyan-400 block">{t("drivers.step1Title")}</span>
                   <p className="text-slate-400 text-xs">
-                    Klik op <em>Apparaatbeheer</em>, zoek het apparaat, rechtermuisknop &rarr; <strong>Apparaat verwijderen</strong> (laat het vinkje 'stuurprogramma verwijderen' <u>uit</u>). Klik bovenin op <strong>Actie &rarr; Zoeken naar gewijzigde apparaten</strong>. Windows herstelt de driver direct lokaal.
+                    <RichText text={t("drivers.step1")} />
                   </p>
                 </div>
                 <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="font-semibold text-emerald-400 block">Stap 2: Windows Update</span>
+                  <span className="font-semibold text-emerald-400 block">{t("drivers.step2Title")}</span>
                   <p className="text-slate-400 text-xs">
-                    Ga via <em>Windows Update</em> naar <strong>Geavanceerde opties &rarr; Optionele updates</strong>. Vink eventuele Intel/hardware-updates aan. Dit zijn door Microsoft digitaal goedgekeurde drivers.
+                    <RichText text={t("drivers.step2")} />
                   </p>
                 </div>
                 <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="font-semibold text-amber-400 block">Stap 3: Nooit nepsites bezoeken</span>
+                  <span className="font-semibold text-amber-400 block">{t("drivers.step3Title")}</span>
                   <p className="text-slate-400 text-xs">
-                    Download <strong>nooit</strong> van sites zoals 'DriverGuide' of 'Driver Booster'. Gebruik uitsluitend officiële tools van de fabrikant (zoals de <em>Intel® Driver &amp; Support Assistant</em> op <code>intel.com</code> of Lenovo/Dell/MSI software).
+                    <RichText text={t("drivers.step3")} />
                   </p>
                 </div>
               </div>
@@ -295,13 +310,16 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
                 <Wrench className="w-4 h-4 text-blue-400" />
-                Relevante drivers ({visibleEntries.length})
+                {t("drivers.relevant", { n: visibleEntries.length })}
               </h3>
               <div className="flex items-center gap-2 text-xs">
                 {(
                   [
-                    { id: "all", label: `Alle (${driverReport.entries.length})` },
-                    { id: "issues", label: `Alleen problemen (${issueCount})` },
+                    { id: "all", label: t("drivers.filterAll", { n: driverReport.entries.length }) },
+                    { id: "issues", label: t("drivers.filterIssues", { n: issueCount }) },
+                    ...(driverReport.unsupported_count > 0
+                      ? [{ id: "support", label: t("drivers.filterSupport", { n: driverReport.unsupported_count }) }]
+                      : []),
                   ] as { id: FilterMode; label: string }[]
                 ).map((chip) => (
                   <button
@@ -323,14 +341,14 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             {visibleEntries.length === 0 ? (
               <div className="p-4 bg-emerald-950/20 border border-emerald-900/50 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
                 <CircleCheck className="w-4 h-4 shrink-0" />
-                Geen problemen, verouderde of niet-ondertekende drivers gevonden.
+                {t("drivers.noIssues")}
               </div>
             ) : (
               <div className="space-y-2">
                 {visibleEntries.map((entry, idx) => {
                   const st = statusStyle(entry.status);
                   const StatusIcon = st.icon;
-                  const ci = classInfo(entry.device_class);
+                  const ci = classInfo(entry.device_class, t);
                   const ClassIcon = ci.icon;
                   return (
                     <div
@@ -352,71 +370,63 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                             </span>
                           </div>
                         </div>
-                        <span
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 self-start shrink-0",
-                            st.badge
-                          )}
-                        >
-                          <StatusIcon className="w-3.5 h-3.5" />
-                          {entry.status}
-                          {entry.problem_code !== null && ` (code ${entry.problem_code})`}
-                        </span>
+                        <div className="flex flex-wrap gap-1.5 self-start shrink-0">
+                          {entry.support && <SupportBadge support={entry.support} />}
+                          <span
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5",
+                              st.badge
+                            )}
+                          >
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {status(entry.status)}
+                            {entry.problem_code !== null && t("drivers.code", { c: entry.problem_code })}
+                          </span>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                         <div className="px-3 py-2 bg-slate-950/70 border border-slate-800 rounded-lg">
-                          <span className="text-slate-500 block">Versie</span>
+                          <span className="text-slate-500 block">{t("drivers.version")}</span>
                           <span className="font-mono text-slate-200">{entry.version || "—"}</span>
                         </div>
                         <div className="px-3 py-2 bg-slate-950/70 border border-slate-800 rounded-lg">
-                          <span className="text-slate-500 block">Datum / leeftijd</span>
+                          <span className="text-slate-500 block">{t("drivers.dateAge")}</span>
                           <span
                             className={cn(
                               "font-mono",
                               entry.status === "Verouderd" ? "text-amber-400" : "text-slate-200"
                             )}
                           >
-                            {formatDate(entry)}
+                            {formatDate(entry, t)}
                           </span>
                         </div>
                         <div className="px-3 py-2 bg-slate-950/70 border border-slate-800 rounded-lg">
-                          <span className="text-slate-500 block">Digitaal ondertekend</span>
+                          <span className="text-slate-500 block">{t("drivers.signed")}</span>
                           <span
                             className={cn(
                               "font-mono",
                               entry.is_signed === false ? "text-orange-400" : "text-slate-200"
                             )}
                           >
-                            {signedLabel(entry.is_signed)}
+                            {signedLabel(entry.is_signed, t)}
                           </span>
                         </div>
                       </div>
 
-                      {entry.status !== "OK" || entry.advice !== "Geen actie nodig." ? (
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                          <div
-                            className={cn(
-                              "flex items-start gap-2 text-xs leading-relaxed flex-1",
-                              entry.status === "OK" ? "text-slate-400" : "text-slate-300"
-                            )}
-                          >
-                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
-                            <span>{entry.advice}</span>
-                          </div>
-                          {entry.status === "Probleem" && (
-                            <button
-                              type="button"
-                              onClick={handleOpenDeviceManager}
-                              className="px-3 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 font-medium text-xs flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 self-start sm:self-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400"
-                              title="Open Windows Apparaatbeheer om dit apparaat te beheren"
-                            >
-                              <Wrench className="w-3.5 h-3.5 text-rose-400" />
-                              Open in Apparaatbeheer
-                            </button>
-                          )}
-                        </div>
+                      {entry.status !== "OK" || entry.advice_detail.why || !/^(Geen actie nodig|No action needed)\.$/.test(entry.advice_detail.title) ? (
+                        <AdviceCard
+                          tone={DRIVER_TONE[entry.status] ?? "muted"}
+                          advice={entry.advice_detail}
+                          action={
+                            entry.status === "Probleem"
+                              ? { label: t("drivers.openInDm"), title: t("drivers.openInDmTitle"), icon: Wrench, onClick: handleOpenDeviceManager }
+                              : undefined
+                          }
+                        />
                       ) : null}
+
+                      {entry.support && <DriverSupportNote support={entry.support} />}
                     </div>
                   );
                 })}

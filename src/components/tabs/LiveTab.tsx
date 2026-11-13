@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { api } from "../../lib/api";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import {
   Activity,
@@ -13,7 +13,7 @@ import {
   Thermometer,
   LineChart,
 } from "lucide-react";
-import { MetricsHistory, MetricsSample } from "../../types";
+import type { MetricsSample } from "../../types";
 import { TimeSeriesChart, ChartSeries } from "../live/TimeSeriesChart";
 import { StatTile, ChartCard } from "../live/LiveCards";
 import {
@@ -25,6 +25,7 @@ import {
 } from "../live/chartUtils";
 import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
+import { useT } from "../../i18n";
 
 const MAX_SAMPLES = 300;
 const WINDOW_MS = MAX_SAMPLES * 1000;
@@ -55,6 +56,7 @@ function formatByteTick(v: number): string {
 }
 
 export const LiveTab: React.FC = () => {
+  const t = useT();
   const [samples, setSamples] = useState<MetricsSample[]>([]);
   const [conn, setConn] = useState<ConnState>("verbinden");
   const [showTable, setShowTable] = useState(false);
@@ -77,7 +79,7 @@ export const LiveTab: React.FC = () => {
         if (!cancelled) setConn("fout");
       });
 
-    invoke<MetricsHistory>("get_metrics_history")
+    api.getMetricsHistory()
       .then((history) => {
         if (cancelled) return;
         setSamples((prev) => mergeSamples(history.samples, prev));
@@ -100,16 +102,16 @@ export const LiveTab: React.FC = () => {
     const cpu: ChartSeries[] = [{ key: "cpu", label: "CPU", values: samples.map((s) => s.cpu_usage) }];
     const ram: ChartSeries[] = [{ key: "ram", label: "RAM", values: samples.map((s) => s.ram_used_percent) }];
     const tempValues = samples.map((s) => s.max_temp_celsius);
-    const temp: ChartSeries[] = [{ key: "temp", label: "Max. temperatuur", values: tempValues }];
+    const temp: ChartSeries[] = [{ key: "temp", label: t("live.series.temp"), values: tempValues }];
     const freqValues = samples.map((s) => (s.cpu_freq_avg_mhz > 0 ? s.cpu_freq_avg_mhz : null));
-    const freq: ChartSeries[] = [{ key: "freq", label: "Gem. frequentie", values: freqValues }];
+    const freq: ChartSeries[] = [{ key: "freq", label: t("live.series.freq"), values: freqValues }];
     const disk: ChartSeries[] = [
-      { key: "read", label: "Lezen", values: samples.map((s) => s.disk_read_bytes_per_sec) },
-      { key: "write", label: "Schrijven", values: samples.map((s) => s.disk_write_bytes_per_sec) },
+      { key: "read", label: t("live.read"), values: samples.map((s) => s.disk_read_bytes_per_sec) },
+      { key: "write", label: t("live.write"), values: samples.map((s) => s.disk_write_bytes_per_sec) },
     ];
     const net: ChartSeries[] = [
-      { key: "rx", label: "Ontvangen", values: samples.map((s) => s.net_rx_bytes_per_sec) },
-      { key: "tx", label: "Verzonden", values: samples.map((s) => s.net_tx_bytes_per_sec) },
+      { key: "rx", label: t("live.rx"), values: samples.map((s) => s.net_rx_bytes_per_sec) },
+      { key: "tx", label: t("live.tx"), values: samples.map((s) => s.net_tx_bytes_per_sec) },
     ];
 
     const temps = tempValues.filter((v): v is number => v !== null);
@@ -145,7 +147,7 @@ export const LiveTab: React.FC = () => {
       avgCpu,
       peakCpu,
     };
-  }, [samples]);
+  }, [samples, t]);
 
   const tableRows = useMemo(() => samples.slice(-20).reverse(), [samples]);
   const spanSec = samples.length > 1 ? Math.round((samples[samples.length - 1].at_epoch_ms - samples[0].at_epoch_ms) / 1000) : 0;
@@ -158,10 +160,10 @@ export const LiveTab: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Activity className="w-5 h-5 text-cyan-400" />
-              Live Monitor
+              {t("live.title")}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Elke seconde een meting van CPU, geheugen, temperatuur, kloksnelheid, schijf- en netwerkverkeer. De grafieken tonen de laatste 5 minuten; onderbrekingen in een lijn wijzen op een moment waarop het systeem stilstond.
+              {t("live.intro")}
             </p>
           </div>
 
@@ -178,15 +180,15 @@ export const LiveTab: React.FC = () => {
             >
               {conn === "live" ? (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Live
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> {t("live.live")}
                 </>
               ) : conn === "fout" ? (
                 <>
-                  <AlertTriangle className="w-4 h-4" /> Geen verbinding met de monitor
+                  <AlertTriangle className="w-4 h-4" /> {t("live.noConnection")}
                 </>
               ) : (
                 <>
-                  <span className="w-2 h-2 rounded-full bg-slate-500 animate-pulse" /> Verbinden…
+                  <span className="w-2 h-2 rounded-full bg-slate-500 animate-pulse" /> {t("live.connecting")}
                 </>
               )}
             </span>
@@ -198,7 +200,7 @@ export const LiveTab: React.FC = () => {
                   !showTable ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-white"
                 )}
               >
-                <LineChart className="w-3.5 h-3.5" /> Grafieken
+                <LineChart className="w-3.5 h-3.5" /> {t("live.charts")}
               </button>
               <button
                 onClick={() => setShowTable(true)}
@@ -207,7 +209,7 @@ export const LiveTab: React.FC = () => {
                   showTable ? "bg-cyan-500 text-slate-950" : "text-slate-400 hover:text-white"
                 )}
               >
-                <Table2 className="w-3.5 h-3.5" /> Tabel
+                <Table2 className="w-3.5 h-3.5" /> {t("live.table")}
               </button>
             </div>
           </div>
@@ -219,45 +221,45 @@ export const LiveTab: React.FC = () => {
             icon={<Cpu className="w-3.5 h-3.5 text-cyan-400" />}
             label="CPU"
             value={latest ? formatPercent(latest.cpu_usage) : "—"}
-            sub={samples.length ? `Gem. ${formatPercent(derived.avgCpu)} · piek ${formatPercent(derived.peakCpu)}` : "Wachten op meting"}
+            sub={samples.length ? t("live.cpuSub", { avg: formatPercent(derived.avgCpu), peak: formatPercent(derived.peakCpu) }) : t("live.waiting")}
           />
           <StatTile
             icon={<MemoryStick className="w-3.5 h-3.5 text-cyan-400" />}
             label="RAM"
             value={latest ? formatPercent(latest.ram_used_percent) : "—"}
-            sub={latest ? `Swap ${formatPercent(latest.swap_used_percent)}` : undefined}
+            sub={latest ? t("live.swap", { v: formatPercent(latest.swap_used_percent) }) : undefined}
           />
           <StatTile
             icon={<Thermometer className="w-3.5 h-3.5 text-cyan-400" />}
-            label="Max. temp"
-            value={latest && latest.max_temp_celsius !== null ? formatTemp(latest.max_temp_celsius) : "n.v.t."}
+            label={t("live.maxTemp")}
+            value={latest && latest.max_temp_celsius !== null ? formatTemp(latest.max_temp_celsius) : t("live.na")}
             sub={
               latest && latest.max_temp_celsius !== null && latest.max_temp_celsius >= 90 ? (
                 <span className="flex items-center gap-1 text-rose-400">
-                  <AlertTriangle className="w-3 h-3" /> Throttling-risico
+                  <AlertTriangle className="w-3 h-3" /> {t("live.throttleRisk")}
                 </span>
               ) : derived.peakTemp !== null ? (
-                `Piek ${formatTemp(derived.peakTemp)}`
+                t("live.peak", { v: formatTemp(derived.peakTemp) })
               ) : (
-                "Geen sensoren gevonden"
+                t("live.noSensors")
               )
             }
           />
           <StatTile
             icon={<Gauge className="w-3.5 h-3.5 text-cyan-400" />}
-            label="Kloksnelheid"
-            value={latest && latest.cpu_freq_avg_mhz > 0 ? formatFreq(latest.cpu_freq_avg_mhz) : "n.v.t."}
-            sub="Gemiddeld over alle kernen"
+            label={t("live.clock")}
+            value={latest && latest.cpu_freq_avg_mhz > 0 ? formatFreq(latest.cpu_freq_avg_mhz) : t("live.na")}
+            sub={t("live.avgAllCores")}
           />
           <StatTile
             icon={<HardDrive className="w-3.5 h-3.5 text-cyan-400" />}
-            label="Schijf"
+            label={t("live.disk")}
             value={latest ? formatRate(latest.disk_read_bytes_per_sec + latest.disk_write_bytes_per_sec) : "—"}
-            sub={latest ? `L ${formatRate(latest.disk_read_bytes_per_sec)} · S ${formatRate(latest.disk_write_bytes_per_sec)}` : undefined}
+            sub={latest ? t("live.diskSub", { r: formatRate(latest.disk_read_bytes_per_sec), w: formatRate(latest.disk_write_bytes_per_sec) }) : undefined}
           />
           <StatTile
             icon={<Network className="w-3.5 h-3.5 text-cyan-400" />}
-            label="Netwerk"
+            label={t("live.network")}
             value={latest ? formatRate(latest.net_rx_bytes_per_sec + latest.net_tx_bytes_per_sec) : "—"}
             sub={latest ? `↓ ${formatRate(latest.net_rx_bytes_per_sec)} · ↑ ${formatRate(latest.net_tx_bytes_per_sec)}` : undefined}
           />
@@ -265,10 +267,10 @@ export const LiveTab: React.FC = () => {
 
         <div className="text-xs text-slate-500">
           {samples.length > 0
-            ? `${samples.length} metingen in buffer (${Math.floor(spanSec / 60)} min ${spanSec % 60} s) · laatste om ${formatClock(latest!.at_epoch_ms)}`
+            ? t("live.bufferInfo", { n: samples.length, m: Math.floor(spanSec / 60), s: spanSec % 60, t: formatClock(latest!.at_epoch_ms) })
             : conn === "fout"
-            ? "De achtergrondmonitor reageert niet. Start de app opnieuw als dit blijft."
-            : "De eerste meting verschijnt binnen enkele seconden."}
+            ? t("live.monitorDown")
+            : t("live.firstSoon")}
         </div>
       </div>
 
@@ -276,13 +278,13 @@ export const LiveTab: React.FC = () => {
         <div className="p-6 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <Table2 className="w-4 h-4 text-cyan-400" />
-            Laatste 20 metingen
+            {t("live.last20")}
           </h3>
           <div className="overflow-x-auto rounded-xl border border-slate-800">
             <table className="w-full text-xs">
               <thead className="bg-slate-950/80 text-slate-400">
                 <tr>
-                  {["Tijd", "CPU", "RAM", "Temp", "Klok", "Schijf lezen", "Schijf schrijven", "Ontvangen", "Verzonden"].map((h, i) => (
+                  {[t("live.col.time"), "CPU", "RAM", t("live.col.temp"), t("live.col.clock"), t("live.col.diskRead"), t("live.col.diskWrite"), t("live.rx"), t("live.tx")].map((h, i) => (
                     <th key={h} className={cn("px-3 py-2 font-semibold whitespace-nowrap", i === 0 ? "text-left" : "text-right")}>
                       {h}
                     </th>
@@ -306,7 +308,7 @@ export const LiveTab: React.FC = () => {
                 {tableRows.length === 0 && (
                   <tr>
                     <td colSpan={9} className="px-3 py-4 text-center text-slate-500">
-                      Nog geen metingen ontvangen.
+                      {t("live.noSamples")}
                     </td>
                   </tr>
                 )}
@@ -318,8 +320,8 @@ export const LiveTab: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <ChartCard
             icon={<Cpu className="w-4 h-4 text-cyan-400" />}
-            title="CPU-belasting"
-            subtitle="Percentage van de hele processor"
+            title={t("live.cpuTitle")}
+            subtitle={t("live.cpuSubtitle")}
             current={latest ? formatPercent(latest.cpu_usage) : undefined}
           >
             <TimeSeriesChart
@@ -329,14 +331,14 @@ export const LiveTab: React.FC = () => {
               yTicks={PERCENT_TICKS}
               formatTick={(v) => `${v}%`}
               formatValue={formatPercent}
-              ariaLabel="CPU-belasting van de laatste 5 minuten"
+              ariaLabel={t("live.cpuAria")}
             />
           </ChartCard>
 
           <ChartCard
             icon={<MemoryStick className="w-4 h-4 text-cyan-400" />}
-            title="Geheugengebruik"
-            subtitle="Percentage van het fysieke RAM in gebruik"
+            title={t("live.ramTitle")}
+            subtitle={t("live.ramSubtitle")}
             current={latest ? formatPercent(latest.ram_used_percent) : undefined}
           >
             <TimeSeriesChart
@@ -346,14 +348,14 @@ export const LiveTab: React.FC = () => {
               yTicks={PERCENT_TICKS}
               formatTick={(v) => `${v}%`}
               formatValue={formatPercent}
-              ariaLabel="Geheugengebruik van de laatste 5 minuten"
+              ariaLabel={t("live.ramAria")}
             />
           </ChartCard>
 
           <ChartCard
             icon={<Thermometer className="w-4 h-4 text-cyan-400" />}
-            title="Maximale temperatuur"
-            subtitle="Hoogste waarde over alle uitleesbare sensoren"
+            title={t("live.tempTitle")}
+            subtitle={t("live.tempSubtitle")}
             current={latest && latest.max_temp_celsius !== null ? formatTemp(latest.max_temp_celsius) : undefined}
           >
             {derived.hasTemp ? (
@@ -364,14 +366,14 @@ export const LiveTab: React.FC = () => {
                 yTicks={derived.tempTicks}
                 formatTick={(v) => `${v}°`}
                 formatValue={(v) => `${v.toFixed(1)}°C`}
-                ariaLabel="Maximale temperatuur van de laatste 5 minuten"
+                ariaLabel={t("live.tempAria")}
               />
             ) : (
               <div className="h-44 p-4 bg-slate-950/50 rounded-xl border border-slate-800 text-xs text-slate-400 flex flex-col items-center justify-center text-center gap-2">
                 <Thermometer className="w-5 h-5 text-slate-600" />
-                <span className="font-semibold text-slate-300">Geen temperatuursensoren gevonden</span>
+                <span className="font-semibold text-slate-300">{t("live.noTempSensors")}</span>
                 <span className="max-w-sm">
-                  Windows geeft sensorwaarden vaak alleen via fabrikantsoftware vrij (en in WSL/VM's zijn ze er niet). Bekijk het tabblad Koeling voor een uitgebreidere uitlezing.
+                  {t("live.noTempHint")}
                 </span>
               </div>
             )}
@@ -379,8 +381,8 @@ export const LiveTab: React.FC = () => {
 
           <ChartCard
             icon={<Gauge className="w-4 h-4 text-cyan-400" />}
-            title="Kloksnelheid"
-            subtitle="Gemiddelde frequentie over alle kernen"
+            title={t("live.clock")}
+            subtitle={t("live.freqSubtitle")}
             current={latest && latest.cpu_freq_avg_mhz > 0 ? formatFreq(latest.cpu_freq_avg_mhz) : undefined}
           >
             {derived.hasFreq ? (
@@ -391,22 +393,22 @@ export const LiveTab: React.FC = () => {
                 yTicks={derived.freqTicks}
                 formatTick={(v) => (v === 0 ? "0" : `${(v / 1000).toFixed(1)} GHz`)}
                 formatValue={formatFreq}
-                ariaLabel="Gemiddelde kloksnelheid van de laatste 5 minuten"
+                ariaLabel={t("live.freqAria")}
               />
             ) : (
               <div className="h-44 p-4 bg-slate-950/50 rounded-xl border border-slate-800 text-xs text-slate-400 flex items-center justify-center text-center">
-                Kloksnelheid kan op dit systeem niet worden uitgelezen.
+                {t("live.noFreq")}
               </div>
             )}
           </ChartCard>
 
           <ChartCard
             icon={<HardDrive className="w-4 h-4 text-cyan-400" />}
-            title="Schijfactiviteit"
-            subtitle="Bytes per seconde, alle schijven samen"
+            title={t("live.diskTitle")}
+            subtitle={t("live.diskSubtitle")}
             legend={[
-              { label: "Lezen", value: latest ? formatRate(latest.disk_read_bytes_per_sec) : "—" },
-              { label: "Schrijven", value: latest ? formatRate(latest.disk_write_bytes_per_sec) : "—" },
+              { label: t("live.read"), value: latest ? formatRate(latest.disk_read_bytes_per_sec) : "—" },
+              { label: t("live.write"), value: latest ? formatRate(latest.disk_write_bytes_per_sec) : "—" },
             ]}
           >
             <TimeSeriesChart
@@ -416,17 +418,17 @@ export const LiveTab: React.FC = () => {
               yTicks={derived.diskTicks}
               formatTick={formatByteTick}
               formatValue={formatRate}
-              ariaLabel="Schijf lezen en schrijven van de laatste 5 minuten"
+              ariaLabel={t("live.diskAria")}
             />
           </ChartCard>
 
           <ChartCard
             icon={<Network className="w-4 h-4 text-cyan-400" />}
-            title="Netwerkverkeer"
-            subtitle="Bytes per seconde, alle adapters samen"
+            title={t("live.netTitle")}
+            subtitle={t("live.netSubtitle")}
             legend={[
-              { label: "Ontvangen", value: latest ? formatRate(latest.net_rx_bytes_per_sec) : "—" },
-              { label: "Verzonden", value: latest ? formatRate(latest.net_tx_bytes_per_sec) : "—" },
+              { label: t("live.rx"), value: latest ? formatRate(latest.net_rx_bytes_per_sec) : "—" },
+              { label: t("live.tx"), value: latest ? formatRate(latest.net_tx_bytes_per_sec) : "—" },
             ]}
           >
             <TimeSeriesChart
@@ -436,7 +438,7 @@ export const LiveTab: React.FC = () => {
               yTicks={derived.netTicks}
               formatTick={formatByteTick}
               formatValue={formatRate}
-              ariaLabel="Netwerk ontvangen en verzonden van de laatste 5 minuten"
+              ariaLabel={t("live.netAria")}
             />
           </ChartCard>
         </div>

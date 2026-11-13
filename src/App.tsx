@@ -1,26 +1,16 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
 
-import {
-  SystemOverview,
-  PowerInfo,
-  CoolingOverview,
-  FreezeDiagnosticReport,
-  BatteryHealthReport,
-  DriverReport,
-  LatencyTestResult,
-  TabType,
-  PeripheralTestResults,
-  HardwarePowerCheckReport,
-} from "./types";
-import { formatBytes, formatUptime } from "./utils/formatters";
-import { useHardwareTests } from "./hooks/useHardwareTests";
+import type { PeripheralTestResults, TabType } from "./types";
+import { useDiagnosticsStore } from "./store/diagnosticsStore";
+import { api } from "./lib/api";
+import { useI18nStore, useT } from "./i18n";
 import { Header } from "./components/Header";
-import { Navigation, NavStatus } from "./components/Navigation";
-import { Footer, ConnectionState } from "./components/Footer";
-import { Toasts, useToasts } from "./components/Toasts";
+import { Navigation } from "./components/Navigation";
+import { Footer, type ConnectionState } from "./components/Footer";
+import { Toaster } from "./components/Toaster";
+import { UpdateNotice } from "./components/UpdateNotice";
 import { OverviewTab } from "./components/tabs/OverviewTab";
 import { PowerTab } from "./components/tabs/PowerTab";
 import { CoolingTab } from "./components/tabs/CoolingTab";
@@ -32,6 +22,10 @@ import { LiveTab } from "./components/tabs/LiveTab";
 import { ProcessesTab } from "./components/tabs/ProcessesTab";
 import { DriversTab } from "./components/tabs/DriversTab";
 import { LatencyTab } from "./components/tabs/LatencyTab";
+import { StorageTab } from "./components/tabs/StorageTab";
+import { HistoryTab } from "./components/tabs/HistoryTab";
+import { GpuTab } from "./components/tabs/GpuTab";
+import { BurnInTab } from "./components/tabs/BurnInTab";
 import { KeyboardTab } from "./components/tabs/KeyboardTab";
 import { ScreenTab } from "./components/tabs/ScreenTab";
 import { TouchpadTab } from "./components/tabs/TouchpadTab";
@@ -39,7 +33,11 @@ import { AudioTab } from "./components/tabs/AudioTab";
 import { CameraTab } from "./components/tabs/CameraTab";
 import { NetworkTab } from "./components/tabs/NetworkTab";
 
-const PERIPHERAL_TABS: TabType[] = ["keyboard", "screen", "touchpad", "audio", "camera", "network"];
+const POLL_MS = 4000;
+
+/** Tabs met eigen interactieve metingen of zware belasting: geen achtergrond-polling. */
+const NO_POLL_TABS: TabType[] = ["keyboard", "screen", "touchpad", "audio", "camera", "network", "gpu", "burnin"];
+
 const SIDEBAR_STORAGE_KEY = "pc-checker.sidebar-collapsed";
 
 function readSidebarCollapsed(): boolean {
@@ -51,43 +49,11 @@ function readSidebarCollapsed(): boolean {
 }
 
 export default function App() {
+  const t = useT();
+  const lang = useI18nStore((s) => s.lang);
   const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [data, setData] = useState<SystemOverview | null>(null);
-  const [powerData, setPowerData] = useState<PowerInfo | null>(null);
-  const [coolingData, setCoolingData] = useState<CoolingOverview | null>(null);
-  const [freezeData, setFreezeData] = useState<FreezeDiagnosticReport | null>(null);
-  const [batteryReport, setBatteryReport] = useState<BatteryHealthReport | null>(null);
-  const [powerDeliveryReport, setPowerDeliveryReport] = useState<HardwarePowerCheckReport | null>(null);
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [isScanningFreeze, setIsScanningFreeze] = useState(false);
-  const [isTestingBattery, setIsTestingBattery] = useState(false);
-  const [isTestingPowerDelivery, setIsTestingPowerDelivery] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-
-  const [driverReport, setDriverReport] = useState<DriverReport | null>(null);
-  const [isScanningDrivers, setIsScanningDrivers] = useState(false);
-
-  const [latencyResult, setLatencyResult] = useState<LatencyTestResult | null>(null);
-  const [isTestingLatency, setIsTestingLatency] = useState(false);
-  const [latencyDuration, setLatencyDuration] = useState(10);
-
-  const [peripherals, setPeripherals] = useState<PeripheralTestResults>({});
-
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [fetchFailed, setFetchFailed] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
-  const { toasts, pushToast, dismissToast } = useToasts();
   const mainRef = useRef<HTMLDivElement>(null);
-
-  const reportError = useCallback(
-    (context: string, err: unknown) => {
-      console.error(`${context}:`, err);
-      pushToast("error", `${context}: ${String(err)}`);
-    },
-    [pushToast]
-  );
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -95,227 +61,44 @@ export default function App() {
       try {
         localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? "1" : "0");
       } catch {
-        // Opslag niet beschikbaar: voorkeur geldt alleen voor deze sessie.
+        // Opslag niet beschikbaar: de voorkeur geldt alleen voor deze sessie.
       }
       return next;
     });
   };
 
-  const isFetchingRef = useRef(false);
-
-  const fetchOverview = useCallback(async () => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    try {
-      const [overviewRes, powerRes, coolingRes] = await Promise.all([
-        invoke<SystemOverview>("get_system_overview"),
-        invoke<PowerInfo>("get_power_and_battery_info"),
-        invoke<CoolingOverview>("get_cooling_and_fan_info"),
-      ]);
-      setData(overviewRes);
-      setPowerData(powerRes);
-      setCoolingData(coolingRes);
-      setLastUpdated(new Date());
-      setFetchFailed(false);
-    } catch (err) {
-      console.error("Fout bij ophalen systeeminformatie:", err);
-      setFetchFailed(true);
-    } finally {
-      isFetchingRef.current = false;
-      setIsLoading(false);
-    }
-  }, []);
-
-  const refreshNow = async () => {
-    setIsRefreshing(true);
-    await fetchOverview();
-    setIsRefreshing(false);
-  };
-
-  const scanFreezeDiagnostic = async () => {
-    setIsScanningFreeze(true);
-    try {
-      const report = await invoke<FreezeDiagnosticReport>("scan_freeze_diagnostic");
-      setFreezeData(report);
-    } catch (err) {
-      reportError("Freeze-diagnose mislukt", err);
-    } finally {
-      setIsScanningFreeze(false);
-    }
-  };
-
-  const runBatteryTest = async () => {
-    setIsTestingBattery(true);
-    try {
-      const report = await invoke<BatteryHealthReport>("run_battery_health_check");
-      setBatteryReport(report);
-    } catch (err) {
-      reportError("Batterijtest mislukt", err);
-    } finally {
-      setIsTestingBattery(false);
-    }
-  };
-
-  const runPowerDeliveryCheck = async () => {
-    setIsTestingPowerDelivery(true);
-    try {
-      const report = await invoke<HardwarePowerCheckReport>("check_hardware_power_delivery");
-      setPowerDeliveryReport(report);
-    } catch (err) {
-      reportError("Hardware vermogenstest mislukt", err);
-    } finally {
-      setIsTestingPowerDelivery(false);
-    }
-  };
-
-  const scanDrivers = async () => {
-    setIsScanningDrivers(true);
-    try {
-      const report = await invoke<DriverReport>("scan_drivers");
-      setDriverReport(report);
-    } catch (err) {
-      reportError("Driver-scan mislukt", err);
-    } finally {
-      setIsScanningDrivers(false);
-    }
-  };
-
-  const runLatencyTest = async () => {
-    setIsTestingLatency(true);
-    setLatencyResult(null);
-    try {
-      const res = await invoke<LatencyTestResult>("run_latency_test", {
-        durationSecs: latencyDuration,
-      });
-      setLatencyResult(res);
-    } catch (err) {
-      reportError("Latency-test mislukt", err);
-    } finally {
-      setIsTestingLatency(false);
-    }
-  };
-
-  const pollingSuspended = PERIPHERAL_TABS.includes(activeTab);
-
-  // Eenmalig bij opstarten: eerste meting en freeze-diagnose.
-  useEffect(() => {
-    fetchOverview();
-    scanFreezeDiagnostic();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Tab-gebaseerde polling optimalisatie:
-  // Pauzeer zware achtergrond-polling wanneer de gebruiker in een interactieve test zit
-  useEffect(() => {
-    if (!autoRefresh || pollingSuspended) return;
-
-    fetchOverview();
-    const interval = setInterval(fetchOverview, 4000);
-    return () => clearInterval(interval);
-  }, [fetchOverview, autoRefresh, pollingSuspended]);
-
   // Elke pagina begint bovenaan.
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 });
   }, [activeTab]);
+  const s = useDiagnosticsStore();
+  const { fetchOverview, scanFreezeDiagnostic, loadElevation, autoRefresh } = s;
 
-  const {
-    isTestingCpu,
-    cpuDuration,
-    setCpuDuration,
-    cpuResult,
-    handleCpuStress,
-    isTestingRam,
-    ramSizeMb,
-    setRamSizeMb,
-    ramResult,
-    handleRamStress,
-    isTestingDisk,
-    diskSizeMb,
-    setDiskSizeMb,
-    diskResult,
-    handleDiskBenchmark,
-  } = useHardwareTests({ onTestComplete: fetchOverview });
-
-  const navStatuses = useMemo(() => {
-    const statuses: Partial<Record<TabType, NavStatus>> = {};
-    const fromTest = (running: boolean, result: { success: boolean } | null): NavStatus | undefined =>
-      running ? "running" : result ? (result.success ? "ok" : "fail") : undefined;
-    const set = (tab: TabType, status: NavStatus | undefined) => {
-      if (status) statuses[tab] = status;
+  // Taal ook aan de backend doorgeven (samenvattingen/adviezen). Bij de eerste keer daarna de
+  // opstartscans draaien, zodat ook die al in de juiste taal terugkomen; bij een latere
+  // taalwissel alleen de live gegevens verversen (eerder gedraaide tests blijven in hun taal).
+  const started = useRef(false);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    const afterLanguage = () => {
+      void fetchOverview();
+      if (!started.current) {
+        started.current = true;
+        void scanFreezeDiagnostic();
+        void loadElevation();
+      }
     };
+    api.setLanguage(lang).then(afterLanguage, afterLanguage);
+  }, [lang, fetchOverview, scanFreezeDiagnostic, loadElevation]);
 
-    set(
-      "freeze",
-      isScanningFreeze
-        ? "running"
-        : freezeData?.system_freeze_risk === "Hoog"
-          ? "fail"
-          : freezeData?.system_freeze_risk === "Middel"
-            ? "warn"
-            : undefined
-    );
-    set(
-      "latency",
-      isTestingLatency
-        ? "running"
-        : latencyResult
-          ? !latencyResult.success || latencyResult.verdict === "Slecht"
-            ? "fail"
-            : latencyResult.verdict === "Matig"
-              ? "warn"
-              : "ok"
-          : undefined
-    );
-    set(
-      "drivers",
-      isScanningDrivers
-        ? "running"
-        : driverReport?.is_available
-          ? driverReport.problem_count > 0
-            ? "fail"
-            : driverReport.outdated_count > 0 || driverReport.unsigned_count > 0
-              ? "warn"
-              : "ok"
-          : undefined
-    );
-    set(
-      "power",
-      isTestingBattery || isTestingPowerDelivery
-        ? "running"
-        : powerDeliveryReport
-          ? powerDeliveryReport.is_sufficient
-            ? "ok"
-            : "warn"
-          : undefined
-    );
-    set("cpu", fromTest(isTestingCpu, cpuResult));
-    set("ram", fromTest(isTestingRam, ramResult));
-    set("disk", fromTest(isTestingDisk, diskResult));
-    for (const tab of PERIPHERAL_TABS) {
-      if (peripherals[tab as keyof PeripheralTestResults]) statuses[tab] = "ok";
-    }
-    return statuses;
-  }, [
-    isScanningFreeze,
-    freezeData,
-    isTestingLatency,
-    latencyResult,
-    isScanningDrivers,
-    driverReport,
-    isTestingBattery,
-    isTestingPowerDelivery,
-    powerDeliveryReport,
-    isTestingCpu,
-    cpuResult,
-    isTestingRam,
-    ramResult,
-    isTestingDisk,
-    diskResult,
-    peripherals,
-  ]);
+  const pollingSuspended = NO_POLL_TABS.includes(activeTab);
+  useEffect(() => {
+    if (!autoRefresh || pollingSuspended) return;
+    const id = window.setInterval(() => void fetchOverview(), POLL_MS);
+    return () => window.clearInterval(id);
+  }, [fetchOverview, autoRefresh, pollingSuspended]);
 
-  const connection: ConnectionState = fetchFailed
+  const connection: ConnectionState = s.overviewFailed
     ? "error"
     : !autoRefresh
       ? "paused"
@@ -323,294 +106,182 @@ export default function App() {
         ? "suspended"
         : "live";
 
-  const exportReport = () => {
-    if (!data) return;
-    const report = {
-      exportTimestamp: new Date().toISOString(),
-      system: {
-        os: `${data.os_name} ${data.os_version}`,
-        kernel: data.kernel_version,
-        host: data.host_name,
-        sessionUptime: `${formatUptime(data.session_uptime_secs)} (${data.session_started_at})`,
-        kernelUptime: formatUptime(data.kernel_uptime_secs),
-        machineType: powerData?.is_laptop ? "Laptop" : "Desktop Workstation",
-      },
-      power: powerData,
-      batteryReport,
-      hardwarePowerDelivery: powerDeliveryReport,
-      cooling: coolingData,
-      freezeDiagnostics: freezeData,
-      drivers: driverReport,
-      latency: latencyResult,
-      motherboard: data.motherboard,
-      gpus: data.gpus,
-      cpu: {
-        model: data.cpu.brand,
-        cores: `${data.cpu.physical_cores} fysiek / ${data.cpu.logical_cores} logisch`,
-        currentUsage: `${data.cpu.global_usage.toFixed(1)}%`,
-      },
-      ram: {
-        total: formatBytes(data.ram.total_bytes),
-        used: formatBytes(data.ram.used_bytes),
-        free: formatBytes(data.ram.free_bytes),
-      },
-      disks: data.disks.map((d) => ({
-        name: d.name,
-        mount: d.mount_point,
-        total: formatBytes(d.total_bytes),
-        available: formatBytes(d.available_bytes),
-        type: d.disk_type,
-      })),
-      testResults: {
-        cpuTest: cpuResult,
-        ramTest: ramResult,
-        diskTest: diskResult,
-        peripheralTests: {
-          keyboard: peripherals.keyboard || "Niet getest",
-          screen: peripherals.screen || "Niet getest",
-          touchpadAndMouse: peripherals.touchpad || "Niet getest",
-          audioAndMic: peripherals.audio || "Niet getest",
-          webcam: peripherals.camera || "Niet getest",
-          networkAndPing: peripherals.network || "Niet getest",
-        },
-      },
-    };
-
-    const blob = new Blob([JSON.stringify(report, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pc-checker-diagnostic-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const { data, setPeripheral } = s;
+  // Stabiele callbacks: de tabbladen melden hun resultaat in een effect dat van deze functie
+  // afhangt. Een nieuwe functie per render zou dan een eindeloze update-lus geven.
+  const report = useMemo(
+    () => ({
+      keyboard: (r: PeripheralTestResults["keyboard"]) => setPeripheral("keyboard", r),
+      screen: (r: PeripheralTestResults["screen"]) => setPeripheral("screen", r),
+      touchpad: (r: PeripheralTestResults["touchpad"]) => setPeripheral("touchpad", r),
+      audio: (r: PeripheralTestResults["audio"]) => setPeripheral("audio", r),
+      camera: (r: PeripheralTestResults["camera"]) => setPeripheral("camera", r),
+      network: (r: PeripheralTestResults["network"]) => setPeripheral("network", r),
+    }),
+    [setPeripheral],
+  );
 
   return (
-    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans select-none">
-      <Header
-        data={data}
-        powerData={powerData}
-        autoRefresh={autoRefresh}
-        setAutoRefresh={setAutoRefresh}
-        pollingSuspended={pollingSuspended}
-        fetchOverview={refreshNow}
-        isRefreshing={isRefreshing || isLoading}
-        exportReport={exportReport}
-      />
+    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans select-none print:h-auto print:overflow-visible">
+      <Header pollingSuspended={pollingSuspended} />
 
       <div className="flex flex-1 min-h-0">
         <Navigation
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          statuses={navStatuses}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleSidebar}
         />
 
-        <div ref={mainRef} className="flex-1 min-w-0 overflow-y-auto">
-      <main className="p-6 max-w-7xl w-full mx-auto space-y-6">
-        {data && fetchFailed && (
-          <div
-            role="alert"
-            className="px-4 py-3 bg-red-950/30 border border-red-900 rounded-xl text-red-300 text-xs flex items-center gap-3"
-          >
-            <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
-            <span className="flex-1">
-              De laatste meting is mislukt. Onderstaande waarden kunnen verouderd zijn.
-            </span>
-            <button
-              type="button"
-              onClick={refreshNow}
-              disabled={isRefreshing}
-              className="px-2.5 py-1 rounded-lg border border-red-800 hover:bg-red-900/40 font-medium cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-            >
-              Opnieuw proberen
-            </button>
-          </div>
-        )}
+        <div ref={mainRef} className="flex-1 min-w-0 overflow-y-auto print:overflow-visible">
+          <UpdateNotice />
 
-        {isLoading && !data ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400" role="status">
-            <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
-            <p className="text-sm">Hardware- en stroomgegevens uitlezen...</p>
-          </div>
-        ) : !data ? (
-          <div
-            role="alert"
-            className="p-6 bg-red-950/30 border border-red-900 rounded-xl text-red-300 flex items-center gap-4"
-          >
-            <AlertTriangle className="w-6 h-6 shrink-0 text-red-400" />
-            <div className="flex-1">
-              <h3 className="font-semibold">Kon hardware niet uitlezen</h3>
-              <p className="text-sm text-red-400/80">
-                Er is een fout opgetreden bij het communiceren met de Rust backend.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={refreshNow}
-              disabled={isRefreshing}
-              className="px-4 py-2 rounded-lg bg-red-900/50 border border-red-800 hover:bg-red-900 text-red-100 text-sm font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-            >
-              <RefreshCw className={isRefreshing ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
-              Opnieuw proberen
-            </button>
-          </div>
-        ) : (
-          <>
-            {activeTab === "overview" && (
-              <OverviewTab
-                data={data}
-                powerData={powerData}
-                coolingData={coolingData}
-                freezeData={freezeData}
-                batteryReport={batteryReport}
-                driverReport={driverReport}
-                latencyResult={latencyResult}
-                cpuResult={cpuResult}
-                ramResult={ramResult}
-                diskResult={diskResult}
-                setActiveTab={setActiveTab}
-              />
+          <main className="p-6 max-w-7xl w-full mx-auto space-y-6">
+            {data && s.overviewFailed && (
+              <div
+                role="alert"
+                className="px-4 py-3 bg-red-950/30 border border-red-900 rounded-xl text-red-300 text-xs flex items-center gap-3"
+              >
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+                <span className="flex-1">{t("app.staleData")}</span>
+                <button
+                  type="button"
+                  onClick={() => void fetchOverview()}
+                  className="px-2.5 py-1 rounded-lg border border-red-800 hover:bg-red-900/40 font-medium cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+                >
+                  {t("app.retry")}
+                </button>
+              </div>
             )}
 
-            {activeTab === "live" && <LiveTab />}
+            {s.isLoading && !data ? (
+              <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
+                <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
+                <p className="text-sm">{t("app.loading")}</p>
+              </div>
+            ) : !data ? (
+              <div className="p-6 bg-red-950/30 border border-red-900 rounded-xl text-red-300 flex items-center gap-3">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+                <div className="flex-1">
+                  <h3 className="font-semibold">{t("app.loadError.title")}</h3>
+                  <p className="text-sm text-red-400/80">{t("app.loadError.body")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void fetchOverview()}
+                  className="px-3 py-1.5 rounded-lg border border-red-800 hover:bg-red-900/40 text-sm cursor-pointer"
+                >
+                  {t("app.retry")}
+                </button>
+              </div>
+            ) : (
+              <>
+                {activeTab === "overview" && (
+                  <OverviewTab
+                    data={data}
+                    powerData={s.powerData}
+                    coolingData={s.coolingData}
+                    freezeData={s.freezeData}
+                    batteryReport={s.batteryReport}
+                    driverReport={s.driverReport}
+                    latencyResult={s.latencyResult}
+                    cpuResult={s.cpuResult}
+                    ramResult={s.ramResult}
+                    diskResult={s.diskResult}
+                    setActiveTab={setActiveTab}
+                  />
+                )}
 
-            {activeTab === "processes" && <ProcessesTab />}
+                {activeTab === "live" && <LiveTab />}
+                {activeTab === "processes" && <ProcessesTab />}
 
-            {activeTab === "drivers" && (
-              <DriversTab
-                driverReport={driverReport}
-                isScanningDrivers={isScanningDrivers}
-                scanDrivers={scanDrivers}
-              />
+                {activeTab === "drivers" && (
+                  <DriversTab driverReport={s.driverReport} isScanningDrivers={!!s.busy.drivers} scanDrivers={s.scanDrivers} />
+                )}
+
+                {activeTab === "latency" && (
+                  <LatencyTab
+                    latencyResult={s.latencyResult}
+                    isTestingLatency={!!s.busy.latency}
+                    latencyDuration={s.latencyDuration}
+                    setLatencyDuration={s.setLatencyDuration}
+                    runLatencyTest={s.runLatencyTest}
+                  />
+                )}
+
+                {activeTab === "storage" && <StorageTab />}
+                {activeTab === "history" && <HistoryTab />}
+
+                {activeTab === "power" && (
+                  <PowerTab
+                    powerData={s.powerData}
+                    batteryReport={s.batteryReport}
+                    isTestingBattery={!!s.busy.battery}
+                    runBatteryTest={s.runBatteryTest}
+                    powerDeliveryReport={s.powerDeliveryReport}
+                    isTestingPowerDelivery={!!s.busy.powerDelivery}
+                    runPowerDeliveryCheck={s.runPowerDeliveryCheck}
+                  />
+                )}
+
+                {activeTab === "cooling" && <CoolingTab coolingData={s.coolingData} />}
+
+                {activeTab === "freeze" && (
+                  <FreezeTab freezeData={s.freezeData} isScanningFreeze={!!s.busy.freeze} scanFreezeDiagnostic={s.scanFreezeDiagnostic} />
+                )}
+
+                {activeTab === "cpu" && (
+                  <CpuTab
+                    data={data}
+                    isTestingCpu={!!s.busy.cpu}
+                    cpuDuration={s.cpuDuration}
+                    setCpuDuration={s.setCpuDuration}
+                    handleCpuStress={() => void s.runCpuStress()}
+                    cpuResult={s.cpuResult}
+                  />
+                )}
+
+                {activeTab === "ram" && (
+                  <RamTab
+                    data={data}
+                    isTestingRam={!!s.busy.ram}
+                    ramSizeMb={s.ramSizeMb}
+                    setRamSizeMb={s.setRamSizeMb}
+                    handleRamStress={() => void s.runRamStress()}
+                    ramResult={s.ramResult}
+                  />
+                )}
+
+                {activeTab === "disk" && (
+                  <DiskTab
+                    data={data}
+                    isTestingDisk={!!s.busy.disk}
+                    diskSizeMb={s.diskSizeMb}
+                    setDiskSizeMb={s.setDiskSizeMb}
+                    handleDiskBenchmark={() => void s.runDiskBenchmark()}
+                    diskResult={s.diskResult}
+                  />
+                )}
+
+                {activeTab === "gpu" && <GpuTab />}
+                {activeTab === "burnin" && <BurnInTab />}
+
+                {activeTab === "keyboard" && (
+                  <KeyboardTab isLaptop={s.powerData?.is_laptop ?? false} onUpdateResult={report.keyboard} />
+                )}
+                {activeTab === "screen" && <ScreenTab onUpdateResult={report.screen} />}
+                {activeTab === "touchpad" && <TouchpadTab onUpdateResult={report.touchpad} />}
+                {activeTab === "audio" && <AudioTab onUpdateResult={report.audio} />}
+                {activeTab === "camera" && <CameraTab onUpdateResult={report.camera} />}
+                {activeTab === "network" && <NetworkTab onUpdateResult={report.network} />}
+              </>
             )}
-
-            {activeTab === "latency" && (
-              <LatencyTab
-                latencyResult={latencyResult}
-                isTestingLatency={isTestingLatency}
-                latencyDuration={latencyDuration}
-                setLatencyDuration={setLatencyDuration}
-                runLatencyTest={runLatencyTest}
-              />
-            )}
-
-            {activeTab === "power" && (
-              <PowerTab
-                powerData={powerData}
-                batteryReport={batteryReport}
-                isTestingBattery={isTestingBattery}
-                runBatteryTest={runBatteryTest}
-                powerDeliveryReport={powerDeliveryReport}
-                isTestingPowerDelivery={isTestingPowerDelivery}
-                runPowerDeliveryCheck={runPowerDeliveryCheck}
-              />
-            )}
-
-            {activeTab === "cooling" && (
-              <CoolingTab coolingData={coolingData} />
-            )}
-
-            {activeTab === "freeze" && (
-              <FreezeTab
-                freezeData={freezeData}
-                isScanningFreeze={isScanningFreeze}
-                scanFreezeDiagnostic={scanFreezeDiagnostic}
-              />
-            )}
-
-            {activeTab === "cpu" && (
-              <CpuTab
-                data={data}
-                isTestingCpu={isTestingCpu}
-                cpuDuration={cpuDuration}
-                setCpuDuration={setCpuDuration}
-                handleCpuStress={handleCpuStress}
-                cpuResult={cpuResult}
-              />
-            )}
-
-            {activeTab === "ram" && (
-              <RamTab
-                data={data}
-                isTestingRam={isTestingRam}
-                ramSizeMb={ramSizeMb}
-                setRamSizeMb={setRamSizeMb}
-                handleRamStress={handleRamStress}
-                ramResult={ramResult}
-              />
-            )}
-
-            {activeTab === "disk" && (
-              <DiskTab
-                data={data}
-                isTestingDisk={isTestingDisk}
-                diskSizeMb={diskSizeMb}
-                setDiskSizeMb={setDiskSizeMb}
-                handleDiskBenchmark={handleDiskBenchmark}
-                diskResult={diskResult}
-              />
-            )}
-
-            {activeTab === "keyboard" && (
-              <KeyboardTab
-                isLaptop={powerData?.is_laptop ?? false}
-                onUpdateResult={(res) =>
-                  setPeripherals((prev) => ({ ...prev, keyboard: res }))
-                }
-              />
-            )}
-
-            {activeTab === "screen" && (
-              <ScreenTab
-                onUpdateResult={(res) =>
-                  setPeripherals((prev) => ({ ...prev, screen: res }))
-                }
-              />
-            )}
-
-            {activeTab === "touchpad" && (
-              <TouchpadTab
-                onUpdateResult={(res) =>
-                  setPeripherals((prev) => ({ ...prev, touchpad: res }))
-                }
-              />
-            )}
-
-            {activeTab === "audio" && (
-              <AudioTab
-                onUpdateResult={(res) =>
-                  setPeripherals((prev) => ({ ...prev, audio: res }))
-                }
-              />
-            )}
-
-            {activeTab === "camera" && (
-              <CameraTab
-                onUpdateResult={(res) =>
-                  setPeripherals((prev) => ({ ...prev, camera: res }))
-                }
-              />
-            )}
-
-            {activeTab === "network" && (
-              <NetworkTab
-                onUpdateResult={(res) =>
-                  setPeripherals((prev) => ({ ...prev, network: res }))
-                }
-              />
-            )}
-          </>
-        )}
-      </main>
+          </main>
         </div>
       </div>
 
-      <Footer connection={connection} lastUpdated={lastUpdated} />
-      <Toasts toasts={toasts} onDismiss={dismissToast} />
+      <Footer connection={connection} />
+      <Toaster />
     </div>
   );
 }

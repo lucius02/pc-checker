@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Informatie over een individuele logische CPU-core.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct CpuCoreInfo {
     /// Identificatie of naam van de kern (bijv. "CPU 0", "CPU 1").
     pub name: String,
@@ -12,7 +14,8 @@ pub struct CpuCoreInfo {
 }
 
 /// Gedetailleerd overzicht van de centrale processor (CPU).
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct CpuInfo {
     /// Merk en modelaanduiding (bijv. "Intel Core i7-12700H" of "AMD Ryzen 7 5800X").
     pub brand: String,
@@ -29,7 +32,8 @@ pub struct CpuInfo {
 }
 
 /// Statistieken over het werkgeheugen (RAM) en wisselbestand (Swap/Pagefile).
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct RamInfo {
     /// Totale fysiek geïnstalleerde geheugencapaciteit in bytes.
     pub total_bytes: u64,
@@ -44,7 +48,8 @@ pub struct RamInfo {
 }
 
 /// Informatie over een aangesloten opslagmedium of partitie.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct DiskInfo {
     /// Naam of volume-label van de schijf (bijv. "Lokale vaste schijf").
     pub name: String,
@@ -63,7 +68,8 @@ pub struct DiskInfo {
 }
 
 /// Specificaties van een grafische processor (GPU).
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
 pub struct GpuInfo {
     /// Commerciële naam van de grafische kaart (bijv. "NVIDIA GeForce RTX 4070").
     pub name: String,
@@ -74,7 +80,8 @@ pub struct GpuInfo {
 }
 
 /// Specificaties van het moederbord en de systeemfirmware (BIOS/UEFI).
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
 pub struct MotherboardInfo {
     /// Fabrikant van het moederbord (bijv. "ASUSTeK COMPUTER INC.", "Gigabyte Technology").
     pub manufacturer: String,
@@ -87,7 +94,8 @@ pub struct MotherboardInfo {
 }
 
 /// Compleet overzicht van alle statische en dynamische systeemeigenschappen.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct SystemOverview {
     /// Naam van het besturingssysteem (bijv. "Windows", "Ubuntu", "macOS").
     pub os_name: String,
@@ -115,8 +123,24 @@ pub struct SystemOverview {
     pub motherboard: MotherboardInfo,
 }
 
+/// Losse lees- en schrijfsnelheid van de schijfbenchmark. Lezen en schrijven zijn verschillende
+/// dingen (een SSD schrijft vaak trager dan hij leest), dus er is bewust geen gemiddelde.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct DiskSpeeds {
+    pub read_mbps: f64,
+    pub write_mbps: f64,
+    /// Soort schijf waarop getest is: "nvme", "ssd" (SATA), "hdd", "usb" of "unknown".
+    pub drive_kind: String,
+    /// Modelnaam van die schijf, als die bekend is.
+    pub drive_model: Option<String>,
+    /// `true` als de OS-cache is omzeild (dan zijn het echte schijfsnelheden).
+    pub cache_bypassed: bool,
+}
+
 /// Resultaat van een uitgevoerde synthetische hardwarestresstest of benchmark.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct StressTestResult {
     /// `true` als de test zonder fouten of crash binnen de tijd is afgerond.
     pub success: bool,
@@ -134,10 +158,15 @@ pub struct StressTestResult {
     pub details: String,
     /// Foutbericht indien de test voortijdig is afgebroken.
     pub error: Option<String>,
+    /// Alleen bij de schijfbenchmark: lees- en schrijfsnelheid apart.
+    #[serde(default)]
+    #[ts(optional)]
+    pub disk_speeds: Option<DiskSpeeds>,
 }
 
 /// Telemetrie over de stroomvoorziening en netstroom/accu-status.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct PowerInfo {
     /// `true` voor mobiele apparaten met ingebouwde batterij; `false` voor vaste desktops.
     pub is_laptop: bool,
@@ -158,7 +187,8 @@ pub struct PowerInfo {
 }
 
 /// Uitgebreid diagnostisch rapport over batterijconditie en slijtagegraad.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct BatteryHealthReport {
     /// `true` als een batterij aanwezig is en succesvol geanalyseerd kon worden.
     pub is_available: bool,
@@ -185,7 +215,8 @@ pub struct BatteryHealthReport {
 }
 
 /// Meting van een temperatuursensor (CPU, moederbord of GPU).
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct TemperatureSensorInfo {
     /// Benaming of locatie van de sensor (bijv. "Core 0", "Package", "GPU Diode").
     pub label: String,
@@ -198,7 +229,8 @@ pub struct TemperatureSensorInfo {
 }
 
 /// Status en omwentelingssnelheid van een koelventilator.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct FanInfo {
     /// Naam van de ventilator (bijv. "CPU Koeler", "Chassis Fan 1").
     pub name: String,
@@ -209,7 +241,8 @@ pub struct FanInfo {
 }
 
 /// Samenvattend overzicht van het thermische profiel en ventilatoren.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct CoolingOverview {
     /// Overzicht van aangesloten ventilatoren.
     pub fans: Vec<FanInfo>,
@@ -222,7 +255,8 @@ pub struct CoolingOverview {
 }
 
 /// Individuele waarschuwing of foutmelding uit het Windows Event Log gerelateerd aan freezes.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct FreezeEventEntry {
     /// Tijdstip van de gebeurtenis in het logboek.
     pub timestamp: String,
@@ -236,12 +270,23 @@ pub struct FreezeEventEntry {
     pub message: String,
     /// Categorie van de oorzaak (bijv. "Opslag / Schijf Time-out", "GPU Driver Crash (TDR)").
     pub category: String,
-    /// Concrete oplossingsrichting of instelling om de freeze te verhelpen.
+    /// Concrete oplossingsrichting als platte tekst (rapport).
     pub suggestion: String,
+    /// Hoe vaak dit event (zelfde bron + ID) in de afgelopen 30 dagen voorkwam.
+    pub count: u32,
+    /// Eerste keer in die periode (`timestamp` is de laatste keer).
+    pub first_seen: String,
+    /// "Kritiek" | "Hoog" | "Middel"
+    pub severity: String,
+    /// Laatste keer binnen de afgelopen 30 dagen? Oudere events wegen minder mee in het risico.
+    pub is_recent: bool,
+    /// Gestructureerd stappenplan.
+    pub advice: Advice,
 }
 
 /// Compleet diagnoserapport van de Freeze Detective.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct FreezeDiagnosticReport {
     /// Live registraties door de achtergrond-watchdog van scheduling-hickups (> 1000ms).
     pub watchdog_freezes_detected: Vec<String>,
@@ -255,11 +300,14 @@ pub struct FreezeDiagnosticReport {
     pub diagnosis_summary: String,
     /// Stapsgewijs actieplan om hardware- of driver-freezes definitief op te lossen.
     pub recommended_actions: Vec<String>,
+    /// Hoeveel dagen terug in het logboek is gekeken (door de gebruiker gekozen).
+    pub lookback_days: u32,
 }
 
 // ===== Watchdog: gestructureerde freeze-records =====
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[ts(export)]
 pub struct FreezeRecord {
     pub at_epoch_ms: u64,
     pub duration_ms: u64,
@@ -268,7 +316,8 @@ pub struct FreezeRecord {
 
 // ===== Live Monitor (grafieken) & Procesmonitor =====
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct ProcessInfo {
     pub pid: u32,
     pub name: String,
@@ -279,14 +328,16 @@ pub struct ProcessInfo {
     pub disk_write_bytes_per_sec: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct ProcessSnapshot {
     pub taken_at_epoch_ms: u64,
     pub total_processes: usize,
     pub processes: Vec<ProcessInfo>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct MetricsSample {
     pub at_epoch_ms: u64,
     pub cpu_usage: f32,
@@ -302,13 +353,15 @@ pub struct MetricsSample {
     pub top_processes: Vec<ProcessInfo>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct MetricsHistory {
     pub interval_ms: u64,
     pub samples: Vec<MetricsSample>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct FreezeProcessContext {
     pub freeze: FreezeRecord,
     /// Metingen vlak vóór de freeze (oudste eerst)
@@ -317,7 +370,8 @@ pub struct FreezeProcessContext {
 
 // ===== Driver Check =====
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct DriverEntry {
     pub device_name: String,
     pub device_class: String,
@@ -330,10 +384,64 @@ pub struct DriverEntry {
     /// "OK" | "Verouderd" | "Probleem" | "Niet ondertekend"
     pub status: String,
     pub problem_code: Option<u32>,
+    /// Hele advies als één tekst (voor het rapport en oudere weergaven).
     pub advice: String,
+    /// Hetzelfde advies, opgesplitst voor een overzichtelijke weergave.
+    pub advice_detail: Advice,
+    /// Gezet als de fabrikant deze driver/dit apparaat niet (meer volledig) ondersteunt.
+    pub support: Option<DriverSupport>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+/// Ondersteuning door de fabrikant. Geen ondersteuning is géén fout: de laatste driver blijft
+/// werken; de handleiding is alleen nodig als je problemen merkt.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[ts(export)]
+pub struct DriverSupport {
+    /// "ended" (geen drivers meer), "legacy" (alleen nog beveiligings-/kritieke fixes) of
+    /// "likely_ended" (vuistregel: driver van vóór Windows 10).
+    pub level: String,
+    /// Waarom we dit denken (welke fabrikant wat heeft gemeld, of de vuistregel).
+    pub reason: String,
+    /// Wat je kunt doen, alleen als je er iets van merkt.
+    pub guide: Advice,
+}
+
+/// Gestructureerd advies (drivers, freeze-oorzaken): wat er mis is, waarom het ertoe doet en wat je moet doen.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct Advice {
+    /// Korte kop: wat er aan de hand is.
+    pub title: String,
+    /// Waarom dit ertoe doet (optioneel).
+    pub why: Option<String>,
+    /// Concrete stappen, in volgorde.
+    pub steps: Vec<String>,
+    /// Kop voor het vervolgplan als de stappen niet helpen (bijv. "Blijft de fout?").
+    pub fallback_title: Option<String>,
+    pub fallback_steps: Vec<String>,
+}
+
+impl Advice {
+    /// Platte tekstversie (rapport, tests, oudere weergaven).
+    pub fn flatten(&self) -> String {
+        let mut parts = vec![self.title.clone()];
+        parts.extend(self.why.clone());
+        parts.extend(
+            self.steps
+                .iter()
+                .enumerate()
+                .map(|(i, s)| format!("{}. {}", i + 1, s)),
+        );
+        if !self.fallback_steps.is_empty() {
+            parts.extend(self.fallback_title.clone());
+            parts.extend(self.fallback_steps.iter().map(|s| format!("- {}", s)));
+        }
+        parts.join(" ")
+    }
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct DriverReport {
     pub is_available: bool,
     pub scanned_at: String,
@@ -341,19 +449,24 @@ pub struct DriverReport {
     pub outdated_count: usize,
     pub problem_count: usize,
     pub unsigned_count: usize,
+    /// Drivers die de fabrikant niet (meer volledig) ondersteunt. Telt niet als probleem.
+    #[serde(default)]
+    pub unsupported_count: usize,
     pub entries: Vec<DriverEntry>,
     pub summary: String,
 }
 
 // ===== DPC / Interrupt Latency =====
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct LatencyBucket {
     pub label: String,
     pub count: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct LatencyTestResult {
     pub success: bool,
     pub duration_ms: u64,
@@ -372,12 +485,29 @@ pub struct LatencyTestResult {
     pub summary: String,
     pub suspected_drivers: Vec<String>,
     pub advice: Vec<String>,
+    /// Waarom het oordeel zo uitvalt: gemeten waarden tegenover de grenzen (ernstigste eerst).
+    pub reasons: Vec<LatencyFinding>,
+    /// Stappenplan dat past bij de bevindingen.
+    pub fix: Advice,
     pub error: Option<String>,
+}
+
+/// Eén verklaring bij het latency-oordeel.
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct LatencyFinding {
+    /// "Slecht" | "Matig" | "Goed" | "Info"
+    pub severity: String,
+    /// Wat er gemeten is, met de waarde en de grens.
+    pub title: String,
+    /// Wat dat betekent en waar het meestal door komt.
+    pub detail: String,
 }
 
 // ===== Gezondheidsscore =====
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
 pub struct HealthInputs {
     pub max_temp_celsius: Option<f32>,
     pub is_throttling_suspected: bool,
@@ -395,9 +525,20 @@ pub struct HealthInputs {
     pub cpu_stress_ok: Option<bool>,
     pub ram_test_ok: Option<bool>,
     pub disk_test_ok: Option<bool>,
+    /// Aantal schijven met een SMART/betrouwbaarheids-waarschuwing (None = niet gescand).
+    #[serde(default)]
+    pub storage_smart_warning_count: Option<usize>,
+    /// Aantal schijven met een kritieke SMART-status (None = niet gescand).
+    #[serde(default)]
+    pub storage_smart_critical_count: Option<usize>,
+    /// Bevindingen van schijven die niet "Goed" zijn ("Model: reden"), zodat de score kan noemen
+    /// wáárom opslag lager scoort.
+    #[serde(default)]
+    pub storage_smart_findings: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct HealthCategoryScore {
     pub key: String,
     pub label: String,
@@ -409,7 +550,8 @@ pub struct HealthCategoryScore {
     pub detail: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct HealthScore {
     /// 0-100
     pub score: u8,
@@ -421,7 +563,8 @@ pub struct HealthScore {
 }
 
 /// Resultaat van de controle op stroomtoevoer per specifiek hardware-onderdeel.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq, Eq)]
+#[ts(export)]
 pub struct PowerComponentCheck {
     pub name: String,
     pub status: String,
@@ -431,7 +574,8 @@ pub struct PowerComponentCheck {
 }
 
 /// Volledig hardware-vermogensrapport over stroomtoevoer naar alle interne componenten.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
 pub struct HardwarePowerCheckReport {
     pub is_sufficient: bool,
     pub score: u32,
@@ -444,4 +588,183 @@ pub struct HardwarePowerCheckReport {
     pub throttling_events_count: u32,
     pub usb_surge_count: u32,
     pub recommendations: Vec<String>,
+}
+
+// ===== Opslaggezondheid (SMART / Storage Reliability Counters) =====
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct StorageHealthEntry {
+    pub model: String,
+    pub serial: String,
+    /// "SSD" | "HDD" | "Onbekend"
+    pub media_type: String,
+    /// "NVMe" | "SATA" | "USB" | ...
+    pub bus_type: String,
+    pub size_bytes: u64,
+    /// Ruwe Windows HealthStatus ("Healthy", "Warning", "Unhealthy").
+    pub health_status: String,
+    pub operational_status: String,
+    pub temperature_celsius: Option<u32>,
+    pub temperature_max_celsius: Option<u32>,
+    /// Slijtage in procent (0 = nieuw, 100 = einde levensduur); alleen SSD's.
+    pub wear_percent: Option<u32>,
+    pub power_on_hours: Option<u64>,
+    pub read_errors_uncorrected: Option<u64>,
+    pub write_errors_uncorrected: Option<u64>,
+    pub read_errors_total: Option<u64>,
+    pub write_errors_total: Option<u64>,
+    /// "Goed" | "Let op" | "Kritiek"
+    pub verdict: String,
+    pub findings: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct StorageHealthReport {
+    pub is_available: bool,
+    pub scanned_at: String,
+    /// Sommige tellers (temperatuur, slijtage) vereisen beheerdersrechten.
+    pub is_elevated: bool,
+    pub disks: Vec<StorageHealthEntry>,
+    pub warning_count: usize,
+    pub critical_count: usize,
+    pub summary: String,
+}
+
+// ===== Historie over sessies heen =====
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, PartialEq)]
+#[ts(export)]
+pub struct HealthHistoryEntry {
+    pub at_epoch_ms: u64,
+    pub score: u8,
+    pub grade: String,
+    pub top_issue: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct HistoryData {
+    #[serde(default)]
+    pub freezes: Vec<FreezeRecord>,
+    #[serde(default)]
+    pub health: Vec<HealthHistoryEntry>,
+}
+
+// ===== Beheerdersmodus =====
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug)]
+#[ts(export)]
+pub struct ElevationStatus {
+    pub is_elevated: bool,
+    /// Kan de app zichzelf opnieuw starten met verhoogde rechten (alleen Windows)?
+    pub can_elevate: bool,
+    pub platform: String,
+}
+
+// ===== Per-driver DPC/ISR-latency (ETW) =====
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct DriverLatencyEntry {
+    /// Bestandsnaam van de driver, bijv. "nvlddmkm.sys".
+    pub driver: String,
+    /// Bekende omschrijving ("NVIDIA-videodriver"), indien bekend.
+    pub description: Option<String>,
+    pub dpc_count: u64,
+    pub dpc_max_us: f64,
+    pub dpc_total_ms: f64,
+    pub isr_count: u64,
+    pub isr_max_us: f64,
+    pub isr_total_ms: f64,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct DriverLatencyReport {
+    /// `false` als ETW niet beschikbaar is (niet-Windows) of de trace niet kon starten.
+    pub is_available: bool,
+    /// De meting vereist beheerdersrechten (kernel-trace).
+    pub requires_admin: bool,
+    pub duration_ms: u64,
+    pub dpc_count: u64,
+    pub isr_count: u64,
+    /// Door ETW weggegooide events (buffers vol); > 0 betekent een onvolledige meting.
+    pub events_lost: u32,
+    pub highest_dpc_us: f64,
+    pub highest_isr_us: f64,
+    pub highest_dpc_driver: Option<String>,
+    pub highest_isr_driver: Option<String>,
+    /// "Goed" | "Matig" | "Slecht" | "Niet getest"
+    pub verdict: String,
+    pub summary: String,
+    /// Gesorteerd op hoogste uitvoertijd (DPC of ISR), aflopend.
+    pub drivers: Vec<DriverLatencyEntry>,
+    /// Uitleg en stappen voor de grootste veroorzaker (alleen bij "Matig"/"Slecht").
+    pub fix: Option<Advice>,
+    pub error: Option<String>,
+}
+
+// ===== Netwerkgezondheid =====
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct WifiInfo {
+    pub ssid: String,
+    /// 0-100 % (Windows-signaalkwaliteit).
+    pub signal_quality: u32,
+    /// Signaalsterkte in dBm (bijv. -55), indien beschikbaar.
+    pub rssi_dbm: Option<i32>,
+    pub frequency_mhz: Option<u32>,
+    pub channel: Option<u32>,
+    /// "2.4 GHz" | "5 GHz" | "6 GHz" | "?"
+    pub band: String,
+    /// Bijv. "Wi-Fi 6E (802.11ax)".
+    pub standard: String,
+    pub rx_rate_mbps: f64,
+    pub tx_rate_mbps: f64,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct NetworkAdapterHealth {
+    pub name: String,
+    pub description: String,
+    /// "wifi" | "ethernet" | "other"
+    pub kind: String,
+    pub link_speed_mbps: Option<f64>,
+    pub driver_version: String,
+    pub driver_date: String,
+    pub rx_packets: u64,
+    pub tx_packets: u64,
+    pub rx_errors: u64,
+    pub rx_discards: u64,
+    pub tx_errors: u64,
+    pub tx_discards: u64,
+    /// Ingeschakelde energiebesparende opties (weergavenaam), bijv. "Energy Efficient Ethernet".
+    pub power_saving: Vec<String>,
+    /// "Computer mag dit apparaat uitschakelen" (None = onbekend/niet ondersteund).
+    pub allow_turn_off: Option<bool>,
+    pub wifi: Option<WifiInfo>,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default, PartialEq)]
+#[ts(export)]
+pub struct NetworkIssue {
+    /// "Hoog" | "Middel"
+    pub severity: String,
+    /// Naam van de adapter waar het om gaat.
+    pub adapter: String,
+    pub advice: Advice,
+}
+
+#[derive(Serialize, Deserialize, TS, Clone, Debug, Default)]
+#[ts(export)]
+pub struct NetworkHealthReport {
+    pub is_available: bool,
+    pub scanned_at: String,
+    pub adapters: Vec<NetworkAdapterHealth>,
+    pub issues: Vec<NetworkIssue>,
+    pub summary: String,
 }

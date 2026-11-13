@@ -29,7 +29,7 @@
 //! - probleemapparaat / RAM-fouten / schijftest mislukt / >= 3 freezes -> max 69 (D)
 //! - >= 1 freeze, throttling of een categorie "Kritiek" -> max 79 (C)
 //! - alleen basisgegevens (geen driver-/latency-/stresstest gedraaid) -> max 89 (B):
-//!   zonder tests kan het systeem niet "Uitstekend" heten; label krijgt "(voorlopig)".
+//!   zonder tests kan het systeem niet crate::tr!("Uitstekend", "Excellent") heten; label krijgt "(voorlopig)".
 //!
 //! Cijfergrenzen: A >= 90, B >= 80, C >= 70, D >= 60, E >= 50, F < 50.
 //! Categoriestatus: "Goed" (>= 80), "Let op" (>= 50), "Kritiek" (< 50),
@@ -66,11 +66,7 @@ pub fn worst_status(a: &'static str, b: &'static str) -> &'static str {
             _ => 0,
         }
     }
-    if rank(b) > rank(a) {
-        b
-    } else {
-        a
-    }
+    if rank(b) > rank(a) { b } else { a }
 }
 
 pub fn severity(status: &str) -> u8 {
@@ -94,12 +90,12 @@ pub fn grade_for(score: u8) -> &'static str {
 
 pub fn label_for(grade: &str) -> &'static str {
     match grade {
-        "A" => "Uitstekend",
-        "B" => "Goed",
-        "C" => "Redelijk",
-        "D" => "Aandacht nodig",
-        "E" => "Slecht",
-        _ => "Kritiek",
+        "A" => crate::tr!("Uitstekend", "Excellent"),
+        "B" => crate::tr!("Goed", "Good"),
+        "C" => crate::tr!("Redelijk", "Reasonable"),
+        "D" => crate::tr!("Aandacht nodig", "Needs attention"),
+        "E" => crate::tr!("Slecht", "Poor"),
+        _ => crate::tr!("Kritiek", "Critical"),
     }
 }
 
@@ -107,7 +103,6 @@ pub fn label_for(grade: &str) -> &'static str {
 mod health_eval;
 use health_eval::*;
 
-#[tauri::command]
 pub fn compute_health_score(inputs: HealthInputs) -> HealthScore {
     let i = &inputs;
 
@@ -129,14 +124,17 @@ pub fn compute_health_score(inputs: HealthInputs) -> HealthScore {
         .iter()
         .filter(|e| e.cat.status != STATUS_UNTESTED)
         .fold((0.0f64, 0.0f64), |(s, ws), e| {
-            (s + e.cat.score as f64 * e.cat.weight as f64, ws + e.cat.weight as f64)
+            (
+                s + e.cat.score as f64 * e.cat.weight as f64,
+                ws + e.cat.weight as f64,
+            )
         });
     // Praktisch onbereikbaar (geheugen is altijd getest), maar nooit NaN casten.
     let mut score = if wsum > 0.0 { to_u8(sum / wsum) } else { 50 };
 
     // Harde plafonds voor kritieke bevindingen.
     let max_temp = finite_f32(i.max_temp_celsius);
-    if max_temp.map_or(false, |t| t >= 95.0) {
+    if max_temp.is_some_and(|t| t >= 95.0) {
         score = score.min(CAP_E);
     }
     if i.driver_problem_count.unwrap_or(0) > 0
@@ -194,21 +192,30 @@ pub fn compute_health_score(inputs: HealthInputs) -> HealthScore {
         .collect();
 
     if top_issues.len() < 3 && !untested_labels.is_empty() {
-        top_issues.push(format!(
-            "Nog niet getest: {}. Voer deze tests uit voor een nauwkeurigere score.",
-            untested_labels.join(", ")
+        top_issues.push(crate::tr!(
+            format!(
+                "Nog niet getest: {}. Voer deze tests uit voor een nauwkeurigere score.",
+                untested_labels.join(", ")
+            ),
+            format!(
+                "Not yet tested: {}. Run these tests for a more accurate score.",
+                untested_labels.join(", ")
+            )
         ));
     } else if only_basics {
         // Altijd melden, desnoods ten koste van de minst ernstige bevinding.
         top_issues.truncate(2);
         top_issues.push(
-            "Score is gebaseerd op basisgegevens; voer de freeze-, driver- en latency-tests uit voor een nauwkeurigere score."
+            crate::tr!("Score is gebaseerd op basisgegevens; voer de freeze-, driver- en latency-tests uit voor een nauwkeurigere score.", "The score is based on basic data only; run the freeze, driver and latency tests for a more accurate score.")
                 .to_string(),
         );
     }
 
     let label = if only_basics {
-        format!("{} (voorlopig)", label_for(grade))
+        crate::tr!(
+            format!("{} (voorlopig)", label_for(grade)),
+            format!("{} (provisional)", label_for(grade))
+        )
     } else {
         label_for(grade).to_string()
     };

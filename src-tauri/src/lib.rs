@@ -1,31 +1,38 @@
+pub mod commands;
 pub mod cooling;
+pub mod driver_latency;
+pub mod driver_support;
 pub mod drivers;
+pub mod elevation;
 pub mod freeze;
+pub mod freeze_advice;
 pub mod health;
+pub mod history;
+pub mod i18n;
 pub mod latency;
+pub mod latency_explain;
 pub mod models;
 pub mod monitor;
+pub mod network;
 pub mod power;
 pub mod power_delivery;
 pub mod processes;
+pub mod shell;
+pub mod storage;
 pub mod stress;
 pub mod system;
 pub mod watchdog;
 
-// Re-export models and commands for clean public API and test access
+// Blokkerende implementaties (o.a. voor tests); de Tauri-commando's staan in `commands`.
 pub use cooling::get_cooling_and_fan_info;
-pub use drivers::{open_device_manager, open_windows_update, scan_drivers};
 pub use freeze::scan_freeze_diagnostic;
-pub use health::compute_health_score;
-pub use latency::run_latency_test;
 pub use models::*;
-pub use monitor::get_metrics_history;
 pub use power::{get_power_and_battery_info, run_battery_health_check};
-pub use power_delivery::check_hardware_power_delivery;
-pub use processes::{get_freeze_process_context, get_process_snapshot};
 pub use stress::{run_cpu_stress_test, run_disk_benchmark, run_ram_stress_test};
 pub use system::get_system_overview;
 pub use watchdog::ensure_watchdog_started;
+
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -33,28 +40,50 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        // Automatische updates: controleert latest.json op GitHub en accepteert alleen getekende updates.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Voor de herstart na het installeren van een update.
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            if let Ok(dir) = app.path().app_data_dir() {
+                history::init(dir);
+                // Freezes die vóór de initialisatie al door de Watchdog zijn gezien.
+                for rec in watchdog::get_freeze_records() {
+                    history::record_freeze(rec);
+                }
+            }
             monitor::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_system_overview,
-            get_power_and_battery_info,
-            run_battery_health_check,
-            get_cooling_and_fan_info,
-            scan_freeze_diagnostic,
-            run_cpu_stress_test,
-            run_ram_stress_test,
-            run_disk_benchmark,
-            get_metrics_history,
-            get_process_snapshot,
-            get_freeze_process_context,
-            scan_drivers,
-            open_device_manager,
-            open_windows_update,
-            run_latency_test,
-            compute_health_score,
-            check_hardware_power_delivery
+            commands::get_system_overview,
+            commands::get_power_and_battery_info,
+            commands::run_battery_health_check,
+            commands::get_cooling_and_fan_info,
+            commands::scan_freeze_diagnostic,
+            commands::run_cpu_stress_test,
+            commands::run_ram_stress_test,
+            commands::run_disk_benchmark,
+            commands::get_metrics_history,
+            commands::get_process_snapshot,
+            commands::get_freeze_process_context,
+            commands::scan_drivers,
+            commands::open_device_manager,
+            commands::open_windows_update,
+            commands::open_event_viewer,
+            commands::get_network_health,
+            commands::run_latency_test,
+            commands::compute_health_score,
+            commands::check_hardware_power_delivery,
+            commands::scan_storage_health,
+            commands::get_history,
+            commands::clear_history,
+            commands::get_elevation_status,
+            commands::restart_as_admin,
+            commands::run_driver_latency_trace,
+            commands::set_language
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -68,14 +97,23 @@ mod tests {
     fn test_system_overview_metrics() {
         let overview = get_system_overview();
         assert!(!overview.os_name.is_empty(), "OS name should not be empty");
-        assert!(overview.cpu.logical_cores > 0, "Logical cores should be > 0");
+        assert!(
+            overview.cpu.logical_cores > 0,
+            "Logical cores should be > 0"
+        );
         assert!(overview.ram.total_bytes > 0, "Total RAM should be > 0");
         assert!(!overview.session_started_at.is_empty());
         assert!(!overview.gpus.is_empty(), "GPUs should not be empty");
-        assert!(!overview.motherboard.manufacturer.is_empty(), "Motherboard should not be empty");
+        assert!(
+            !overview.motherboard.manufacturer.is_empty(),
+            "Motherboard should not be empty"
+        );
         println!(
             "Session uptime: {}s | GPU: {} | Moederbord: {} {}",
-            overview.session_uptime_secs, overview.gpus[0].name, overview.motherboard.manufacturer, overview.motherboard.product
+            overview.session_uptime_secs,
+            overview.gpus[0].name,
+            overview.motherboard.manufacturer,
+            overview.motherboard.product
         );
     }
 
@@ -109,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_freeze_diagnostic_scanner() {
-        let diag = scan_freeze_diagnostic();
+        let diag = scan_freeze_diagnostic(7);
         assert!(!diag.system_freeze_risk.is_empty());
         assert!(!diag.recommended_actions.is_empty());
     }

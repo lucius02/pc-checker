@@ -1,0 +1,56 @@
+name: Release
+
+# Bouwt installers voor Windows en Linux en zet ze als concept-release op GitHub.
+# Start: push een tag `v*` (bijv. `git tag v0.2.0 && git push origin v0.2.0`) of handmatig.
+#
+# Windows code signing staat (nog) uit: de installers zijn ongetekend, dus SmartScreen
+# waarschuwt bij installeren. Zie RELEASING.md, hoofdstuk 3, om het later toe te voegen.
+#
+# Updater-handtekening (verplicht sinds createUpdaterArtifacts aan staat, zie RELEASING.md):
+#   TAURI_SIGNING_PRIVATE_KEY           inhoud van pc-checker.key
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  wachtwoord van die sleutel
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+          - platform: ubuntu-22.04
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libxdo-dev libssl-dev build-essential
+      - run: npm ci
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tekent de updatebestanden; de app installeert alleen updates met een geldige handtekening.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: "PC Checker ${{ github.ref_name }}"
+          releaseDraft: false
+          prerelease: false

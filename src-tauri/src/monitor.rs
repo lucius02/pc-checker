@@ -13,8 +13,8 @@ use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use sysinfo::{
-    Components, CpuRefreshKind, DiskRefreshKind, Disks, MemoryRefreshKind, Networks,
-    ProcessRefreshKind, ProcessesToUpdate, System, MINIMUM_CPU_UPDATE_INTERVAL,
+    Components, CpuRefreshKind, DiskRefreshKind, Disks, MINIMUM_CPU_UPDATE_INTERVAL,
+    MemoryRefreshKind, Networks, ProcessRefreshKind, ProcessesToUpdate, System,
 };
 use tauri::Emitter;
 
@@ -98,7 +98,8 @@ impl Sampler {
             .filter(|c| !c.is_empty());
         let networks = Networks::new_with_refreshed_list().ok();
         let disks =
-            Disks::new_with_refreshed_list_specifics(DiskRefreshKind::nothing().with_io_usage()).ok();
+            Disks::new_with_refreshed_list_specifics(DiskRefreshKind::nothing().with_io_usage())
+                .ok();
 
         let last_temp = components.as_ref().and_then(max_temperature);
 
@@ -121,7 +122,8 @@ impl Sampler {
 
     pub fn sample_once(&mut self) -> MetricsSample {
         self.sys.refresh_cpu_specifics(cpu_refresh_kind());
-        self.sys.refresh_memory_specifics(MemoryRefreshKind::everything());
+        self.sys
+            .refresh_memory_specifics(MemoryRefreshKind::everything());
         self.sys
             .refresh_processes_specifics(ProcessesToUpdate::All, true, process_refresh_kind());
         if let Some(networks) = self.networks.as_mut() {
@@ -131,11 +133,11 @@ impl Sampler {
             disks.refresh_specifics(true, DiskRefreshKind::nothing().with_io_usage());
         }
         self.tick = self.tick.wrapping_add(1);
-        if self.tick % TEMP_REFRESH_EVERY_TICKS == 0 {
-            if let Some(components) = self.components.as_mut() {
-                components.refresh(false);
-                self.last_temp = max_temperature(components);
-            }
+        if self.tick.is_multiple_of(TEMP_REFRESH_EVERY_TICKS)
+            && let Some(components) = self.components.as_mut()
+        {
+            components.refresh(false);
+            self.last_temp = max_temperature(components);
         }
 
         let now = Instant::now();
@@ -147,7 +149,11 @@ impl Sampler {
         let cpus = self.sys.cpus();
         let logical = cpus.len().max(1) as f32;
         let cpu_usage = self.sys.global_cpu_usage().clamp(0.0, 100.0);
-        let freqs: Vec<u64> = cpus.iter().map(|c| c.frequency()).filter(|f| *f > 0).collect();
+        let freqs: Vec<u64> = cpus
+            .iter()
+            .map(|c| c.frequency())
+            .filter(|f| *f > 0)
+            .collect();
         let cpu_freq_avg_mhz = if freqs.is_empty() {
             0
         } else {
@@ -194,7 +200,10 @@ impl Sampler {
             .as_ref()
             .map(|n| {
                 n.iter().fold((0u64, 0u64), |(rx, tx), (_, data)| {
-                    (rx.saturating_add(data.received()), tx.saturating_add(data.transmitted()))
+                    (
+                        rx.saturating_add(data.received()),
+                        tx.saturating_add(data.transmitted()),
+                    )
                 })
             })
             .unwrap_or((0, 0));
@@ -240,7 +249,9 @@ fn max_temperature(components: &Components) -> Option<f32> {
         .iter()
         .filter_map(|c| c.temperature())
         .filter(|t| t.is_finite() && *t > 0.0 && *t < 150.0)
-        .fold(None, |acc: Option<f32>, t| Some(acc.map_or(t, |a| a.max(t))))
+        .fold(None, |acc: Option<f32>, t| {
+            Some(acc.map_or(t, |a| a.max(t)))
+        })
 }
 
 /// Som van de I/O sinds de vorige refresh over alle unieke schijven.
@@ -333,7 +344,6 @@ pub fn recent_samples() -> Vec<MetricsSample> {
     lock(&SAMPLES).iter().cloned().collect()
 }
 
-#[tauri::command]
 pub fn get_metrics_history() -> MetricsHistory {
     MetricsHistory {
         interval_ms: SAMPLE_INTERVAL_MS,
@@ -354,15 +364,27 @@ mod tests {
 
         for s in [&first, &second] {
             assert!((0.0..=100.0).contains(&s.cpu_usage), "cpu {}", s.cpu_usage);
-            assert!((0.0..=100.0).contains(&s.ram_used_percent), "ram {}", s.ram_used_percent);
-            assert!((0.0..=100.0).contains(&s.swap_used_percent), "swap {}", s.swap_used_percent);
+            assert!(
+                (0.0..=100.0).contains(&s.ram_used_percent),
+                "ram {}",
+                s.ram_used_percent
+            );
+            assert!(
+                (0.0..=100.0).contains(&s.swap_used_percent),
+                "swap {}",
+                s.swap_used_percent
+            );
             assert!(s.top_processes.len() <= TOP_PROCESSES_PER_SAMPLE);
             assert!(s.at_epoch_ms > 0);
             if let Some(t) = s.max_temp_celsius {
                 assert!(t.is_finite() && t > 0.0 && t < 150.0, "temp {t}");
             }
             for p in &s.top_processes {
-                assert!((0.0..=100.0).contains(&p.cpu_usage), "proc cpu {}", p.cpu_usage);
+                assert!(
+                    (0.0..=100.0).contains(&p.cpu_usage),
+                    "proc cpu {}",
+                    p.cpu_usage
+                );
                 assert_ne!(p.pid, 0);
             }
             // top_processes is gesorteerd op CPU, aflopend
@@ -371,8 +393,16 @@ mod tests {
             }
         }
         assert!(second.at_epoch_ms >= first.at_epoch_ms);
-        assert!(!sampler.processes().is_empty(), "er draait minstens één proces (deze test)");
-        assert!(sampler.processes().iter().any(|p| p.pid == std::process::id()));
+        assert!(
+            !sampler.processes().is_empty(),
+            "er draait minstens één proces (deze test)"
+        );
+        assert!(
+            sampler
+                .processes()
+                .iter()
+                .any(|p| p.pid == std::process::id())
+        );
     }
 
     #[test]
@@ -388,7 +418,11 @@ mod tests {
 
     #[test]
     fn monitor_rates_and_percent_helpers() {
-        assert_eq!(per_sec(1000, Duration::from_millis(10)), 0, "te kort interval → 0");
+        assert_eq!(
+            per_sec(1000, Duration::from_millis(10)),
+            0,
+            "te kort interval → 0"
+        );
         assert_eq!(per_sec(1000, Duration::from_millis(500)), 2000);
         assert_eq!(per_sec(0, Duration::from_secs(1)), 0);
         assert_eq!(percent(5, 0), 0.0);

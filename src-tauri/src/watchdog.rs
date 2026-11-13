@@ -1,6 +1,6 @@
 use chrono::Local;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::models::FreezeRecord;
@@ -10,7 +10,10 @@ static WATCHDOG_RECORDS: Mutex<Vec<FreezeRecord>> = Mutex::new(Vec::new());
 static WATCHDOG_STARTED: AtomicBool = AtomicBool::new(false);
 
 pub fn ensure_watchdog_started() {
-    if WATCHDOG_STARTED.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+    if WATCHDOG_STARTED
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_ok()
+    {
         std::thread::spawn(|| {
             let sleep_step = Duration::from_millis(100);
             loop {
@@ -23,11 +26,19 @@ pub fn ensure_watchdog_started() {
                     let freeze_ms = elapsed.as_millis().saturating_sub(100);
                     let now = Local::now();
                     let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
-                    let alert = format!(
-                        "⚡ Systeem Freeze gedetecteerd: {} ms ({:.2}s) om {}",
-                        freeze_ms,
-                        freeze_ms as f64 / 1000.0,
-                        timestamp
+                    let alert = crate::tr!(
+                        format!(
+                            "⚡ Systeem Freeze gedetecteerd: {} ms ({:.2}s) om {}",
+                            freeze_ms,
+                            freeze_ms as f64 / 1000.0,
+                            timestamp
+                        ),
+                        format!(
+                            "⚡ System freeze detected: {} ms ({:.2}s) at {}",
+                            freeze_ms,
+                            freeze_ms as f64 / 1000.0,
+                            timestamp
+                        )
                     );
                     if let Ok(mut list) = WATCHDOG_ALERTS.lock() {
                         if list.len() >= 50 {
@@ -35,17 +46,21 @@ pub fn ensure_watchdog_started() {
                         }
                         list.push(alert);
                     }
+                    let record = FreezeRecord {
+                        // Begin van de freeze, niet het moment van detectie
+                        at_epoch_ms: (now.timestamp_millis().max(0) as u64)
+                            .saturating_sub(freeze_ms as u64),
+                        duration_ms: freeze_ms as u64,
+                        timestamp: timestamp.clone(),
+                    };
                     if let Ok(mut records) = WATCHDOG_RECORDS.lock() {
                         if records.len() >= 50 {
                             records.remove(0);
                         }
-                        records.push(FreezeRecord {
-                            // Begin van de freeze, niet het moment van detectie
-                            at_epoch_ms: (now.timestamp_millis().max(0) as u64).saturating_sub(freeze_ms as u64),
-                            duration_ms: freeze_ms as u64,
-                            timestamp: timestamp.clone(),
-                        });
+                        records.push(record.clone());
                     }
+                    // Persistente historie (no-op zolang de app-datamap nog niet bekend is).
+                    crate::history::record_freeze(record);
                 }
             }
         });

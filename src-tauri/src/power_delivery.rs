@@ -1,20 +1,26 @@
-use std::process::Command;
 use serde_json::Value;
 
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-
 use crate::models::{HardwarePowerCheckReport, PowerComponentCheck};
-use crate::power::{get_system_power_status, WinSystemPowerStatus};
+use crate::power::{WinSystemPowerStatus, get_system_power_status};
+use crate::shell::run_ps_json;
 use crate::watchdog::ensure_watchdog_started;
 
 /// Evalueert de stroomtoevoer op basis van WMI/EventLog telemetrie en Windows Power API.
-pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStatus) -> HardwarePowerCheckReport {
-    let cpu_name = ps_data["CpuName"].as_str().unwrap_or("Processor").to_string();
+pub fn evaluate_hardware_power(
+    ps_data: &Value,
+    power_status: WinSystemPowerStatus,
+) -> HardwarePowerCheckReport {
+    let cpu_name = ps_data["CpuName"]
+        .as_str()
+        .unwrap_or("Processor")
+        .to_string();
     let cpu_clock = ps_data["CpuClock"].as_u64().unwrap_or(0);
     let cpu_max = ps_data["CpuMax"].as_u64().unwrap_or(0);
 
-    let gpu_names = ps_data["GpuNames"].as_str().unwrap_or("Videokaart").to_string();
+    let gpu_names = ps_data["GpuNames"]
+        .as_str()
+        .unwrap_or(crate::tr!("Videokaart", "Graphics card"))
+        .to_string();
     let gpu_statuses = ps_data["GpuStatuses"].as_str().unwrap_or("OK").to_string();
 
     let usb_count = ps_data["UsbCount"].as_u64().unwrap_or(0);
@@ -28,7 +34,8 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let usb_surge_count = ps_data["UsbSurgeCount"].as_u64().unwrap_or(0) as u32;
 
     let ac_connected = power_status.ac_line_status == 1;
-    let is_laptop = (power_status.battery_flag & 128) == 0 && power_status.battery_life_percent <= 100;
+    let is_laptop =
+        (power_status.battery_flag & 128) == 0 && power_status.battery_life_percent <= 100;
     let is_discharging = (power_status.battery_flag & 1) != 0;
 
     let mut checks = Vec::new();
@@ -36,57 +43,90 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let mut recommendations = Vec::new();
 
     // 1. CPU Voeding & Throttling
-    let cpu_is_throttled = kpp37_count > 0 || (cpu_max > 0 && cpu_clock > 0 && cpu_clock < (cpu_max * 35 / 100));
+    let cpu_is_throttled =
+        kpp37_count > 0 || (cpu_max > 0 && cpu_clock > 0 && cpu_clock < (cpu_max * 35 / 100));
     let (cpu_status, cpu_ok, cpu_details) = if cpu_is_throttled {
         penalty += 25;
         recommendations.push(
-            "CPU vermogensbeperking gedetecteerd (Power Limit Throttling). Controleer de VRM-temperatuur en sluit de officiële zwaardere adapter aan.".to_string(),
+            crate::tr!("CPU vermogensbeperking gedetecteerd (Power Limit Throttling). Controleer de VRM-temperatuur en sluit de officiële zwaardere adapter aan.", "CPU power limit detected (power limit throttling). Check the VRM temperature and connect the official, more powerful adapter.").to_string(),
         );
         (
             "Waarschuwing".to_string(),
             false,
-            format!(
-                "Processor kloksnelheid ({cpu_clock} MHz) wordt geremd door systeemfirmware of stroomlimieten ({kpp37_count} throttling events geregistreerd)."
+            crate::tr!(
+                format!(
+                    "Processor kloksnelheid ({cpu_clock} MHz) wordt geremd door systeemfirmware of stroomlimieten ({kpp37_count} throttling events geregistreerd)."
+                ),
+                format!(
+                    "Processor clock speed ({cpu_clock} MHz) is held back by system firmware or power limits ({kpp37_count} throttling events recorded)."
+                )
             ),
         )
     } else {
         (
             "OK".to_string(),
             true,
-            format!(
-                "Processor VRM-stroomtoevoer is stabiel. De CPU ({cpu_name}) werkt op {cpu_clock} MHz zonder stroombeperkingen."
+            crate::tr!(
+                format!(
+                    "Processor VRM-stroomtoevoer is stabiel. De CPU ({cpu_name}) werkt op {cpu_clock} MHz zonder stroombeperkingen."
+                ),
+                format!(
+                    "Processor VRM power delivery is stable. The CPU ({cpu_name}) runs at {cpu_clock} MHz without power limits."
+                )
             ),
         )
     };
     checks.push(PowerComponentCheck {
-        name: "Processor (CPU) Voedingslijnen & VRM".to_string(),
+        name: crate::tr!(
+            "Processor (CPU) Voedingslijnen & VRM",
+            "Processor (CPU) power rails & VRM"
+        )
+        .to_string(),
         status: cpu_status,
         is_sufficient: cpu_ok,
-        metric: format!("{cpu_clock} MHz / {cpu_max} MHz basisklok • {kpp37_count} throttling events"),
+        metric: crate::tr!(
+            format!("{cpu_clock} MHz / {cpu_max} MHz basisklok • {kpp37_count} throttling events"),
+            format!("{cpu_clock} MHz / {cpu_max} MHz base clock • {kpp37_count} throttling events")
+        ),
         details: cpu_details,
     });
 
     // 2. GPU & PCIe Stroom
-    let gpu_has_error = gpu_statuses.to_uppercase().contains("ERROR") || gpu_statuses.to_uppercase().contains("DEGRADED");
+    let gpu_has_error = gpu_statuses.to_uppercase().contains("ERROR")
+        || gpu_statuses.to_uppercase().contains("DEGRADED");
     let (gpu_status, gpu_ok, gpu_details) = if gpu_has_error {
         penalty += 20;
         recommendations.push(
-            "Een videokaart rapporteert een storingsstatus. Controleer de PCIe-voedingskabels (6/8-pins aansluitingen).".to_string(),
+            crate::tr!("Een videokaart rapporteert een storingsstatus. Controleer de PCIe-voedingskabels (6/8-pins aansluitingen).", "A graphics card reports a fault status. Check the PCIe power cables (6/8-pin connectors).").to_string(),
         );
         (
             "Kritiek".to_string(),
             false,
-            format!("Grafische kaart ({gpu_names}) meldt statusafwijking: {gpu_statuses}."),
+            crate::tr!(
+                format!("Grafische kaart ({gpu_names}) meldt statusafwijking: {gpu_statuses}."),
+                format!("Graphics card ({gpu_names}) reports an abnormal status: {gpu_statuses}.")
+            ),
         )
     } else {
         (
             "OK".to_string(),
             true,
-            format!("PCIe-voedingsrail naar GPU ({gpu_names}) functioneert normaal. Geen spanningsdips gedetecteerd."),
+            crate::tr!(
+                format!(
+                    "PCIe-voedingsrail naar GPU ({gpu_names}) functioneert normaal. Geen spanningsdips gedetecteerd."
+                ),
+                format!(
+                    "PCIe power rail to the GPU ({gpu_names}) works normally. No voltage dips detected."
+                )
+            ),
         )
     };
     checks.push(PowerComponentCheck {
-        name: "Grafische Kaart (GPU) & PCIe Vermogen".to_string(),
+        name: crate::tr!(
+            "Grafische Kaart (GPU) & PCIe Vermogen",
+            "Graphics card (GPU) & PCIe power"
+        )
+        .to_string(),
         status: gpu_status,
         is_sufficient: gpu_ok,
         metric: format!("{gpu_names} • Status: {gpu_statuses}"),
@@ -94,31 +134,52 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     });
 
     // 3. USB Hubs & Overstroombeveiliging
-    let usb_has_surge = usb_surge_count > 0 || usb_statuses.to_uppercase().contains("ERROR") || usb_statuses.to_uppercase().contains("DEGRADED");
+    let usb_has_surge = usb_surge_count > 0
+        || usb_statuses.to_uppercase().contains("ERROR")
+        || usb_statuses.to_uppercase().contains("DEGRADED");
     let (usb_status, usb_ok, usb_details) = if usb_has_surge {
         penalty += 20;
         recommendations.push(
-            "USB Overstroom (Power Surge) gedetecteerd! Een aangesloten USB-accessoire trekt te veel stroom. Koppel onnodige USB-apparaten los of gebruik een powered hub.".to_string(),
+            crate::tr!("USB Overstroom (Power Surge) gedetecteerd! Een aangesloten USB-accessoire trekt te veel stroom. Koppel onnodige USB-apparaten los of gebruik een powered hub.", "USB overcurrent (power surge) detected! A connected USB accessory draws too much current. Disconnect unnecessary USB devices or use a powered hub.").to_string(),
         );
         (
             "Kritiek".to_string(),
             false,
-            format!(
-                "{usb_surge_count} overstroompieken (USB Power Surge) vastgelegd in Windows Event Log. Beveiliging is geactiveerd om poortschade te voorkomen."
+            crate::tr!(
+                format!(
+                    "{usb_surge_count} overstroompieken (USB Power Surge) vastgelegd in Windows Event Log. Beveiliging is geactiveerd om poortschade te voorkomen."
+                ),
+                format!(
+                    "{usb_surge_count} overcurrent spikes (USB power surge) recorded in the Windows event log. Protection was triggered to prevent port damage."
+                )
             ),
         )
     } else {
         (
             "OK".to_string(),
             true,
-            format!("{usb_count} USB-hubs en poortcircuits actief. Geen overbelasting van de 5V/9V/20V spanningsrails."),
+            crate::tr!(
+                format!(
+                    "{usb_count} USB-hubs en poortcircuits actief. Geen overbelasting van de 5V/9V/20V spanningsrails."
+                ),
+                format!(
+                    "{usb_count} USB hubs and port circuits active. No overload of the 5V/9V/20V rails."
+                )
+            ),
         )
     };
     checks.push(PowerComponentCheck {
-        name: "USB Poorten & Randapparatuur (5V Overstroom)".to_string(),
+        name: crate::tr!(
+            "USB Poorten & Randapparatuur (5V Overstroom)",
+            "USB ports & peripherals (5V overcurrent)"
+        )
+        .to_string(),
         status: usb_status,
         is_sufficient: usb_ok,
-        metric: format!("{usb_count} hubs actief • {usb_surge_count} overstroompieken"),
+        metric: crate::tr!(
+            format!("{usb_count} hubs actief • {usb_surge_count} overstroompieken"),
+            format!("{usb_count} hubs active • {usb_surge_count} overcurrent spikes")
+        ),
         details: usb_details,
     });
 
@@ -127,29 +188,52 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let has_dirty_powercuts = kp41_count > 0;
     let (disk_status, disk_ok, disk_details) = if disk_has_error {
         penalty += 25;
-        recommendations.push("Een opslagmedium meldt hardwarefouten door mogelijke spanningsuitval. Maak direct een back-up.".to_string());
-        ("Kritiek".to_string(), false, format!("Opslagschijven melden fout: {disk_statuses}."))
+        recommendations.push(crate::tr!("Een opslagmedium meldt hardwarefouten door mogelijke spanningsuitval. Maak direct een back-up.", "A storage device reports hardware errors, possibly from power loss. Make a backup immediately.").to_string());
+        (
+            "Kritiek".to_string(),
+            false,
+            crate::tr!(
+                format!("Opslagschijven melden fout: {disk_statuses}."),
+                format!("Storage drives report an error: {disk_statuses}.")
+            ),
+        )
     } else if has_dirty_powercuts {
         penalty += 15;
         recommendations.push(
-            format!("Er zijn {kp41_count} onverwachte stroomonderbrekingen (Kernel-Power 41) gevonden. Controleer stekkers en de voedingseenheid (PSU).")
+            crate::tr!(format!("Er zijn {kp41_count} onverwachte stroomonderbrekingen (Kernel-Power 41) gevonden. Controleer stekkers en de voedingseenheid (PSU)."), format!("{kp41_count} unexpected power interruptions (Kernel-Power 41) were found. Check the plugs and the power supply unit (PSU)."))
         );
         (
             "Waarschuwing".to_string(),
             true,
-            format!(
-                "Opslagschijven zijn operationeel ({disk_count} schijven OK), maar Windows registreerde {kp41_count} abrupte stroomonderbrekingen (Kernel-Power 41)."
+            crate::tr!(
+                format!(
+                    "Opslagschijven zijn operationeel ({disk_count} schijven OK), maar Windows registreerde {kp41_count} abrupte stroomonderbrekingen (Kernel-Power 41)."
+                ),
+                format!(
+                    "Storage drives are operational ({disk_count} drives OK), but Windows recorded {kp41_count} abrupt power interruptions (Kernel-Power 41)."
+                )
             ),
         )
     } else {
         (
             "OK".to_string(),
             true,
-            format!("Alle {disk_count} opslagstations (NVMe/SATA) ontvangen stabiele spanning zonder stroomonderbrekingen."),
+            crate::tr!(
+                format!(
+                    "Alle {disk_count} opslagstations (NVMe/SATA) ontvangen stabiele spanning zonder stroomonderbrekingen."
+                ),
+                format!(
+                    "All {disk_count} storage drives (NVMe/SATA) receive stable voltage without power interruptions."
+                )
+            ),
         )
     };
     checks.push(PowerComponentCheck {
-        name: "Opslag (NVMe/SSD) & Moederbord 12V Rails".to_string(),
+        name: crate::tr!(
+            "Opslag (NVMe/SSD) & Moederbord 12V Rails",
+            "Storage (NVMe/SSD) & motherboard 12V rails"
+        )
+        .to_string(),
         status: disk_status,
         is_sufficient: disk_ok,
         metric: format!("{disk_count} schijven OK • {kp41_count} Kernel-Power 41 events"),
@@ -161,41 +245,61 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let (psu_status, psu_ok, psu_verdict, psu_details) = if is_hybrid_drain {
         penalty += 30;
         recommendations.push(
-            "Ondermaatse adapter: De accu loopt leeg terwijl de adapter aangesloten is. Sluit een adapter aan met een hoger wattage (bijv. 100W+ i.p.v. 45W/65W).".to_string(),
+            crate::tr!("Ondermaatse adapter: De accu loopt leeg terwijl de adapter aangesloten is. Sluit een adapter aan met een hoger wattage (bijv. 100W+ i.p.v. 45W/65W).", "Undersized adapter: the battery drains while the adapter is connected. Use an adapter with a higher wattage (e.g. 100W+ instead of 45W/65W).").to_string(),
         );
         (
             "Kritiek".to_string(),
             false,
-            "Ondermaatse Oplader (Hybrid Drain)".to_string(),
-            "De laptop vraagt onder belasting meer vermogen dan de aangesloten lader kan leveren. De accu ontlaadt om het tekort op te vangen.".to_string(),
+            crate::tr!("Ondermaatse Oplader (Hybrid Drain)", "Undersized charger (hybrid drain)").to_string(),
+            crate::tr!("De laptop vraagt onder belasting meer vermogen dan de aangesloten lader kan leveren. De accu ontlaadt om het tekort op te vangen.", "Under load the laptop needs more power than the connected charger can supply. The battery discharges to make up the difference.").to_string(),
         )
     } else if is_laptop && ac_connected {
         (
             "OK".to_string(),
             true,
-            "Netstroomadapter Voldoende".to_string(),
-            "De netstroomadapter levert ruim voldoende vermogen voor zowel de interne hardware als het opladen van de batterij.".to_string(),
+            crate::tr!("Netstroomadapter Voldoende", "Power adapter sufficient").to_string(),
+            crate::tr!("De netstroomadapter levert ruim voldoende vermogen voor zowel de interne hardware als het opladen van de batterij.", "The power adapter supplies plenty of power for both the internal hardware and charging the battery.").to_string(),
         )
     } else if is_laptop {
         (
             "OK".to_string(),
             true,
-            "Op Batterijvoeding".to_string(),
-            format!("Laptop draait op accu ({}%). Klokfrequenties kunnen gematigd worden om piekbelasting te beperken.", power_status.battery_life_percent),
+            crate::tr!("Op Batterijvoeding", "On battery power").to_string(),
+            crate::tr!(
+                format!(
+                    "Laptop draait op accu ({}%). Klokfrequenties kunnen gematigd worden om piekbelasting te beperken.",
+                    power_status.battery_life_percent
+                ),
+                format!(
+                    "Laptop is running on battery ({}%). Clock speeds may be reduced to limit peak load.",
+                    power_status.battery_life_percent
+                )
+            ),
         )
     } else {
         (
             "OK".to_string(),
             true,
-            "Desktop PSU Geverifieerd".to_string(),
-            "Vaste computer aangesloten op continue netstroomvoeding (AC Line). Geen stroomtekorten gedetecteerd.".to_string(),
+            crate::tr!("Desktop PSU Geverifieerd", "Desktop PSU verified").to_string(),
+            crate::tr!("Vaste computer aangesloten op continue netstroomvoeding (AC Line). Geen stroomtekorten gedetecteerd.", "Desktop computer connected to continuous mains power (AC line). No power shortages detected.").to_string(),
         )
     };
     checks.push(PowerComponentCheck {
-        name: "Netstroomadapter & Voedingscapaciteit".to_string(),
+        name: crate::tr!(
+            "Netstroomadapter & Voedingscapaciteit",
+            "Power adapter & supply capacity"
+        )
+        .to_string(),
         status: psu_status,
         is_sufficient: psu_ok,
-        metric: format!("{psu_verdict} (AC: {})", if ac_connected { "Ja" } else { "Nee" }),
+        metric: format!(
+            "{psu_verdict} (AC: {})",
+            if ac_connected {
+                crate::tr!("Ja", "Yes")
+            } else {
+                crate::tr!("Nee", "No")
+            }
+        ),
         details: psu_details,
     });
 
@@ -203,13 +307,19 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     let overall_sufficient = score >= 80 && !is_hybrid_drain && !usb_has_surge;
 
     let summary = if overall_sufficient {
-        "Alle interne hardware-onderdelen (CPU, GPU, USB, opslag en moederbord) ontvangen voldoende en stabiel elektrisch vermogen.".to_string()
+        crate::tr!("Alle interne hardware-onderdelen (CPU, GPU, USB, opslag en moederbord) ontvangen voldoende en stabiel elektrisch vermogen.", "All internal hardware components (CPU, GPU, USB, storage and motherboard) receive enough stable power.").to_string()
     } else {
-        "Er zijn stroombeperkingen of spanningsafwijkingen aangetroffen. Raadpleeg de onderstaande componentendetails.".to_string()
+        crate::tr!("Er zijn stroombeperkingen of spanningsafwijkingen aangetroffen. Raadpleeg de onderstaande componentendetails.", "Power limitations or voltage anomalies were found. See the component details below.").to_string()
     };
 
     if recommendations.is_empty() {
-        recommendations.push("Stroomtoevoer is optimaal. Geen hardware-ingrepen vereist.".to_string());
+        recommendations.push(
+            crate::tr!(
+                "Stroomtoevoer is optimaal. Geen hardware-ingrepen vereist.",
+                "Power delivery is optimal. No hardware changes needed."
+            )
+            .to_string(),
+        );
     }
 
     HardwarePowerCheckReport {
@@ -227,8 +337,7 @@ pub fn evaluate_hardware_power(ps_data: &Value, power_status: WinSystemPowerStat
     }
 }
 
-/// Tauri-commando voor het uitvoeren van de hardware-stroomtoevoercontrole.
-#[tauri::command]
+/// Hardware-stroomtoevoercontrole (blokkerend; via `commands.rs` op een worker-thread).
 pub fn check_hardware_power_delivery() -> HardwarePowerCheckReport {
     ensure_watchdog_started();
 
@@ -259,23 +368,10 @@ $usbSurge = @(Get-WinEvent -FilterHashtable @{LogName='System'; ProviderName='Mi
 } | ConvertTo-Json -Compress
 "#;
 
-    let mut cmd = Command::new("powershell");
-    cmd.arg("-NoProfile")
-        .arg("-NonInteractive")
-        .arg("-Command")
-        .arg(ps_script);
-
-    #[cfg(target_os = "windows")]
-    {
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
-
-    let parsed_data = match cmd.output() {
-        Ok(out) => {
-            let json_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            serde_json::from_str::<Value>(&json_str).unwrap_or(Value::Null)
-        }
-        Err(_) => Value::Null,
+    let parsed_data = if cfg!(windows) {
+        run_ps_json(ps_script).unwrap_or(Value::Null)
+    } else {
+        Value::Null
     };
 
     evaluate_hardware_power(&parsed_data, power_status)

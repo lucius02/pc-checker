@@ -7,7 +7,9 @@
 use std::cmp::Ordering;
 use std::sync::Mutex;
 
-use crate::models::{FreezeProcessContext, FreezeRecord, MetricsSample, ProcessInfo, ProcessSnapshot};
+use crate::models::{
+    FreezeProcessContext, FreezeRecord, MetricsSample, ProcessInfo, ProcessSnapshot,
+};
 use crate::monitor;
 use crate::watchdog::get_freeze_records;
 
@@ -41,7 +43,8 @@ impl SortKey {
 }
 
 fn disk_total(p: &ProcessInfo) -> u64 {
-    p.disk_read_bytes_per_sec.saturating_add(p.disk_write_bytes_per_sec)
+    p.disk_read_bytes_per_sec
+        .saturating_add(p.disk_write_bytes_per_sec)
 }
 
 fn cmp_f32_desc(a: f32, b: f32) -> Ordering {
@@ -65,7 +68,6 @@ pub fn sort_and_limit(mut list: Vec<ProcessInfo>, key: SortKey, limit: usize) ->
     list
 }
 
-#[tauri::command]
 pub fn get_process_snapshot(sort_by: Option<String>, limit: Option<usize>) -> ProcessSnapshot {
     let key = SortKey::parse(sort_by.as_deref());
     let limit = limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
@@ -88,7 +90,11 @@ pub fn get_process_snapshot(sort_by: Option<String>, limit: Option<usize>) -> Pr
 /// Metingen in het venster `[freeze_at - window_ms, freeze_at]`, oudste eerst.
 /// De sampler-thread stond tijdens de freeze zelf ook stil, dus alles ná de start
 /// van de freeze hoort er niet bij.
-pub fn samples_before(samples: &[MetricsSample], freeze_at: u64, window_ms: u64) -> Vec<MetricsSample> {
+pub fn samples_before(
+    samples: &[MetricsSample],
+    freeze_at: u64,
+    window_ms: u64,
+) -> Vec<MetricsSample> {
     let from = freeze_at.saturating_sub(window_ms);
     let mut out: Vec<MetricsSample> = samples
         .iter()
@@ -156,7 +162,6 @@ pub(crate) fn capture_new_freeze_contexts() {
     }
 }
 
-#[tauri::command]
 pub fn get_freeze_process_context() -> Vec<FreezeProcessContext> {
     let records = get_freeze_records();
     if records.is_empty() {
@@ -307,7 +312,11 @@ mod tests {
         assert_eq!(ctx[0].samples_before.len(), 1);
         assert_eq!(ctx[0].samples_before[0].at_epoch_ms, 9_000);
         assert_eq!(ctx[1].freeze.at_epoch_ms, 50_000);
-        let ats: Vec<u64> = ctx[1].samples_before.iter().map(|s| s.at_epoch_ms).collect();
+        let ats: Vec<u64> = ctx[1]
+            .samples_before
+            .iter()
+            .map(|s| s.at_epoch_ms)
+            .collect();
         assert_eq!(ats.first(), Some(&(50_000 - FREEZE_WINDOW_MS)));
         assert_eq!(ats.last(), Some(&50_000));
     }
