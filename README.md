@@ -62,7 +62,11 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 * Niet-uitgevoerde tests tellen niet mee en worden als "Niet getest" getoond; kritieke bevindingen begrenzen het cijfer.
 
 ### 10. 🧩 Driver Check
-* Scant alle stuurprogramma's via WMI op probleemapparaten (Apparaatbeheer-foutcodes), verouderde drivers en niet-ondertekende drivers.
+* **Windows:** scant alle stuurprogramma's via WMI op probleemapparaten (Apparaatbeheer-foutcodes), verouderde drivers en niet-ondertekende drivers.
+* **Linux (zonder root):** leest alle PCI-apparaten en hun driver uit `/sys` (namen via `lspci`) en markeert:
+  * apparaten zonder driver, met de passende kernelmodule als `modprobe`-tip;
+  * driverfouten uit de kernel-log van deze boot (`journalctl -k`, terugval `dmesg`), zoals ontbrekende firmware, time-outs, GPU-hangs en NVIDIA Xid's;
+  * verouderde drivers op basis van de kernel-bouwdatum, en voor NVIDIA de bouwdatum van de driver.
 * Richt zich op freeze-gevoelige klassen (GPU, opslagcontrollers, netwerk, audio, USB, chipset) met advies per driver.
 
 ### 11. ⏱️ DPC Latency

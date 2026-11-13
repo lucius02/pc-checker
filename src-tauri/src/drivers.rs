@@ -5,8 +5,8 @@
 //!
 //! Gegevensbron: één PowerShell-aanroep die zowel `Win32_PnPSignedDriver` (alle geïnstalleerde
 //! drivers) als `Win32_PnPEntity` met `ConfigManagerErrorCode -ne 0` (apparaten met een
-//! probleemcode) als JSON teruggeeft. Op Linux/macOS (geen PowerShell) degradeert de scan
-//! netjes naar `is_available: false`.
+//! probleemcode) als JSON teruggeeft. Op Linux gebruikt de scan sysfs, `lspci` en de kernel-log
+//! (zie `drivers_linux.rs`); op macOS degradeert hij netjes naar `is_available: false`.
 
 use std::sync::Mutex;
 
@@ -20,6 +20,10 @@ mod drivers_helpers;
 use drivers_helpers::*;
 
 pub use drivers_helpers::problem_code_meaning;
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[path = "drivers_linux.rs"]
+mod linux;
 
 /// Laatst uitgevoerde driver-scan (gecachet), zodat andere modules (bijv. de latency-test)
 /// er de namen van verdachte drivers uit kunnen halen. Mag vanuit elke thread worden gelezen.
@@ -109,15 +113,19 @@ pub fn scan_drivers_blocking() -> DriverReport {
     let scanned_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let today = chrono::Local::now().date_naive();
 
-    let report = match run_powershell(PS_SCRIPT) {
-        Some(raw) => parse_report(&raw, today, scanned_at),
-        None => unavailable_report(
-            scanned_at,
-            crate::tr!(
-                "Driver Check is alleen beschikbaar op Windows (PowerShell/WMI niet gevonden).",
-                "The Driver Check is only available on Windows (PowerShell/WMI not found)."
+    let report = if cfg!(target_os = "linux") {
+        linux::scan(today, scanned_at)
+    } else {
+        match run_powershell(PS_SCRIPT) {
+            Some(raw) => parse_report(&raw, today, scanned_at),
+            None => unavailable_report(
+                scanned_at,
+                crate::tr!(
+                    "Driver Check is alleen beschikbaar op Windows en Linux (PowerShell/WMI niet gevonden).",
+                    "The Driver Check is only available on Windows and Linux (PowerShell/WMI not found)."
+                ),
             ),
-        ),
+        }
     };
 
     *LAST_REPORT.lock().unwrap_or_else(|e| e.into_inner()) = Some(report.clone());
