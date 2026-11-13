@@ -1,0 +1,61 @@
+name: 🖥️ Hardware report
+description: A sensor, reading or verdict is wrong or missing on your machine.
+labels: ["hardware-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hardware diagnostics behave differently on every machine, and we can't test them all.
+        Reports like this are one of the most valuable contributions you can make. Thank you!
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which module?
+      options:
+        - System overview
+        - Temperatures / fans
+        - Power / battery
+        - Freeze Detective
+        - DPC latency
+        - Drivers
+        - Disk health (SMART) / disk benchmark
+        - CPU / RAM / GPU stress test
+        - Keyboard / mouse / display / audio / camera
+        - Health score
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: wrong
+    attributes:
+      label: What is wrong or missing?
+      placeholder: "Shows CPU temperature 0 °C / no fans detected / battery wear 0% but the battery is 4 years old / disk marked Critical but it's fine"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should it show?
+      description: If another tool shows the correct value (HWiNFO, LatencyMon, CrystalDiskInfo, `sensors`, `smartctl`…), paste that output here.
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Laptop or motherboard model, CPU, GPU, disk models. The system overview tab shows most of this.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and PC Checker version
+      placeholder: Windows 11 24H2, PC Checker v0.1.2
+    validations:
+      required: true
+  - type: textarea
+    id: raw
+    attributes:
+      label: Raw data (optional, very helpful)
+      description: |
+        Linux: `sensors`, `ls /sys/class/hwmon/*/`, `cat /sys/class/power_supply/*/uevent`, `sudo smartctl -a /dev/nvme0`.
+        Windows: the exported JSON report, or the output of the relevant PowerShell command.
+      render: shell

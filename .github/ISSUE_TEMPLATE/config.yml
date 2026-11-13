@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions and ideas
+    url: https://github.com/lucius02/pc-checker/discussions
+    about: Ask questions, share ideas or show your results in Discussions.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/lucius02/pc-checker/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
