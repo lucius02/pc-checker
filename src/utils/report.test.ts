@@ -50,6 +50,8 @@ describe("buildHtmlReport", () => {
           warning_count: 0,
           critical_count: 1,
           summary: "1 kritiek",
+          source: "windows",
+          notes: [],
           disks: [
             {
               model: "<b>evil</b>",
@@ -67,6 +69,8 @@ describe("buildHtmlReport", () => {
               write_errors_uncorrected: 0,
               read_errors_total: null,
               write_errors_total: null,
+              reallocated_sectors: null,
+              pending_sectors: null,
               verdict: "Kritiek",
               findings: ["slijtage"],
             },

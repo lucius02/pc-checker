@@ -114,7 +114,7 @@ const coreEn: Record<keyof typeof coreNl, string> = {
   "toast.historyCleared": "History cleared",
 
   "storage.title": "Disk health (SMART)",
-  "storage.intro": "Reads the Windows Storage Reliability Counters: health status, wear, temperature, power-on hours and (un)corrected errors. Often more useful than a speed test.",
+  "storage.intro": "Reads your disks' SMART data via smartctl (Windows, Linux and macOS) or the Windows Storage Reliability Counters: health status, wear, temperature, power-on hours, bad sectors and (un)corrected errors. Often more useful than a speed test.",
   "storage.scan": "Scan disks",
   "storage.scanning": "Scanning...",
   "storage.notScanned": "Not scanned yet.",
@@ -128,6 +128,10 @@ const coreEn: Record<keyof typeof coreNl, string> = {
   "storage.size": "Capacity",
   "storage.unknown": "n/a",
   "storage.noFindings": "Nothing notable.",
+  "storage.reallocated": "Reallocated sectors",
+  "storage.pending": "Pending sectors",
+  "storage.source": "Source: {s}",
+  "storage.sourceWindows": "Windows Storage API",
 
   "history.title": "History across sessions",
   "history.intro": "Watchdog freezes and health scores are stored locally so you can see trends over days and weeks.",

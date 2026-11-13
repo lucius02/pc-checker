@@ -614,6 +614,12 @@ pub struct StorageHealthEntry {
     pub write_errors_uncorrected: Option<u64>,
     pub read_errors_total: Option<u64>,
     pub write_errors_total: Option<u64>,
+    /// Omgewisselde (defecte) sectoren; alleen via smartctl (ATA-attribuut 5).
+    #[serde(default)]
+    pub reallocated_sectors: Option<u64>,
+    /// Sectoren die wachten op omwisseling; alleen via smartctl (ATA-attribuut 197).
+    #[serde(default)]
+    pub pending_sectors: Option<u64>,
     /// "Goed" | "Let op" | "Kritiek"
     pub verdict: String,
     pub findings: Vec<String>,
@@ -630,6 +636,12 @@ pub struct StorageHealthReport {
     pub warning_count: usize,
     pub critical_count: usize,
     pub summary: String,
+    /// Waar de gegevens vandaan komen: "smartctl" of "windows" (leeg als niets lukte).
+    #[serde(default)]
+    pub source: String,
+    /// Tips over ontbrekende gegevens (smartctl niet geïnstalleerd, rechten nodig).
+    #[serde(default)]
+    pub notes: Vec<String>,
 }
 
 // ===== Historie over sessies heen =====

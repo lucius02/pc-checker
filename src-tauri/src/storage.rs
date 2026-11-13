@@ -1,14 +1,23 @@
-//! Opslaggezondheid: SMART-achtige tellers via `Get-PhysicalDisk` + `Get-StorageReliabilityCounter`
-//! (Windows Storage Management API). Temperatuur, slijtage en foutentellers zijn vaak alleen met
-//! beheerdersrechten leesbaar; zonder die rechten blijft `HealthStatus` wel beschikbaar.
+//! Opslaggezondheid (SMART). Bronnen, in volgorde van voorkeur:
 //!
-//! De evaluatie ([`evaluate_disk`]) is puur en wordt los getest.
+//! 1. `smartctl` (smartmontools, zie `storage_smartctl.rs`): Windows, Linux en macOS, met de
+//!    meeste gegevens (defecte sectoren, falende attributen, NVMe critical warning). Vereist
+//!    administrator-/root-rechten.
+//! 2. Windows `Get-PhysicalDisk` + `Get-StorageReliabilityCounter` (Storage Management API).
+//!    Temperatuur, slijtage en foutentellers zijn vaak alleen met beheerdersrechten leesbaar;
+//!    zonder die rechten blijft `HealthStatus` wel beschikbaar.
+//!
+//! Beide bronnen leveren dezelfde [`StorageHealthEntry`] en worden met [`assess`] beoordeeld,
+//! dus de drempels zijn overal gelijk. De beoordeling is puur en wordt los getest.
 
 use serde_json::Value;
 
 use crate::elevation::is_elevated;
 use crate::models::{StorageHealthEntry, StorageHealthReport};
 use crate::shell::{json_items, run_ps_json, str_field};
+
+#[path = "storage_smartctl.rs"]
+mod smartctl;
 
 const PS_SCRIPT: &str = r#"$out = foreach ($d in Get-PhysicalDisk) { $r = $d | Get-StorageReliabilityCounter; [pscustomobject]@{ FriendlyName=$d.FriendlyName; SerialNumber=$d.SerialNumber; MediaType=[string]$d.MediaType; BusType=[string]$d.BusType; HealthStatus=[string]$d.HealthStatus; OperationalStatus=(@($d.OperationalStatus) -join ', '); Size=[uint64]$d.Size; Temperature=$r.Temperature; TemperatureMax=$r.TemperatureMax; Wear=$r.Wear; PowerOnHours=$r.PowerOnHours; ReadErrorsTotal=$r.ReadErrorsTotal; WriteErrorsTotal=$r.WriteErrorsTotal; ReadErrorsUncorrected=$r.ReadErrorsUncorrected; WriteErrorsUncorrected=$r.WriteErrorsUncorrected } }; ConvertTo-Json -InputObject @($out) -Compress -Depth 3"#;
 
@@ -19,6 +28,9 @@ pub const VERDICT_CRIT: &str = "Kritiek";
 /// Slijtage vanaf dit percentage = waarschuwing / kritiek.
 const WEAR_WARN: u32 = 70;
 const WEAR_CRIT: u32 = 90;
+/// Defecte sectoren: elke sector is een signaal; vanaf zoveel degradeert de schijf actief.
+const REALLOCATED_CRIT: u64 = 100;
+const PENDING_CRIT: u64 = 10;
 /// Temperatuurgrenzen (°C) per schijfsoort: (let op, te heet).
 /// - HDD: draaiende schijven slijten merkbaar sneller boven ~55 °C.
 /// - SATA-SSD: gespecificeerd tot 70 °C.
@@ -55,8 +67,44 @@ fn normalize_media(raw: &str) -> String {
 
 /// Zet één PowerShell-object om in een beoordeelde schijf.
 pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
+    let (entry, findings) = windows_entry(v);
+    assess(entry, findings)
+}
+
+/// Ernst van een bevinding; de zwaarste bepaalt het oordeel van de schijf.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Level {
+    Warning,
+    Critical,
+}
+
+/// Eén bevinding over een schijf.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Finding {
+    pub level: Level,
+    pub message: String,
+}
+
+impl Finding {
+    pub fn warning(message: impl Into<String>) -> Self {
+        Self {
+            level: Level::Warning,
+            message: message.into(),
+        }
+    }
+    pub fn critical(message: impl Into<String>) -> Self {
+        Self {
+            level: Level::Critical,
+            message: message.into(),
+        }
+    }
+}
+
+/// Ruwe gegevens uit `Get-PhysicalDisk` + `Get-StorageReliabilityCounter`, plus de bevindingen
+/// die alleen Windows kent (HealthStatus, OperationalStatus).
+fn windows_entry(v: &Value) -> (StorageHealthEntry, Vec<Finding>) {
     let health_status = str_field(v, "HealthStatus").unwrap_or_else(|| "Unknown".to_string());
-    let mut entry = StorageHealthEntry {
+    let entry = StorageHealthEntry {
         model: str_field(v, "FriendlyName")
             .unwrap_or_else(|| crate::tr!("Onbekende schijf", "Unknown disk").to_string()),
         serial: str_field(v, "SerialNumber").unwrap_or_default(),
@@ -64,7 +112,7 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
         bus_type: str_field(v, "BusType")
             .unwrap_or_else(|| crate::tr!("Onbekend", "Unknown").to_string()),
         size_bytes: u64_field(v, "Size").unwrap_or(0),
-        health_status: health_status.clone(),
+        health_status,
         operational_status: str_field(v, "OperationalStatus").unwrap_or_default(),
         temperature_celsius: u32_field(v, "Temperature").filter(|t| *t > 0 && *t < 150),
         temperature_max_celsius: u32_field(v, "TemperatureMax").filter(|t| *t > 0 && *t < 150),
@@ -75,76 +123,93 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
         read_errors_total: u64_field(v, "ReadErrorsTotal"),
         write_errors_total: u64_field(v, "WriteErrorsTotal"),
         verdict: VERDICT_GOOD.to_string(),
-        findings: Vec::new(),
-    };
-
-    let mut level = 0u8; // 0 = goed, 1 = let op, 2 = kritiek
-    let mut flag = |lvl: u8, msg: String, findings: &mut Vec<String>| {
-        level = level.max(lvl);
-        findings.push(msg);
+        ..Default::default()
     };
     let mut findings = Vec::new();
-
-    match health_status.as_str() {
-        "Unhealthy" => flag(
-            2,
-            crate::tr!(
-                "Windows meldt de schijf als 'Unhealthy' (SMART-drempel overschreden).",
-                "Windows reports the disk as 'Unhealthy' (SMART threshold exceeded)."
-            )
-            .into(),
-            &mut findings,
-        ),
-        "Warning" => flag(
-            1,
-            crate::tr!(
-                "Windows meldt een SMART-waarschuwing voor deze schijf.",
-                "Windows reports a SMART warning for this disk."
-            )
-            .into(),
-            &mut findings,
-        ),
+    match entry.health_status.as_str() {
+        "Unhealthy" => findings.push(Finding::critical(crate::tr!(
+            "Windows meldt de schijf als 'Unhealthy' (SMART-drempel overschreden).",
+            "Windows reports the disk as 'Unhealthy' (SMART threshold exceeded)."
+        ))),
+        "Warning" => findings.push(Finding::warning(crate::tr!(
+            "Windows meldt een SMART-waarschuwing voor deze schijf.",
+            "Windows reports a SMART warning for this disk."
+        ))),
         _ => {}
     }
+    let op = &entry.operational_status;
+    if !op.is_empty() && !op.contains("OK") && !op.eq_ignore_ascii_case("Online") {
+        findings.push(Finding::warning(crate::tr!(
+            format!("Operationele status: {}.", op),
+            format!("Operational status: {}.", op)
+        )));
+    }
+    (entry, findings)
+}
+
+/// Beoordeelt een schijf, ongeacht de bron (Windows of smartctl). `source_findings` zijn de
+/// bevindingen die alleen de bron kent; daarna volgen de algemene controles op de tellers.
+pub fn assess(mut entry: StorageHealthEntry, source_findings: Vec<Finding>) -> StorageHealthEntry {
+    let mut findings = source_findings;
 
     let uncorrected =
         entry.read_errors_uncorrected.unwrap_or(0) + entry.write_errors_uncorrected.unwrap_or(0);
     if uncorrected > 0 {
-        flag(
-            2,
-            crate::tr!(
-                format!(
-                    "{} niet-corrigeerbare lees-/schrijffouten: kans op dataverlies, maak een back-up.",
-                    uncorrected
-                ),
-                format!(
-                    "{} uncorrectable read/write errors: risk of data loss, make a backup.",
-                    uncorrected
-                )
+        findings.push(Finding::critical(crate::tr!(
+            format!(
+                "{} niet-corrigeerbare lees-/schrijffouten: kans op dataverlies, maak een back-up.",
+                uncorrected
             ),
-            &mut findings,
+            format!(
+                "{} uncorrectable read/write errors: risk of data loss, make a backup.",
+                uncorrected
+            )
+        )));
+    }
+
+    if let Some(n) = entry.reallocated_sectors.filter(|n| *n > 0) {
+        let msg = crate::tr!(
+            format!(
+                "{n} omgewisselde (defecte) sectoren: de schijf vervangt beschadigde plekken. Maak een back-up en houd dit aantal in de gaten."
+            ),
+            format!(
+                "{n} reallocated (bad) sectors: the disk is replacing damaged areas. Make a backup and keep an eye on this number."
+            )
         );
+        findings.push(if n >= REALLOCATED_CRIT {
+            Finding::critical(msg)
+        } else {
+            Finding::warning(msg)
+        });
+    }
+
+    if let Some(n) = entry.pending_sectors.filter(|n| *n > 0) {
+        let msg = crate::tr!(
+            format!(
+                "{n} instabiele sectoren wachten op omwisseling: de schijf kon ze niet betrouwbaar lezen. Maak een back-up."
+            ),
+            format!(
+                "{n} unstable sectors are waiting to be reallocated: the disk could not read them reliably. Make a backup."
+            )
+        );
+        findings.push(if n >= PENDING_CRIT {
+            Finding::critical(msg)
+        } else {
+            Finding::warning(msg)
+        });
     }
 
     if let Some(w) = entry.wear_percent {
         if w >= WEAR_CRIT {
-            flag(
-                2,
-                crate::tr!(
-                    format!("SSD-slijtage {}%: einde levensduur nadert.", w),
-                    format!("SSD wear {}%: end of life is approaching.", w)
-                ),
-                &mut findings,
-            );
+            findings.push(Finding::critical(crate::tr!(
+                format!("SSD-slijtage {}%: einde levensduur nadert.", w),
+                format!("SSD wear {}%: end of life is approaching.", w)
+            )));
         } else if w >= WEAR_WARN {
-            flag(
-                1,
-                crate::tr!(
-                    format!("SSD-slijtage {}%: plan vervanging.", w),
-                    format!("SSD wear {}%: plan a replacement.", w)
-                ),
-                &mut findings,
-            );
+            findings.push(Finding::warning(crate::tr!(
+                format!("SSD-slijtage {}%: plan vervanging.", w),
+                format!("SSD wear {}%: plan a replacement.", w)
+            )));
         }
     }
 
@@ -152,113 +217,112 @@ pub fn evaluate_disk(v: &Value) -> StorageHealthEntry {
         let (warn, crit) = temp_limits(&entry.media_type, &entry.bus_type);
         let hdd = entry.media_type == "HDD";
         if t >= crit {
-            flag(
-                2,
-                if hdd {
-                    crate::tr!(
-                        format!(
-                            "Schijftemperatuur {t} °C is te hoog voor een harde schijf (grens {crit} °C): hij slijt zo snel. Zorg dat er lucht langs de schijf kan en dat de kastventilatoren en stoffilters schoon zijn."
-                        ),
-                        format!(
-                            "Disk temperature {t} °C is too high for a hard drive (limit {crit} °C): it wears quickly at this level. Make sure air can reach the drive and that the case fans and dust filters are clean."
-                        )
+            findings.push(Finding::critical(if hdd {
+                crate::tr!(
+                    format!(
+                        "Schijftemperatuur {t} °C is te hoog voor een harde schijf (grens {crit} °C): hij slijt zo snel. Zorg dat er lucht langs de schijf kan en dat de kastventilatoren en stoffilters schoon zijn."
+                    ),
+                    format!(
+                        "Disk temperature {t} °C is too high for a hard drive (limit {crit} °C): it wears quickly at this level. Make sure air can reach the drive and that the case fans and dust filters are clean."
                     )
-                } else {
-                    crate::tr!(
-                        format!(
-                            "Schijftemperatuur {t} °C is te hoog (grens {crit} °C): de SSD remt zichzelf af. Controleer of de ventilatoren draaien en de luchtroosters niet vol stof zitten; bij een desktop helpt een koelplaatje (heatsink) op de SSD. Je ventilatorinstellingen hoef je hiervoor niet aan te passen."
-                        ),
-                        format!(
-                            "Disk temperature {t} °C is too high (limit {crit} °C): the SSD slows itself down. Check that the fans spin and the vents are not clogged with dust; in a desktop a heatsink on the SSD helps. You don't need to change your fan settings for this."
-                        )
+                )
+            } else {
+                crate::tr!(
+                    format!(
+                        "Schijftemperatuur {t} °C is te hoog (grens {crit} °C): de SSD remt zichzelf af. Controleer of de ventilatoren draaien en de luchtroosters niet vol stof zitten; bij een desktop helpt een koelplaatje (heatsink) op de SSD. Je ventilatorinstellingen hoef je hiervoor niet aan te passen."
+                    ),
+                    format!(
+                        "Disk temperature {t} °C is too high (limit {crit} °C): the SSD slows itself down. Check that the fans spin and the vents are not clogged with dust; in a desktop a heatsink on the SSD helps. You don't need to change your fan settings for this."
                     )
-                },
-                &mut findings,
-            );
+                )
+            }));
         } else if t >= warn {
-            flag(
-                1,
-                if hdd {
-                    crate::tr!(
-                        format!(
-                            "Schijftemperatuur {t} °C is warm voor een harde schijf (ideaal onder {warn} °C). Geen probleem op korte termijn; houd de airflow in de kast vrij."
-                        ),
-                        format!(
-                            "Disk temperature {t} °C is warm for a hard drive (ideally below {warn} °C). Not a problem short term; keep the airflow in the case clear."
-                        )
+            findings.push(Finding::warning(if hdd {
+                crate::tr!(
+                    format!(
+                        "Schijftemperatuur {t} °C is warm voor een harde schijf (ideaal onder {warn} °C). Geen probleem op korte termijn; houd de airflow in de kast vrij."
+                    ),
+                    format!(
+                        "Disk temperature {t} °C is warm for a hard drive (ideally below {warn} °C). Not a problem short term; keep the airflow in the case clear."
                     )
-                } else {
-                    crate::tr!(
-                        format!(
-                            "Schijftemperatuur {t} °C is warm, maar nog binnen de specificatie (pas vanaf {crit} °C remt de SSD af). Tijdens zware belasting is dit normaal; aan de ventilatoren hoef je niets te veranderen."
-                        ),
-                        format!(
-                            "Disk temperature {t} °C is warm, but still within spec (the SSD only slows down from {crit} °C). This is normal under heavy load; no need to change anything about the fans."
-                        )
+                )
+            } else {
+                crate::tr!(
+                    format!(
+                        "Schijftemperatuur {t} °C is warm, maar nog binnen de specificatie (pas vanaf {crit} °C remt de SSD af). Tijdens zware belasting is dit normaal; aan de ventilatoren hoef je niets te veranderen."
+                    ),
+                    format!(
+                        "Disk temperature {t} °C is warm, but still within spec (the SSD only slows down from {crit} °C). This is normal under heavy load; no need to change anything about the fans."
                     )
-                },
-                &mut findings,
-            );
+                )
+            }));
         }
     }
 
     let corrected = entry.read_errors_total.unwrap_or(0) + entry.write_errors_total.unwrap_or(0);
     if corrected > uncorrected && corrected - uncorrected > 100 && entry.media_type == "HDD" {
-        flag(
-            1,
-            crate::tr!(
-                format!(
-                    "{} gecorrigeerde leesfouten: de schijf heeft moeite met uitlezen.",
-                    corrected - uncorrected
-                ),
-                format!(
-                    "{} corrected read errors: the disk is struggling to read.",
-                    corrected - uncorrected
-                )
+        findings.push(Finding::warning(crate::tr!(
+            format!(
+                "{} gecorrigeerde leesfouten: de schijf heeft moeite met uitlezen.",
+                corrected - uncorrected
             ),
-            &mut findings,
-        );
+            format!(
+                "{} corrected read errors: the disk is struggling to read.",
+                corrected - uncorrected
+            )
+        )));
     }
 
-    if !entry.operational_status.is_empty()
-        && !entry.operational_status.contains("OK")
-        && !entry.operational_status.eq_ignore_ascii_case("Online")
-    {
-        flag(
-            1,
-            crate::tr!(
-                format!("Operationele status: {}.", entry.operational_status),
-                format!("Operational status: {}.", entry.operational_status)
-            ),
-            &mut findings,
-        );
-    }
-
-    entry.verdict = match level {
-        2 => VERDICT_CRIT,
-        1 => VERDICT_WARN,
-        _ => VERDICT_GOOD,
+    entry.verdict = match findings.iter().map(|f| f.level).max() {
+        Some(Level::Critical) => VERDICT_CRIT,
+        Some(Level::Warning) => VERDICT_WARN,
+        None => VERDICT_GOOD,
     }
     .to_string();
-    entry.findings = findings;
+    entry.findings = findings.into_iter().map(|f| f.message).collect();
     entry
 }
 
+/// Rapport uit de Windows-uitvoer (`None` = PowerShell/Storage API niet beschikbaar).
 pub fn build_report(
     raw: Option<&Value>,
     scanned_at: String,
     elevated: bool,
 ) -> StorageHealthReport {
-    let Some(raw) = raw else {
-        return StorageHealthReport {
-            is_available: false,
+    match raw {
+        Some(raw) => report_from_disks(
+            json_items(raw).iter().map(evaluate_disk).collect(),
+            SOURCE_WINDOWS,
             scanned_at,
-            is_elevated: elevated,
-            summary: crate::tr!("Schijfgezondheid is alleen beschikbaar op Windows (Storage Management API niet gevonden).", "Disk health is only available on Windows (Storage Management API not found).").into(),
-            ..Default::default()
-        };
-    };
-    let disks: Vec<StorageHealthEntry> = json_items(raw).iter().map(evaluate_disk).collect();
+            elevated,
+        ),
+        None => unavailable_report(scanned_at, elevated),
+    }
+}
+
+const SOURCE_SMARTCTL: &str = "smartctl";
+const SOURCE_WINDOWS: &str = "windows";
+
+fn unavailable_report(scanned_at: String, elevated: bool) -> StorageHealthReport {
+    StorageHealthReport {
+        is_available: false,
+        scanned_at,
+        is_elevated: elevated,
+        summary: crate::tr!(
+            "Schijfgezondheid kon niet worden uitgelezen.",
+            "Disk health could not be read."
+        )
+        .into(),
+        ..Default::default()
+    }
+}
+
+fn report_from_disks(
+    disks: Vec<StorageHealthEntry>,
+    source: &str,
+    scanned_at: String,
+    elevated: bool,
+) -> StorageHealthReport {
     let critical_count = disks.iter().filter(|d| d.verdict == VERDICT_CRIT).count();
     let warning_count = disks.iter().filter(|d| d.verdict == VERDICT_WARN).count();
     let summary = if disks.is_empty() {
@@ -310,18 +374,51 @@ pub fn build_report(
         warning_count,
         critical_count,
         summary,
+        source: source.to_string(),
+        notes: Vec::new(),
     }
+}
+
+fn note_install_smartctl() -> String {
+    crate::tr!(
+        "Installeer smartmontools (smartctl) voor uitgebreide SMART-gegevens zoals defecte sectoren en NVMe-waarschuwingen, bijv. `sudo pacman -S smartmontools` of `sudo apt install smartmontools`; voor Windows via smartmontools.org.",
+        "Install smartmontools (smartctl) for detailed SMART data such as bad sectors and NVMe warnings, e.g. `sudo pacman -S smartmontools` or `sudo apt install smartmontools`; for Windows via smartmontools.org."
+    )
+    .to_string()
+}
+
+fn note_needs_root() -> String {
+    crate::tr!(
+        "smartctl heeft root-rechten nodig om de schijven te openen. Start PC Checker met root-rechten (bijv. `sudo -E pc-checker`) om de SMART-gegevens te lezen.",
+        "smartctl needs root privileges to open the disks. Start PC Checker with root privileges (e.g. `sudo -E pc-checker`) to read the SMART data."
+    )
+    .to_string()
 }
 
 pub fn scan_storage_health() -> StorageHealthReport {
     let scanned_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let elevated = is_elevated();
+    let mut notes = Vec::new();
+
+    match smartctl::scan() {
+        smartctl::Outcome::Disks(disks) => {
+            let disks = disks.into_iter().map(|(e, f)| assess(e, f)).collect();
+            return report_from_disks(disks, SOURCE_SMARTCTL, scanned_at, elevated);
+        }
+        smartctl::Outcome::NotInstalled => notes.push(note_install_smartctl()),
+        // Op Windows valt de scan terug op de Storage API, met de bestaande beheerdershint.
+        smartctl::Outcome::PermissionDenied if !cfg!(windows) => notes.push(note_needs_root()),
+        smartctl::Outcome::PermissionDenied | smartctl::Outcome::NoDisks => {}
+    }
+
     let raw = if cfg!(windows) {
         run_ps_json(PS_SCRIPT)
     } else {
         None
     };
-    build_report(raw.as_ref(), scanned_at, elevated)
+    let mut report = build_report(raw.as_ref(), scanned_at, elevated);
+    report.notes = notes;
+    report
 }
 
 #[cfg(test)]
@@ -413,6 +510,24 @@ mod tests {
         assert_eq!(r.critical_count, 1);
         let none = build_report(None, "t".into(), false);
         assert!(!none.is_available);
+    }
+
+    /// Echte scan op deze machine: `cargo test storage_live_scan -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn storage_live_scan() {
+        let r = scan_storage_health();
+        println!(
+            "available={} source={:?} disks={} notes={:?}\n{}",
+            r.is_available,
+            r.source,
+            r.disks.len(),
+            r.notes,
+            r.summary
+        );
+        for d in &r.disks {
+            println!("[{}] {} {:?}", d.verdict, d.model, d.findings);
+        }
     }
 
     #[test]

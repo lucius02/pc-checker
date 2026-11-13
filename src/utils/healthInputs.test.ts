@@ -52,6 +52,8 @@ describe("buildHealthInputs", () => {
       warning_count: 2,
       critical_count: 1,
       summary: "",
+      source: "windows",
+      notes: [],
     };
     const i = buildHealthInputs({ data: overview(), ...base, storageReport: report });
     expect(i.storage_smart_warning_count).toBe(2);
