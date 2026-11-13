@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Activity, Laptop, PcCase, Clock, RefreshCw, FileDown, ShieldCheck, ShieldAlert, Printer, ChevronDown } from "lucide-react";
+import { Activity, Laptop, PcCase, Clock, RefreshCw, FileDown, ShieldCheck, ShieldAlert, Printer, ChevronDown, Search } from "lucide-react";
 import { formatUptime } from "../utils/formatters";
 import { cn } from "../utils/cn";
 import { useI18nStore, useT, type Lang } from "../i18n";
 import { useDiagnosticsStore } from "../store/diagnosticsStore";
 import { exportReport } from "../lib/exportReport";
+import { useUiStore } from "../store/uiStore";
 
 const focusRing = "focus-visible:outline-2 focus-visible:outline-offset-2";
 
@@ -75,6 +76,7 @@ export const Header: React.FC<{ pollingSuspended: boolean }> = ({ pollingSuspend
   const isLoading = useDiagnosticsStore((s) => s.isLoading);
   const elevation = useDiagnosticsStore((s) => s.elevation);
   const restartAsAdmin = useDiagnosticsStore((s) => s.restartAsAdmin);
+  const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const isLive = autoRefresh && !pollingSuspended;
 
   return (
@@ -115,6 +117,24 @@ export const Header: React.FC<{ pollingSuspended: boolean }> = ({ pollingSuspend
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => setPaletteOpen(true)}
+          title={t("pal.title")}
+          aria-label={t("pal.title")}
+          className={cn(
+            "px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-600 text-slate-400 hover:text-slate-200 text-xs flex items-center gap-2 transition-colors cursor-pointer",
+            focusRing,
+            "focus-visible:outline-cyan-400",
+          )}
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span className="hidden lg:inline">{t("pal.open")}</span>
+          <kbd className="hidden lg:inline px-1.5 py-0.5 rounded border border-slate-700 bg-slate-800 text-[10px] font-sans font-medium text-slate-400">
+            Ctrl K
+          </kbd>
+        </button>
+
         {data && (
           <div className="hidden xl:flex items-center gap-2 text-xs bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300">
             <Clock className="w-3.5 h-3.5 text-cyan-400" />

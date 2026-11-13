@@ -1,36 +1,13 @@
 import React, { useMemo } from "react";
-import {
-  Layers,
-  ShieldAlert,
-  BatteryCharging,
-  Fan,
-  Cpu,
-  Zap,
-  HardDrive,
-  Activity,
-  ListTree,
-  Timer,
-  Puzzle,
-  Keyboard,
-  Monitor,
-  MousePointer,
-  Volume2,
-  Camera,
-  Wifi,
-  Database,
-  History,
-  Gpu,
-  Flame,
-  Loader2,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
+import { Loader2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import type { TabType } from "../types";
 import { cn } from "../utils/cn";
-import { useT, type MessageKey } from "../i18n";
+import { useT } from "../i18n";
 import { useDiagnosticsStore, type BusyKey } from "../store/diagnosticsStore";
 import { buildOverviewBlocks, type BlockStatus } from "../lib/overviewBlocks";
+import { NAV_GROUPS, TAB_ICONS, tabLabelKey } from "../lib/navItems";
+import { BUSY_FOR_TAB } from "../lib/tabActions";
 
 /** Status van een onderdeel, getoond als indicator naast het menu-item. */
 export type NavStatus = "running" | "ok" | "warn" | "fail";
@@ -41,67 +18,6 @@ interface NavigationProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
-
-interface NavItem {
-  id: TabType;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const NAV_GROUPS: { title: MessageKey; items: NavItem[] }[] = [
-  {
-    title: "navGroup.overview",
-    items: [
-      { id: "overview", icon: Layers },
-      { id: "live", icon: Activity },
-      { id: "processes", icon: ListTree },
-      { id: "history", icon: History },
-    ],
-  },
-  {
-    title: "navGroup.diagnosis",
-    items: [
-      { id: "freeze", icon: ShieldAlert },
-      { id: "latency", icon: Timer },
-      { id: "drivers", icon: Puzzle },
-      { id: "storage", icon: Database },
-      { id: "power", icon: BatteryCharging },
-      { id: "cooling", icon: Fan },
-    ],
-  },
-  {
-    title: "navGroup.stress",
-    items: [
-      { id: "cpu", icon: Cpu },
-      { id: "ram", icon: Zap },
-      { id: "disk", icon: HardDrive },
-      { id: "gpu", icon: Gpu },
-      { id: "burnin", icon: Flame },
-    ],
-  },
-  {
-    title: "navGroup.devices",
-    items: [
-      { id: "keyboard", icon: Keyboard },
-      { id: "screen", icon: Monitor },
-      { id: "touchpad", icon: MousePointer },
-      { id: "audio", icon: Volume2 },
-      { id: "camera", icon: Camera },
-      { id: "network", icon: Wifi },
-    ],
-  },
-];
-
-/** Welke lopende taak bij welk tabblad hoort (voor de draai-indicator). */
-const BUSY_FOR_TAB: Partial<Record<TabType, BusyKey[]>> = {
-  freeze: ["freeze"],
-  latency: ["latency", "driverLatency"],
-  drivers: ["drivers"],
-  storage: ["storage"],
-  power: ["battery", "powerDelivery"],
-  cpu: ["cpu"],
-  ram: ["ram"],
-  disk: ["disk"],
-};
 
 /** Status van het overzichtsblok → indicator. "Deels getest" en "Live" krijgen geen bolletje. */
 const FROM_BLOCK: Partial<Record<BlockStatus, NavStatus>> = { good: "ok", warn: "warn", bad: "fail" };
@@ -178,18 +94,18 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab,
             )}
 
             <ul className="space-y-0.5">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const label = t(`nav.${item.id}` as MessageKey);
-                const isActive = activeTab === item.id;
-                const status = statuses[item.id];
+              {group.items.map((id) => {
+                const Icon = TAB_ICONS[id];
+                const label = t(tabLabelKey(id));
+                const isActive = activeTab === id;
+                const status = statuses[id];
                 const statusText = status ? ` (${t(`navStatus.${status}`)})` : "";
 
                 return (
-                  <li key={item.id}>
+                  <li key={id}>
                     <button
                       type="button"
-                      onClick={() => setActiveTab(item.id)}
+                      onClick={() => setActiveTab(id)}
                       aria-current={isActive ? "page" : undefined}
                       title={collapsed ? `${label}${statusText}` : undefined}
                       className={cn(

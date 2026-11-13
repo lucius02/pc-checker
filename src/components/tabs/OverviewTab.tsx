@@ -29,6 +29,7 @@ import { cn } from "../../utils/cn";
 import { useT } from "../../i18n";
 import { OverviewCardsGrid } from "./overview/OverviewCardsGrid";
 import { HealthScoreCard } from "./overview/HealthScoreCard";
+import { LiveVitals } from "./overview/LiveVitals";
 
 interface OverviewTabProps {
   data: SystemOverview;
@@ -97,6 +98,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         diskResult={diskResult}
         setActiveTab={setActiveTab}
       />
+
+      <LiveVitals onOpen={setActiveTab} />
 
       <OverviewCardsGrid setActiveTab={setActiveTab} />
 
