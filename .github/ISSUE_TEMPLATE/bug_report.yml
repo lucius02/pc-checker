@@ -1,0 +1,68 @@
+name: 🐛 Bug report
+description: Something crashes, hangs or behaves incorrectly.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! English or Dutch are both fine.
+        If a sensor or verdict is wrong for your hardware, the **Hardware report** template fits better.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the "Freeze Detective" tab
+        2. Click "Scan event log"
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: PC Checker version
+      description: Shown in the footer, for example v0.1.2.
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - Linux
+        - macOS
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS details
+      description: Build, distribution, desktop environment (X11/Wayland), etc.
+      placeholder: Windows 11 24H2 / Arch Linux, KDE Plasma 6, Wayland
+  - type: dropdown
+    id: admin
+    attributes:
+      label: Running as administrator?
+      options:
+        - "No"
+        - "Yes"
+        - Don't know
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages, screenshots or logs
+      description: Error toasts, screenshots, or the terminal output when running from source.
+  - type: textarea
+    id: report
+    attributes:
+      label: Exported JSON report (optional)
+      description: Export report → JSON, then attach the file. Check it for anything you don't want to share first.

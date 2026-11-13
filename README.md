@@ -1,192 +1,170 @@
-# 💻 PC Checker - Cross-Platform Hardware Diagnostics & Health Suite
+# PC Checker
 
-Een professionele, lichte en razendsnelle desktop applicatie voor hardware-diagnostiek, systeembewaking, koelingsinspectie en stresstests.
+**Find out why your PC freezes, stutters or crashes, then fix it.** PC Checker is a fast, open-source desktop app for hardware diagnostics, freeze detection, DPC latency analysis, stress testing and live monitoring.
 
-| Platform | Status |
+[![CI](https://github.com/lucius02/pc-checker/actions/workflows/ci.yml/badge.svg)](https://github.com/lucius02/pc-checker/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/lucius02/pc-checker)](https://github.com/lucius02/pc-checker/releases/latest)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
+[![Good first issues](https://img.shields.io/github/issues/lucius02/pc-checker/good%20first%20issue?label=good%20first%20issues&color=7057ff)](https://github.com/lucius02/pc-checker/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+
+Built with **Tauri v2**, **Rust** (native hardware engine), **React 19** and **Tailwind CSS**. Available in English and Dutch. 🇳🇱 [Nederlandse README](README.nl.md)
+
+![PC Checker overview: health score, per-component status and system summary](docs/screenshots/overview.png)
+
+| Live Monitor | CPU stress test |
 |---|---|
-| **Windows 10/11** | Volledig: alle modules (WMI, Event Log, powercfg, Storage Reliability Counters, DPC-tellers). |
-| **Linux** | Gedeeltelijk: systeemoverzicht (sysfs/DMI, `lspci`), temperaturen en fans (hwmon), stroom & batterij (`/sys/class/power_supply`), freeze-scan via `journalctl -k`, stresstests, live monitor. Geen driver-check, DPC-latency-tellers of SMART. |
-| **macOS** | Basis: systeemoverzicht, temperaturen (sysinfo), stresstests en live monitor. |
+| ![Live Monitor with CPU, RAM, temperature and clock-speed charts](docs/screenshots/live-monitor.png) | ![Multi-core CPU stress test with per-core load and clock speed](docs/screenshots/cpu-stresstest.png) |
 
-Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **Tailwind CSS**.
+## Download
 
----
+Grab the installer for your platform from the [latest release](https://github.com/lucius02/pc-checker/releases/latest). The app updates itself when a new version is out.
 
-## ⚡ Functionaliteiten & Modules
+| Platform | Support |
+|---|---|
+| **Windows 10/11** | Full: every module (WMI, Event Log, powercfg, Storage Reliability Counters, DPC counters, ETW). |
+| **Linux** | Partial: system overview (sysfs/DMI, `lspci`), temperatures and fans (hwmon), power and battery (`/sys/class/power_supply`), freeze scan via `journalctl -k`, stress tests, live monitor. No driver check, DPC latency counters or SMART yet. |
+| **macOS** | Basic: system overview, temperatures (sysinfo), stress tests and live monitor. |
 
-### 1. 🛡️ Freeze Detective & Watchdog *(Systeem Freeze Opsporing)*
-* **Achtergrond Watchdog (Live):** Monitort live en continu de thread scheduling in de kernel. Zodra het besturingssysteem langer dan 1.2 seconde bevriest, legt hij het exacte tijdstip en de precieze freeze-duur in milliseconden vast.
-* **Windows Systeemlogboek Scanner:** Scant met 1 klik op bekende boosdoeners van desktop freezes:
-  * `storahci` Event 129 (*Reset to device was issued*): Dé #1 oorzaak: SATA/SSD slaapstand time-out (ALPM) of slechte datakabel.
-  * `disk` Event 153 / 51 (*I/O retry*): Foutieve sectoren of buffer-hangups.
-  * `Display` / `nvlddmkm` / `amdkmdag` Event 4101 (*GPU TDR*): Videokaart driver reageerde niet op tijd en is herstart door Windows.
-  * `Microsoft-Windows-WHEA-Logger`: Hardware PCIe / CPU bus pariteitsfouten.
-* **Directe Oplossingsrichting:** Geeft per incident direct de stappen om het op te lossen (SATA LPM uitschakelen, DDU driver-reinstall, kabels controleren).
-
-### 2. ⚡ Stroomvoorziening & Energiebeheer
-* **Automatische herkenning:** Schakelt automatisch om tussen **Laptop** (mobiele voeding) en **Desktop PC** (vaste netstroom).
-* **Laptop:** Laadpercentage, AC-adapter verbinding, oplaadstatus en geschatte accuduur.
-* **Batterijconditie:** ontwerp- vs. volledige capaciteit en laadcycli uit `powercfg /batteryreport` (Windows) of sysfs (Linux). Ontbreken die gegevens, dan meldt de app "Onbekend" in plaats van verzonnen waarden.
-* **Desktop PC:** Directe controle van AC Line status, actief Windows Energieplan (Gebalanceerd, Hoge Prestaties) en waarschuwingen voor te agressieve slaapstanden op schijven.
-
-### 3. 🌀 Koeling, Ventilatoren & Thermische Sensoren
-* **Temperatuursensoren:** Real-time uitlezing van CPU-kernen, GPU en opslagstations.
-* **Ventilatorsnelheden (RPM):** Detecteert actieve ventilatoren via ACPI/WMI en Embedded Controller (EC) status.
-* **Throttling Detectie:** Waarschuwt direct met visuele waarschuwingen zodra sensoren boven de 90°C stijgen.
-
-### 4. 🔥 CPU Multi-Core Stresstest
-* Live belasting en kloksnelheid per individuele kern.
-* Multithreaded floating-point stresstest via `rayon` met score in **MOps/s** (Million Operations/sec).
-* **Rekenverificatie:** elk rekenblok wordt bit-exact vergeleken met een vooraf berekende referentie. Een afwijking betekent dat de CPU onder belasting fout rekent (instabiele overclock/undervolt, oververhitting).
-
-### 5. ⚡ RAM Integriteit & Bit-Flip Verificatie
-* 14 patronen per pass: checkerboard (`0xAA`/`0x55`), walking ones, address-in-address (+ inverse), moving inversions (march-test) en seeded random data.
-* Instelbaar van 256 MB tot 70% van het vrije geheugen (max. 32 GB); parallel over alle cores.
-* Meldt bij fouten het adres, de verwachte en gelezen waarde en de omgevallen bits.
-
-### 6. 💾 Schijf Snelheid & Data-Integriteit
-* Automatische herkenning van alle volumes (SSD, HDD, NVMe, USB).
-* Sequentiële schrijf- en leessnelheidsmeting (MB/s) met **directe I/O** (Windows `FILE_FLAG_NO_BUFFERING`, Linux `O_DIRECT`, macOS `F_NOCACHE`): je meet de schijf, niet de OS-cache in RAM.
-* Elk blok van 1 MB krijgt een uniek, van de blokindex afgeleid patroon, zodat ook verkeerd geplaatste of verouderde blokken worden gevonden.
-
-### 7. 📈 Live Monitor
-* Achtergrond-sampler (1x per seconde) die live grafieken voedt voor CPU-belasting, RAM, max. temperatuur, CPU-kloksnelheid, schijf-I/O en netwerkverkeer.
-* Ringbuffer van de laatste 5 minuten; onderbrekingen in de lijnen tonen direct waar het systeem bevroor.
-
-### 8. 📋 Procesmonitor
-* Top-processen op CPU, RAM of schijfgebruik, elke 2 seconden ververst.
-* **Processen vlak vóór een freeze:** koppelt elke door de Watchdog gedetecteerde freeze aan de processen die in de seconden ervoor het drukst waren.
-
-### 9. 🩺 Gezondheidsscore
-* Eén score (0-100) en cijfer (A-F) op het overzicht, opgebouwd uit temperatuur, stabiliteit, drivers, DPC latency, opslag, geheugen, processor en batterij.
-* Niet-uitgevoerde tests tellen niet mee en worden als "Niet getest" getoond; kritieke bevindingen begrenzen het cijfer.
-
-### 10. 🧩 Driver Check
-* Scant alle stuurprogramma's via WMI op probleemapparaten (Apparaatbeheer-foutcodes), verouderde drivers en niet-ondertekende drivers.
-* Richt zich op freeze-gevoelige klassen (GPU, opslagcontrollers, netwerk, audio, USB, chipset) met advies per driver.
-
-### 11. ⏱️ DPC Latency
-* Meet scheduling-latency met een hoge-prioriteit spin-loop (max / p99 / gemiddeld in µs, histogram) en leest de Windows-tellers `% DPC Time`, `% Interrupt Time` en `DPCs Queued/sec`.
-* Noemt waarschijnlijke verdachte drivers op basis van de Driver Check.
-* **Per-driver DPC/ISR-meting (ETW, beheerder):** volgt met Event Tracing for Windows elke DPC en interrupt en koppelt die aan de driver die hem uitvoert (zoals LatencyMon). Toont per driver de langste en totale DPC-/ISR-tijd, met een oordeel (DPC < 500 µs en ISR < 100 µs is goed). Gebruikt een eigen *system logger*-sessie, zodat hij niet botst met LatencyMon of Process Explorer.
-
-### 12. ⌨️ Toetsenbord & Ghosting Matrix Test
-* **Chassis- & Formaat-detectie:** Schakelt automatisch naar **Laptop 75%** compact bij laptops, en naar **100% Volledig met Numpad** bij desktops. Handmatig omschakelbaar naar TKL 80%.
-* **Windows Keyboard Layout Map API:** Herkent live de actieve Windows-toetsenbordindeling (**QWERTY**, **AZERTY**, **QWERTZ**).
-* **ANSI vs. ISO Enter Detectie:** Detecteert automatisch of het toetsenbord een ANSI (platte Enter) of ISO indeling (grote L-Enter met `< > |` toets) heeft.
-* **N-Key Rollover (NKRO) & Ghosting:** Meet live gelijktijdig ingedrukte toetsen en houdt de maximale rollover-capaciteit bij.
-* **Toetsenbord Matrix Verificatie:** Toont geteste toetsen met percentage-voortgang en slaat aanslagen realtime op.
-
-### 13. 🖥️ Beeldscherm & Dode Pixel Detector
-* **Volledig Scherm Dode/Vastzittende Pixel Test:** Focust op 8 pure testkleuren (Zwart, Wit, Rood, Groen, Blauw, Geel, Cyaan, Magenta) met toetsenbord- en muisnavigatie.
-* **Live Display Telemetrie:** Resolutie, Display Scaling (DPR factor), kleurdiepte (bits) en live gemeten verversingssnelheid (Hz / FPS) via `requestAnimationFrame`.
-* **Dynamisch Bereik & Contrast:** 256-staps grijswaarden kleurverloop en een 2%–14% zwartwaardencheck om donkere schaduwdetails te kalibreren.
-
-### 14. 🖱️ Touchpad & 5-Knoppen Muis Diagnostic Suite
-* **Hi-DPI Responsive Canvas (1:1 Pixel Mapping):** Geen coördinatenverloop of afkapping; dynamische schaling volgt de cursor haarscherp.
-* **Dode Zone Scanner (Vaste Modus) vs. Vloeiend Spoor:** Biedt een permanent tekenvlak om het hele touchpad/muismat in te kleuren met live dekkingsindicator (%), of een vervagend spoor (2s).
-* **5-Knoppen Muis Ondersteuning:** Test LMB, MMB (scrollklik), RMB, Zijkant 1 (Vorige / Knop 4) en Zijkant 2 (Volgende / Knop 5) met navigatiebeveiliging.
-* **Hardware Dubbelklik-defect (Switch Chatter) Detector:** Waarschuwt direct met visuele waarschuwingen bij klikintervallen onder de 75 ms (slijtage van microswitches).
-* **Vastklik- & Sleeptest (Drag & Drop Integriteit):** Toont live of een ingedrukte muisknop contact verliest tijdens het slepen.
-* **Scrollwiel & Gesture Telemetrie:** Meet realtime richting (▲, ▼, ◀, ▶) en scrollstappen zonder dat het venster meebeweegt.
-
-### 15. 💽 Schijfgezondheid (SMART)
-* Leest per fysieke schijf `HealthStatus`, slijtage (SSD wear), temperatuur, draaiuren en (niet-)corrigeerbare fouten via `Get-PhysicalDisk` + `Get-StorageReliabilityCounter`.
-* Het oordeel Goed / Let op / Kritiek telt mee in de gezondheidsscore. Sommige tellers zijn alleen met beheerdersrechten leesbaar.
-
-### 16. 🕓 Historie over sessies heen
-* Freezes van de Watchdog en gezondheidsscores worden bewaard in `history.json` in de app-datamap.
-* Toont freezes per dag (14 dagen), totalen over 7/30 dagen, de langste freeze en het verloop van de score.
-
-### 17. 🎮 GPU Stresstest & 🔥 Burn-in
-* **GPU:** WebGL2 fragment-shader op volledige resolutie met instelbare intensiteit; meet FPS (gemiddeld/minimum) en detecteert driver-resets (WebGL context lost, vergelijkbaar met een TDR).
-* **Burn-in:** CPU + RAM + GPU tegelijk (5 tot 60 min) met temperatuurlogging en freeze-telling. Vindt instabiele voedingen en overclocks.
-
-### 18. 📄 Rapport exporteren
-* **HTML-rapport** (zelfstandig, afdrukbaar, licht/donker) met systeem, gezondheidsscore, alle testresultaten, freeze-oorzaken, SMART en drivers. Via *Afdrukken* ook als PDF op te slaan.
-* **JSON** met alle ruwe data.
-
-### 19. 🛡️ Beheerdersmodus
-* De header toont of de app verhoogde rechten heeft en kan zichzelf via UAC herstarten als beheerder (Windows). Dat ontgrendelt SMART-temperatuur/slijtage en realtime-prioriteit voor de latency-test.
-* Met verhoogde rechten is ook de per-driver DPC/ISR-meting (ETW) in het DPC Latency-tabblad beschikbaar.
-
-### 20. 🌐 Taal
-* Volledig Nederlands en Engels: alle tabbladen, het rapport en de teksten die de Rust-backend teruggeeft (samenvattingen, adviezen).
-* De taal volgt standaard de systeemtaal en is in de header om te schakelen. Al uitgevoerde tests houden hun taal; nieuwe metingen komen in de gekozen taal.
-* Technisch: frontendteksten staan in `src/i18n/` (per tabblad een bestand in `tabs/`), backendteksten via de `tr!`-macro (`src-tauri/src/i18n.rs`). Statuscodes (`Goed`, `Let op`, `Kritiek`, …) blijven bewust Nederlands, omdat de frontend erop vergelijkt; ze worden alleen voor weergave vertaald (`src/i18n/status.ts`).
-
-### 21. ⚡ Prestatie- & Caching Engine (Anti-Lag Architecture)
-* **Alle Tauri-commando's zijn `async`:** het werk draait via `spawn_blocking` op worker-threads, zodat stresstests en WMI-queries het venster niet bevriezen (en de eigen freeze/latency-metingen niet verstoren).
-* **Native WMI (`wmi`-crate)** voor de vaak gepolde gegevens (GPU, moederbord, thermal zones, fans) in plaats van een PowerShell-proces per poll.
-* **Geen knipperende consoles:** alle externe processen gaan via één helper (`shell.rs`) met `CREATE_NO_WINDOW` en een harde time-out.
-* **In-Memory Uptime Caching (`SESSION_START_CACHE`):** Vervangt trage 2.2-seconde PowerShell `Get-WinEvent` queries door een in-memory berekening (< 0,001 ms).
-* **30-Seconden WMI & Power Plan TTL:** Zware ACPI thermische zones en Windows energieplannen worden slim gecachet; realtime hardwaresensortemperaturen blijven instant (< 1 ms).
-* **Frontend In-Flight Request Guards:** Voorkomt opeenhoping van polling-aanroepen en garandeert 60 FPS UI-responsiviteit.
-* **Foutmeldingen in beeld:** elk commando geeft `Result<T, String>`; fouten verschijnen als melding rechtsonder in plaats van stil in de console.
+Linux and macOS support is where help is most welcome. See [Contributing](#contributing).
 
 ---
 
-## 🚀 Aan de slag
+## Features
 
-### Vereisten
-Node.js 22+, Rust (stable) en de [Tauri-vereisten](https://tauri.app/start/prerequisites/) voor je platform.
+### 🛡️ Freeze Detective and Watchdog
+* **Background watchdog:** continuously watches kernel thread scheduling. When the OS stalls for more than 1.2 seconds, it records the exact time and duration of the freeze.
+* **Event log scanner** (Windows) for the usual culprits behind desktop freezes:
+  * `storahci` event 129 (*Reset to device was issued*): the #1 cause, usually SATA/SSD link power management (ALPM) or a bad data cable.
+  * `disk` events 153 / 51 (*I/O retry*): bad sectors or buffer hang-ups.
+  * `Display` / `nvlddmkm` / `amdkmdag` event 4101 (*GPU TDR*): the graphics driver stopped responding and Windows reset it.
+  * `Microsoft-Windows-WHEA-Logger`: hardware PCIe / CPU bus errors.
+  * BugCheck stop codes, Kernel-Power, NTFS and service time-outs.
+* **Fix steps per incident:** concrete actions such as disabling SATA LPM, a clean driver reinstall with DDU, or checking cables.
+* On Linux the scanner reads `journalctl -k`.
+
+### ⏱️ DPC Latency
+* Measures scheduling latency with a high-priority spin loop (max / p99 / mean in µs, histogram) and reads the Windows counters `% DPC Time`, `% Interrupt Time` and `DPCs Queued/sec`.
+* **Per-driver DPC/ISR tracing (ETW, admin):** attributes every DPC and interrupt to the driver that ran it, like LatencyMon. It shows the longest and total DPC/ISR time per driver, with a verdict (DPC < 500 µs and ISR < 100 µs is good). It uses its own system-logger session, so it doesn't clash with LatencyMon or Process Explorer.
+
+### 🧩 Driver Check
+* Scans every driver via WMI for problem devices (Device Manager error codes), outdated drivers and unsigned drivers.
+* Focuses on freeze-sensitive classes (GPU, storage controllers, network, audio, USB, chipset), with advice per driver.
+
+### 🩺 Health Score
+* One score (0–100) and a grade (A–F), built from temperature, stability, drivers, DPC latency, storage, memory, CPU and battery.
+* Tests you haven't run don't count and show as "Not tested". Critical findings cap the grade.
+
+### 🔥 Stress tests
+* **CPU:** a multithreaded floating-point load via `rayon`, with live per-core load and clock speed and a score in MOps/s. Every block is compared bit-for-bit with a precomputed reference, so a CPU that miscalculates under load (unstable overclock or undervolt, overheating) gets caught.
+* **RAM:** 14 patterns per pass (checkerboard, walking ones, address-in-address, moving inversions, seeded random). Size is configurable from 256 MB up to 70% of free memory (max 32 GB), running in parallel on all cores. On errors it reports the address, the expected and read values, and the flipped bits.
+* **Disk:** sequential read/write speed with **direct I/O** (Windows `FILE_FLAG_NO_BUFFERING`, Linux `O_DIRECT`, macOS `F_NOCACHE`), so you measure the disk, not the OS cache. Each 1 MB block gets a unique pattern, so misplaced or stale blocks are detected too.
+* **GPU:** a WebGL2 fragment shader at full resolution with adjustable intensity. It measures FPS (mean and minimum) and detects driver resets (WebGL context lost, similar to a TDR).
+* **Burn-in:** CPU + RAM + GPU at once (5 to 60 minutes) with temperature logging and freeze counting. It finds unstable power supplies and overclocks.
+
+### 💽 Disk health (SMART)
+* Reads health status, SSD wear, temperature, power-on hours and (un)correctable errors per physical disk via `Get-PhysicalDisk` + `Get-StorageReliabilityCounter`.
+* The Good / Warning / Critical verdict feeds into the health score. Some counters need admin rights.
+
+### 📈 Live Monitor and processes
+* A background sampler (once per second) feeds live charts for CPU load, RAM, max temperature, clock speed, disk I/O and network traffic. It keeps a 5-minute ring buffer, and gaps in the lines show exactly when the system froze.
+* The top processes by CPU, RAM or disk refresh every 2 seconds. **Processes right before a freeze** links each watchdog freeze to the processes that were busiest just before it.
+
+### 🌀 Cooling, ⚡ power and battery
+* Real-time temperatures for CPU cores, GPU and drives, plus fan speeds (RPM) via ACPI/WMI and hwmon. It warns about throttling above 90 °C.
+* Detects laptop vs. desktop automatically. Laptops get charge level, AC adapter state and battery wear (design vs. full capacity, cycle count) from `powercfg /batteryreport` or sysfs. Missing data shows as "Unknown", never as made-up numbers.
+* On desktops: AC line status, the active Windows power plan, and warnings about aggressive disk sleep settings.
+
+### 🖱️ Peripheral tests
+* **Keyboard:** detects layout (QWERTY / AZERTY / QWERTZ), ANSI vs. ISO Enter, and laptop / TKL / full-size form factor, and measures N-key rollover and ghosting.
+* **Display:** a full-screen dead/stuck pixel test with 8 colours, live refresh-rate measurement, a 256-step gradient and a black-level check.
+* **Mouse and touchpad:** a hi-DPI dead-zone scanner, 5-button test, double-click (switch chatter) detector (< 75 ms), drag integrity test and scroll telemetry.
+* **Audio, microphone, camera and network** checks.
+
+### 🕓 History, reports and admin mode
+* Freezes and health scores are kept across sessions (`history.json`), with freezes per day over 14 days, 7- and 30-day totals, and the score trend.
+* Export a **self-contained HTML report** (printable to PDF, light and dark) or **JSON** with all raw data.
+* On Windows the app can restart itself as administrator (UAC). That unlocks SMART temperature/wear, ETW driver tracing and real-time priority for the latency test.
+
+---
+
+## Getting started (development)
+
+### Requirements
+Node.js 22+, Rust (stable) and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your platform.
 
 ```bash
 npm install
-```
-
-### Ontwikkelmodus starten
-```bash
 npm run tauri dev
 ```
 
-### Tests en controles
+### Tests and checks
 ```bash
-npm test
-```
-```bash
-npm run lint
-```
-```bash
-npm run typecheck
-```
-```bash
+npm test            # Vitest
+npm run lint        # ESLint
+npm run typecheck   # tsc
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
-De echte ETW-meting heeft beheerdersrechten nodig en wordt daarom niet standaard getest. Draai hem in een terminal die als administrator is gestart:
+
+The real ETW trace needs admin rights, so it isn't run by default. Run it from an elevated terminal:
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml live_etw -- --ignored --nocapture
 ```
 
-### TypeScript-types uit Rust genereren
-De types in `src/types/generated/` worden met [ts-rs](https://github.com/Aleph-Alpha/ts-rs) gegenereerd uit `src-tauri/src/models.rs` (dat gebeurt ook bij elke `cargo test`). Pas een model aan in Rust en draai:
+### TypeScript types are generated from Rust
+The types in `src/types/generated/` are generated with [ts-rs](https://github.com/Aleph-Alpha/ts-rs) from `src-tauri/src/models.rs` (also on every `cargo test`). After changing a model in Rust, run:
 ```bash
 npm run gen:types
 ```
 
-### Standalone installer bouwen
+### Building an installer
 ```bash
 npm run tauri build
 ```
-
-De installers komen in `src-tauri/target/release/bundle/`. Zie [RELEASING.md](RELEASING.md) voor releases via GitHub Actions en code signing.
+Installers end up in `src-tauri/target/release/bundle/`. See [RELEASING.md](RELEASING.md) for releases via GitHub Actions and code signing.
 
 ---
 
-## 🏗️ Architectuur
+## Architecture
 
-| Laag | Locatie | Rol |
+| Layer | Location | Role |
 |---|---|---|
-| Tauri-commando's | `src-tauri/src/commands.rs` | Alle commando's `async`, werk via `spawn_blocking`, `Result<T, String>` |
-| Diagnosemodules | `src-tauri/src/*.rs` | Blokkerende, testbare implementaties per onderwerp |
-| Proceshelper | `src-tauri/src/shell.rs` | Verborgen PowerShell/cmd, time-outs, JSON-normalisatie |
-| API-laag | `src/lib/api.ts` | Getypeerde wrappers rond `invoke` |
-| State | `src/store/` | Zustand-stores (diagnose-state, meldingen) |
-| i18n | `src/i18n/` | NL/EN-teksten |
+| Tauri commands | `src-tauri/src/commands.rs` | Every command is `async`, does its work in `spawn_blocking` and returns `Result<T, String>` |
+| Diagnostic modules | `src-tauri/src/*.rs` | Blocking, testable implementations per topic (`freeze.rs`, `latency.rs`, `drivers.rs`, …) |
+| Process helper | `src-tauri/src/shell.rs` | Hidden PowerShell/cmd processes with time-outs and JSON normalisation |
+| Backend i18n | `src-tauri/src/i18n.rs` | The `tr!("Nederlands", "English")` macro for text the backend returns |
+| API layer | `src/lib/api.ts` | Typed wrappers around `invoke` |
+| UI | `src/components/tabs/` | One React component (and folder) per tab |
+| State | `src/store/` | Zustand stores (diagnostics state, notifications) |
+| Frontend i18n | `src/i18n/` | NL/EN strings, one file per tab in `tabs/` |
+
+Some design choices worth knowing:
+* **The UI never blocks.** Stress tests and WMI queries run on worker threads, so they don't freeze the window or distort the app's own freeze and latency measurements.
+* **Native WMI** (`wmi` crate) for frequently polled data instead of a PowerShell process per poll. Heavy queries (ACPI thermal zones, power plans) are cached for 30 seconds.
+* **Status codes are Dutch strings** (`"Goed"`, `"Let op"`, `"Kritiek"`, …) because the frontend compares on them. They are translated for display in `src/i18n/status.ts`. (Replacing them with an enum is tracked in [#12](https://github.com/lucius02/pc-checker/issues/12).)
+* **Errors are visible:** every command returns `Result<T, String>`, and failures show up as a toast in the UI.
+
+CI (`.github/workflows/ci.yml`) runs on every push and pull request: `tsc`, ESLint, Vitest and a production build for the frontend, plus `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` and a check that the generated TypeScript types are current (Windows + Linux).
 
 ---
 
-## ✅ Kwaliteitsbewaking
-GitHub Actions (`.github/workflows/ci.yml`) draait bij elke push en pull request:
-* **Frontend:** `tsc`, ESLint (incl. `react-hooks`), Vitest en een productie-build.
-* **Rust (Windows + Linux):** `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` en een controle dat de gegenereerde TypeScript-types actueel zijn.
+## Contributing
+
+Contributions are very welcome, from a typo fix to a new diagnostic module. Good places to start:
+
+* 🏷️ Issues labelled [**good first issue**](https://github.com/lucius02/pc-checker/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or [**help wanted**](https://github.com/lucius02/pc-checker/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+* 🐧 🍎 **Linux and macOS support:** many modules are Windows-only today
+* 🌍 **Translations** and English documentation
+* 🧪 **Hardware reports:** tell us what PC Checker gets wrong on your machine
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) to get set up, and ask questions in [Discussions](https://github.com/lucius02/pc-checker/discussions). This project follows the [Code of Conduct](CODE_OF_CONDUCT.md). Please report security issues privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+Licensed under either of
+
+* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+* MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

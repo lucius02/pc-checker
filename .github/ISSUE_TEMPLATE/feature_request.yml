@@ -1,0 +1,38 @@
+name: ✨ Feature request
+description: Suggest a new diagnostic, test or improvement.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: For example "I can't tell whether my stutters come from the GPU driver or the network adapter".
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What should PC Checker do? Mention the data source if you know it (WMI class, sysfs path, API, command).
+    validations:
+      required: true
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms
+      multiple: true
+      options:
+        - Windows
+        - Linux
+        - macOS
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or prior art
+      description: Other tools that do this well, and links to docs.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd like to work on this myself (with some guidance)
