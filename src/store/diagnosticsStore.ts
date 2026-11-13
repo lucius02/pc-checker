@@ -4,6 +4,8 @@ import { t, type MessageKey } from "../i18n";
 import { toast } from "./toastStore";
 import { planHealthTests, type HealthTestId, type HealthTestStep } from "../lib/healthTests";
 import { LOOKBACK_KEY, readLookbackDays } from "../lib/freezeLookback";
+import { BUSY_META } from "../lib/tabActions";
+import { useUiStore } from "./uiStore";
 import type {
   BatteryHealthReport,
   CoolingOverview,
@@ -132,12 +134,27 @@ let overviewInFlight = false;
 export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
   /**
    * Voert een backend-actie uit met bezig-vlag en foutmelding (toast) op één plek, zodat geen
-   * enkele fout meer stil in `console.error` verdwijnt.
+   * enkele fout meer stil in `console.error` verdwijnt. Is de gebruiker intussen naar een ander
+   * tabblad gegaan, dan meldt een toast dat de test klaar is, met een knop naar het resultaat.
    */
-  async function run<T>(key: BusyKey, errorKey: MessageKey, fn: () => Promise<T>): Promise<T | undefined> {
+  async function run<T>(
+    key: BusyKey,
+    errorKey: MessageKey,
+    fn: () => Promise<T>,
+    notify = true,
+  ): Promise<T | undefined> {
     set((s) => ({ busy: { ...s.busy, [key]: true } }));
     try {
-      return await fn();
+      const result = await fn();
+      const meta = BUSY_META[key];
+      // Tijdens "alles testen" komt er aan het eind één melding, niet één per test.
+      if (notify && meta && !get().healthRun && useUiStore.getState().activeTab !== meta.tab) {
+        toast.success(t("toast.testDone", { name: t(meta.label) }), undefined, {
+          label: t("toast.view"),
+          onClick: () => useUiStore.getState().navigate(meta.tab),
+        });
+      }
+      return result;
     } catch (err) {
       toast.error(t(errorKey), errorMessage(err));
       return undefined;
@@ -239,7 +256,9 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     },
 
     scanFreezeDiagnostic: async () => {
-      const r = await run("freeze", "error.freeze", () => api.scanFreezeDiagnostic(get().freezeLookbackDays));
+      // De eerste scan draait vanzelf bij het opstarten: daar hoort geen "klaar"-melding bij.
+      const isRescan = get().freezeData !== null;
+      const r = await run("freeze", "error.freeze", () => api.scanFreezeDiagnostic(get().freezeLookbackDays), isRescan);
       if (r) set({ freezeData: r });
     },
     runBatteryTest: async () => {

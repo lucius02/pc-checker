@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage } from "../../../lib/api";
 import { useDiagnosticsStore } from "../../../store/diagnosticsStore";
 import {
@@ -108,6 +108,28 @@ const gradeTone = (grade: string): keyof typeof STATUS_COLOR => {
   return "critical";
 };
 
+/** Telt vloeiend naar een nieuwe waarde toe, zodat een gewijzigde score opvalt. */
+function useCountUp(target: number, durationMs = 600): number {
+  const [value, setValue] = useState(target);
+  const shown = useRef(target);
+  useEffect(() => {
+    const from = shown.current;
+    if (from === target) return;
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / durationMs);
+      // ease-out: snel beginnen, rustig uitkomen
+      shown.current = Math.round(from + (target - from) * (1 - Math.pow(1 - p, 3)));
+      setValue(shown.current);
+      if (p < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, durationMs]);
+  return value;
+}
+
 /** Ringmeter: gevulde boog draagt de ernst, de baan is dezelfde kleur, lichter. */
 const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade }) => {
   const t = useT();
@@ -117,6 +139,7 @@ const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade })
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, score)) / 100;
   const color = STATUS_COLOR[gradeTone(grade)];
+  const shownScore = useCountUp(score);
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
@@ -143,7 +166,7 @@ const ScoreRing: React.FC<{ score: number; grade: string }> = ({ score, grade })
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-5xl font-bold text-white leading-none">{score}</span>
+        <span className="text-5xl font-bold text-white leading-none tabular-nums">{shownScore}</span>
         <span className="text-xs text-slate-400 mt-1">{t("hs.of100")}</span>
       </div>
     </div>
@@ -185,7 +208,7 @@ const CategoryRow: React.FC<{
           <StatusIcon className="w-3 h-3" />
           {status(cat.status)}
         </span>
-        <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-300 shrink-0" />
+        <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-300 group-hover:translate-x-0.5 transition-all shrink-0" />
       </div>
       <div
         className="mt-1.5 h-1.5 w-full rounded-full overflow-hidden"

@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { AlertTriangle } from "lucide-react";
 import "./App.css";
 
 import type { PeripheralTestResults, TabType } from "./types";
 import { useDiagnosticsStore } from "./store/diagnosticsStore";
+import { useUiStore } from "./store/uiStore";
+import { startLiveMetrics } from "./store/liveMetricsStore";
+import { CommandPalette } from "./components/palette/CommandPalette";
 import { api } from "./lib/api";
 import { useI18nStore, useT } from "./i18n";
 import { Header } from "./components/Header";
@@ -38,34 +41,76 @@ const POLL_MS = 4000;
 /** Tabs met eigen interactieve metingen of zware belasting: geen achtergrond-polling. */
 const NO_POLL_TABS: TabType[] = ["keyboard", "screen", "touchpad", "audio", "camera", "network", "gpu", "burnin"];
 
-const SIDEBAR_STORAGE_KEY = "pc-checker.sidebar-collapsed";
-
-function readSidebarCollapsed(): boolean {
-  try {
-    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
+/** Laadskelet in de vorm van het overzicht, zodat de pagina niet verspringt als de gegevens er zijn. */
+function LoadingSkeleton({ label }: { label: string }) {
+  return (
+    <div className="space-y-6" role="status" aria-label={label}>
+      <div className="skeleton h-7 w-64" />
+      <div className="skeleton h-56" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-28" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="skeleton h-24" />
+        ))}
+      </div>
+      <p className="text-center text-sm text-slate-500">{label}</p>
+    </div>
+  );
 }
 
 export default function App() {
   const t = useT();
   const lang = useI18nStore((s) => s.lang);
-  const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
+  const activeTab = useUiStore((s) => s.activeTab);
+  const setActiveTab = useUiStore((s) => s.navigate);
+  const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const mainRef = useRef<HTMLDivElement>(null);
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? "1" : "0");
-      } catch {
-        // Opslag niet beschikbaar: de voorkeur geldt alleen voor deze sessie.
+  // Eén abonnement op de secondemetingen voor de hele app (overzicht én Live Monitor).
+  useEffect(() => startLiveMetrics(), []);
+
+  // Sneltoetsen: Ctrl+K zoeken/commando's, Ctrl+B menu, Alt+←/→ en de zijknoppen van de muis
+  // voor vorige/volgende tabblad. Niet op het toetsenbordtabblad: daar hoort elke toets bij de test.
+  useEffect(() => {
+    if (activeTab === "keyboard") return;
+    const onKey = (e: KeyboardEvent) => {
+      const ui = useUiStore.getState();
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && !e.altKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        ui.setPaletteOpen(!ui.paletteOpen);
+      } else if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        ui.toggleSidebar();
+      } else if (e.altKey && !mod && e.key === "ArrowLeft") {
+        e.preventDefault();
+        ui.goBack();
+      } else if (e.altKey && !mod && e.key === "ArrowRight") {
+        e.preventDefault();
+        ui.goForward();
       }
-      return next;
-    });
-  };
+    };
+    const onMouse = (e: MouseEvent) => {
+      if (e.button === 3) {
+        e.preventDefault();
+        useUiStore.getState().goBack();
+      } else if (e.button === 4) {
+        e.preventDefault();
+        useUiStore.getState().goForward();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mouseup", onMouse);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mouseup", onMouse);
+    };
+  }, [activeTab]);
 
   // Elke pagina begint bovenaan.
   useEffect(() => {
@@ -155,10 +200,7 @@ export default function App() {
             )}
 
             {s.isLoading && !data ? (
-              <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
-                <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
-                <p className="text-sm">{t("app.loading")}</p>
-              </div>
+              <LoadingSkeleton label={t("app.loading")} />
             ) : !data ? (
               <div className="p-6 bg-red-950/30 border border-red-900 rounded-xl text-red-300 flex items-center gap-3">
                 <AlertTriangle className="w-6 h-6 text-red-400" />
@@ -282,6 +324,7 @@ export default function App() {
 
       <Footer connection={connection} />
       <Toaster />
+      <CommandPalette />
     </div>
   );
 }

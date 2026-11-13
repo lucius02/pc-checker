@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { api } from "../../lib/api";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import React, { useMemo, useState } from "react";
+import { MAX_SAMPLES, useLiveMetricsStore } from "../../store/liveMetricsStore";
 import {
   Activity,
   AlertTriangle,
@@ -13,7 +12,6 @@ import {
   Thermometer,
   LineChart,
 } from "lucide-react";
-import type { MetricsSample } from "../../types";
 import { TimeSeriesChart, ChartSeries } from "../live/TimeSeriesChart";
 import { StatTile, ChartCard } from "../live/LiveCards";
 import {
@@ -27,20 +25,8 @@ import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
 import { useT } from "../../i18n";
 
-const MAX_SAMPLES = 300;
 const WINDOW_MS = MAX_SAMPLES * 1000;
 const PERCENT_TICKS = [0, 25, 50, 75, 100];
-
-type ConnState = "verbinden" | "live" | "fout";
-
-/** Voegt metingen samen, ontdubbelt op tijdstip en houdt de laatste MAX_SAMPLES. */
-function mergeSamples(a: MetricsSample[], b: MetricsSample[]): MetricsSample[] {
-  const byTime = new Map<number, MetricsSample>();
-  for (const s of a) byTime.set(s.at_epoch_ms, s);
-  for (const s of b) byTime.set(s.at_epoch_ms, s);
-  const merged = Array.from(byTime.values()).sort((x, y) => x.at_epoch_ms - y.at_epoch_ms);
-  return merged.length > MAX_SAMPLES ? merged.slice(merged.length - MAX_SAMPLES) : merged;
-}
 
 function formatFreq(mhz: number): string {
   return mhz >= 1000 ? `${(mhz / 1000).toFixed(2)} GHz` : `${Math.round(mhz)} MHz`;
@@ -57,43 +43,9 @@ function formatByteTick(v: number): string {
 
 export const LiveTab: React.FC = () => {
   const t = useT();
-  const [samples, setSamples] = useState<MetricsSample[]>([]);
-  const [conn, setConn] = useState<ConnState>("verbinden");
+  const samples = useLiveMetricsStore((s) => s.samples);
+  const conn = useLiveMetricsStore((s) => s.conn);
   const [showTable, setShowTable] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    let unlisten: UnlistenFn | null = null;
-
-    listen<MetricsSample>("live-metrics", (event) => {
-      if (cancelled) return;
-      setConn("live");
-      setSamples((prev) => mergeSamples(prev, [event.payload]));
-    })
-      .then((fn) => {
-        // StrictMode / snelle unmount: listener alsnog opruimen.
-        if (cancelled) fn();
-        else unlisten = fn;
-      })
-      .catch(() => {
-        if (!cancelled) setConn("fout");
-      });
-
-    api.getMetricsHistory()
-      .then((history) => {
-        if (cancelled) return;
-        setSamples((prev) => mergeSamples(history.samples, prev));
-        if (history.samples.length > 0) setConn("live");
-      })
-      .catch(() => {
-        if (!cancelled) setConn("fout");
-      });
-
-    return () => {
-      cancelled = true;
-      if (unlisten) unlisten();
-    };
-  }, []);
 
   const latest = samples.length ? samples[samples.length - 1] : null;
   const times = useMemo(() => samples.map((s) => s.at_epoch_ms), [samples]);
@@ -173,7 +125,7 @@ export const LiveTab: React.FC = () => {
                 "px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2",
                 conn === "live"
                   ? "bg-emerald-950 border-emerald-800 text-emerald-400"
-                  : conn === "fout"
+                  : conn === "error"
                   ? "bg-rose-950 border-rose-800 text-rose-400"
                   : "bg-slate-950 border-slate-800 text-slate-400"
               )}
@@ -182,7 +134,7 @@ export const LiveTab: React.FC = () => {
                 <>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> {t("live.live")}
                 </>
-              ) : conn === "fout" ? (
+              ) : conn === "error" ? (
                 <>
                   <AlertTriangle className="w-4 h-4" /> {t("live.noConnection")}
                 </>
@@ -268,7 +220,7 @@ export const LiveTab: React.FC = () => {
         <div className="text-xs text-slate-500">
           {samples.length > 0
             ? t("live.bufferInfo", { n: samples.length, m: Math.floor(spanSec / 60), s: spanSec % 60, t: formatClock(latest!.at_epoch_ms) })
-            : conn === "fout"
+            : conn === "error"
             ? t("live.monitorDown")
             : t("live.firstSoon")}
         </div>

@@ -2,11 +2,18 @@ import { create } from "zustand";
 
 export type ToastKind = "error" | "success" | "info";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface Toast {
   id: number;
   kind: ToastKind;
   title: string;
   message?: string;
+  /** Optionele knop in de melding, bijv. "Bekijk resultaat". */
+  action?: ToastAction;
 }
 
 interface ToastState {
@@ -16,7 +23,7 @@ interface ToastState {
 }
 
 let nextId = 1;
-const AUTO_DISMISS_MS = 7000;
+export const AUTO_DISMISS_MS = 7000;
 const MAX_TOASTS = 4;
 
 export const useToastStore = create<ToastState>((set, get) => ({
@@ -35,6 +42,7 @@ export const useToastStore = create<ToastState>((set, get) => ({
 /** Gemaksfunctie voor gebruik buiten React-componenten. */
 export const toast = {
   error: (title: string, message?: string) => useToastStore.getState().push({ kind: "error", title, message }),
-  success: (title: string, message?: string) => useToastStore.getState().push({ kind: "success", title, message }),
+  success: (title: string, message?: string, action?: ToastAction) =>
+    useToastStore.getState().push({ kind: "success", title, message, action }),
   info: (title: string, message?: string) => useToastStore.getState().push({ kind: "info", title, message }),
 };

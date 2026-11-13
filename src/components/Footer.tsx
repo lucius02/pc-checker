@@ -2,7 +2,11 @@ import React from "react";
 import { formatUptime } from "../utils/formatters";
 import { useT } from "../i18n";
 import { useDiagnosticsStore } from "../store/diagnosticsStore";
+import { useUiStore } from "../store/uiStore";
+import { BUSY_META } from "../lib/tabActions";
 import { cn } from "../utils/cn";
+import { Loader2 } from "lucide-react";
+import type { BusyKey } from "../store/diagnosticsStore";
 
 const APP_VERSION = "0.1.2";
 
@@ -14,6 +18,41 @@ const DOT: Record<ConnectionState, string> = {
   paused: "bg-slate-500",
   suspended: "bg-amber-400",
   error: "bg-red-500",
+};
+
+/** Lopende tests, altijd zichtbaar; een klik springt naar het tabblad van de test. */
+const RunningTasks: React.FC = () => {
+  const t = useT();
+  const busy = useDiagnosticsStore((s) => s.busy);
+  const healthRun = useDiagnosticsStore((s) => s.healthRun);
+  const navigate = useUiStore((s) => s.navigate);
+  const running = (Object.keys(busy) as BusyKey[]).filter((k) => busy[k] && BUSY_META[k]);
+  if (running.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 min-w-0" role="status" aria-live="polite">
+      {healthRun && (
+        <span className="text-slate-400 shrink-0 tabular-nums">
+          {healthRun.index + 1}/{healthRun.steps.length}
+        </span>
+      )}
+      {running.map((key) => {
+        const meta = BUSY_META[key]!;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => navigate(meta.tab)}
+            title={t("footer.goToTest")}
+            className="-my-1 px-2 py-0.5 rounded-md border border-cyan-800/80 bg-cyan-950/60 text-cyan-300 hover:bg-cyan-900/60 flex items-center gap-1.5 min-w-0 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cyan-400"
+          >
+            <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+            <span className="truncate">{t("blk.running", { name: t(meta.label) })}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
 };
 
 export const Footer: React.FC<{ connection: ConnectionState }> = ({ connection }) => {
@@ -36,7 +75,8 @@ export const Footer: React.FC<{ connection: ConnectionState }> = ({ connection }
           {t("footer.lastMeasurement")} {data ? lastUpdated.toLocaleTimeString() : t("footer.none")}
         </span>
       </div>
-      <span className="shrink-0 hidden sm:inline">
+      <RunningTasks />
+      <span className="shrink-0 hidden lg:inline">
         PC Checker v{APP_VERSION} • {t("footer.platforms")}
       </span>
     </footer>

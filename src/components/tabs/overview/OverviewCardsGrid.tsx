@@ -18,6 +18,8 @@ import {
   Gpu,
   Flame,
   ChevronRight,
+  Loader2,
+  Play,
   type LucideIcon,
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -25,6 +27,7 @@ import type { TabType } from "../../../types";
 import { useT, type MessageKey } from "../../../i18n";
 import { useDiagnosticsStore } from "../../../store/diagnosticsStore";
 import { buildOverviewBlocks, type BlockGroup, type BlockStatus, type OverviewBlock } from "../../../lib/overviewBlocks";
+import { BUSY_FOR_TAB, anyTestRunning, quickActionFor } from "../../../lib/tabActions";
 import { cn } from "../../../utils/cn";
 
 const ICONS: Partial<Record<TabType, LucideIcon>> = {
@@ -93,15 +96,19 @@ const TestBlock: React.FC<{ block: OverviewBlock; onOpen: (tab: TabType) => void
   const Icon = ICONS[block.id] ?? ShieldAlert;
   const style = STATUS_STYLE[block.status];
   const title = t(`nav.${block.id}` as MessageKey);
+  const powerData = useDiagnosticsStore((s) => s.powerData);
+  const action = quickActionFor(block.id, { powerData });
+  const running = useDiagnosticsStore((s) => (BUSY_FOR_TAB[block.id] ?? []).some((k) => s.busy[k]));
+  // Zware tests tegelijk draaien vertekent de uitkomsten: één tegelijk.
+  const blocked = useDiagnosticsStore(anyTestRunning);
+  const actionName = action ? t(action.label) : "";
+
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(block.id)}
-      aria-label={`${title}: ${t(`blk.status.${block.status}`)}. ${t("blk.open")}`}
+    <div
       className={cn(
-        "group w-full text-left p-4 bg-slate-900/70 border border-slate-800 rounded-2xl flex flex-col gap-3 transition-colors cursor-pointer",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
-        style.edge,
+        "group relative p-4 bg-slate-900/70 border border-slate-800 rounded-2xl flex flex-col gap-3 transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30",
+        running ? "border-cyan-800/80" : style.edge,
       )}
     >
       <div className="flex items-center justify-between gap-2 w-full">
@@ -109,13 +116,53 @@ const TestBlock: React.FC<{ block: OverviewBlock; onOpen: (tab: TabType) => void
           <span className={cn("p-2 rounded-xl border shrink-0", style.icon)}>
             <Icon className="w-4 h-4" />
           </span>
-          <span className="font-semibold text-sm text-slate-200 truncate">{title}</span>
+          {/* De knop beslaat via ::after de hele kaart; de startknop ligt daar bovenop. */}
+          <button
+            type="button"
+            onClick={() => onOpen(block.id)}
+            aria-label={`${title}: ${t(`blk.status.${block.status}`)}. ${t("blk.open")}`}
+            className={cn(
+              "font-semibold text-sm text-slate-200 truncate text-left cursor-pointer outline-none",
+              "after:absolute after:inset-0 after:rounded-2xl",
+              "focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-cyan-400",
+            )}
+          >
+            {title}
+          </button>
         </div>
-        {block.metric ? (
-          <span className="text-lg font-bold font-mono text-slate-100 shrink-0">{block.metric}</span>
-        ) : (
-          <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 shrink-0" />
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {block.metric && <span className="text-lg font-bold font-mono text-slate-100">{block.metric}</span>}
+          {action ? (
+            <button
+              type="button"
+              onClick={() => void action.run(useDiagnosticsStore.getState())}
+              disabled={blocked}
+              title={
+                running
+                  ? t("blk.running", { name: actionName })
+                  : blocked
+                    ? t("pal.busy")
+                    : t("act.start", { name: actionName })
+              }
+              aria-label={running ? t("blk.running", { name: actionName }) : t("act.start", { name: actionName })}
+              className={cn(
+                "relative z-10 w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400",
+                running
+                  ? "border-cyan-700 bg-cyan-950 text-cyan-300"
+                  : "border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-cyan-500 hover:border-cyan-400 hover:text-slate-950",
+                blocked && !running && "opacity-40 cursor-not-allowed hover:bg-slate-800/80 hover:border-slate-700 hover:text-slate-300",
+                blocked && running && "cursor-default",
+              )}
+            >
+              {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3 h-3 fill-current ml-0.5" />}
+            </button>
+          ) : (
+            !block.metric && (
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 group-hover:translate-x-0.5 transition-all" />
+            )
+          )}
+        </div>
       </div>
 
       {block.bar !== undefined && (
@@ -128,14 +175,19 @@ const TestBlock: React.FC<{ block: OverviewBlock; onOpen: (tab: TabType) => void
       )}
 
       <div className="flex items-end justify-between gap-2 w-full mt-auto">
-        <p className={cn("text-xs leading-snug", block.status === "untested" ? "text-slate-500" : "text-slate-300")}>
-          {t(block.detail.key, block.detail.vars)}
+        <p className={cn("text-xs leading-snug", block.status === "untested" && !running ? "text-slate-500" : "text-slate-300")}>
+          {running ? t("blk.running", { name: actionName }) : t(block.detail.key, block.detail.vars)}
         </p>
-        <span className={cn("text-[11px] px-2 py-0.5 rounded-md border font-semibold shrink-0 whitespace-nowrap", style.badge)}>
-          {t(`blk.status.${block.status}`)}
+        <span
+          className={cn(
+            "text-[11px] px-2 py-0.5 rounded-md border font-semibold shrink-0 whitespace-nowrap",
+            running ? "bg-cyan-950 border-cyan-800 text-cyan-300 animate-pulse" : style.badge,
+          )}
+        >
+          {running ? t("blk.status.running") : t(`blk.status.${block.status}`)}
         </span>
       </div>
-    </button>
+    </div>
   );
 };
 
@@ -175,7 +227,7 @@ export const OverviewCardsGrid: React.FC<{ setActiveTab: (tab: TabType) => void 
       {GROUPS.map((g) => (
         <div key={g} className="space-y-2.5">
           <h4 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t(`blk.group.${g}`)}</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {blocks
               .filter((b) => b.group === g)
               .map((b) => (
