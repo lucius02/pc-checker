@@ -43,6 +43,8 @@ export interface DiagnosticsState {
   powerData: PowerInfo | null;
   coolingData: CoolingOverview | null;
   isLoading: boolean;
+  /** De laatste meting van het systeemoverzicht is mislukt (backend onbereikbaar). */
+  overviewFailed: boolean;
   lastUpdated: Date;
   autoRefresh: boolean;
 
@@ -149,6 +151,7 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
     powerData: null,
     coolingData: null,
     isLoading: true,
+    overviewFailed: false,
     lastUpdated: new Date(),
     autoRefresh: true,
 
@@ -214,13 +217,21 @@ export const useDiagnosticsStore = create<DiagnosticsState>((set, get) => {
           api.getPowerAndBatteryInfo(),
           api.getCoolingAndFanInfo(),
         ]);
-        const patch: Partial<DiagnosticsState> = { lastUpdated: new Date() };
-        if (o.status === "fulfilled") patch.data = o.value;
+        const patch: Partial<DiagnosticsState> = { overviewFailed: o.status === "rejected" };
+        if (o.status === "fulfilled") {
+          patch.data = o.value;
+          patch.lastUpdated = new Date();
+        }
         if (p.status === "fulfilled") patch.powerData = p.value;
         if (c.status === "fulfilled") patch.coolingData = c.value;
+        const wasFailing = get().overviewFailed;
         set(patch);
+        // Eén melding bij het begin van een storing, niet bij elke poll (elke 4 s); zolang hij
+        // aanhoudt staat er een balk boven de pagina.
         const failed = [o, p, c].find((r): r is PromiseRejectedResult => r.status === "rejected");
-        if (failed) toast.error(t("error.overview"), errorMessage(failed.reason));
+        if (failed && !(wasFailing && o.status === "rejected")) {
+          toast.error(t("error.overview"), errorMessage(failed.reason));
+        }
       } finally {
         overviewInFlight = false;
         set({ isLoading: false });

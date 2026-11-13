@@ -62,7 +62,8 @@ const ExportMenu: React.FC = () => {
   );
 };
 
-export const Header: React.FC = () => {
+/** `pollingSuspended`: de metingen staan tijdelijk stil omdat er een interactieve test open staat. */
+export const Header: React.FC<{ pollingSuspended: boolean }> = ({ pollingSuspended }) => {
   const t = useT();
   const lang = useI18nStore((s) => s.lang);
   const setLang = useI18nStore((s) => s.setLang);
@@ -74,9 +75,10 @@ export const Header: React.FC = () => {
   const isLoading = useDiagnosticsStore((s) => s.isLoading);
   const elevation = useDiagnosticsStore((s) => s.elevation);
   const restartAsAdmin = useDiagnosticsStore((s) => s.restartAsAdmin);
+  const isLive = autoRefresh && !pollingSuspended;
 
   return (
-    <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-6 py-3.5 flex items-center justify-between gap-4 sticky top-0 z-30 print:hidden">
+    <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 py-3 flex items-center justify-between gap-4 shrink-0 z-30 print:hidden">
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-10 h-10 rounded-xl bg-linear-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
           <Activity className="w-5 h-5 text-slate-950 font-bold" />
@@ -155,18 +157,26 @@ export const Header: React.FC = () => {
         <button
           type="button"
           onClick={() => setAutoRefresh(!autoRefresh)}
+          aria-pressed={autoRefresh}
           className={cn(
             "px-3 py-1.5 text-xs font-medium rounded-lg border flex items-center gap-1.5 transition-colors cursor-pointer",
             focusRing,
             "focus-visible:outline-emerald-400",
-            autoRefresh
+            isLive
               ? "bg-emerald-950/50 border-emerald-800/80 text-emerald-400"
-              : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200",
+              : autoRefresh
+                ? "bg-amber-950/40 border-amber-800/70 text-amber-400"
+                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200",
           )}
-          title={t("header.autoRefreshTitle")}
+          title={isLive ? t("header.autoRefreshTitle") : autoRefresh ? t("header.waitingTitle") : t("header.pausedTitle")}
         >
-          <span className={cn("w-2 h-2 rounded-full", autoRefresh ? "bg-emerald-400 animate-pulse" : "bg-slate-600")} />
-          {autoRefresh ? t("header.live") : t("header.paused")}
+          <span
+            className={cn(
+              "w-2 h-2 rounded-full",
+              isLive ? "bg-emerald-400 animate-pulse" : autoRefresh ? "bg-amber-400" : "bg-slate-600",
+            )}
+          />
+          {isLive ? t("header.live") : autoRefresh ? t("header.waiting") : t("header.paused")}
         </button>
 
         <button
