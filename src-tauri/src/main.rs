@@ -2,5 +2,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    // WebKitGTK's DMABUF renderer crashes on some Wayland setups (e.g. Hyprland,
+    // NVIDIA) with "Gdk-Message: Error 71 (Protocol error) dispatching to Wayland
+    // display". Disable it unless the user set the variable explicitly.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        // SAFETY: runs at the very start of `main`, before any other thread exists.
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
+
     tauri_app_lib::run()
 }

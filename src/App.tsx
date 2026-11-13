@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, AlertTriangle } from "lucide-react";
 import "./App.css";
@@ -18,8 +18,9 @@ import {
 import { formatBytes, formatUptime } from "./utils/formatters";
 import { useHardwareTests } from "./hooks/useHardwareTests";
 import { Header } from "./components/Header";
-import { Navigation } from "./components/Navigation";
-import { Footer } from "./components/Footer";
+import { Navigation, NavStatus } from "./components/Navigation";
+import { Footer, ConnectionState } from "./components/Footer";
+import { Toasts, useToasts } from "./components/Toasts";
 import { OverviewTab } from "./components/tabs/OverviewTab";
 import { PowerTab } from "./components/tabs/PowerTab";
 import { CoolingTab } from "./components/tabs/CoolingTab";
@@ -37,6 +38,17 @@ import { TouchpadTab } from "./components/tabs/TouchpadTab";
 import { AudioTab } from "./components/tabs/AudioTab";
 import { CameraTab } from "./components/tabs/CameraTab";
 import { NetworkTab } from "./components/tabs/NetworkTab";
+
+const PERIPHERAL_TABS: TabType[] = ["keyboard", "screen", "touchpad", "audio", "camera", "network"];
+const SIDEBAR_STORAGE_KEY = "pc-checker.sidebar-collapsed";
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -62,7 +74,32 @@ export default function App() {
 
   const [peripherals, setPeripherals] = useState<PeripheralTestResults>({});
 
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [fetchFailed, setFetchFailed] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
+  const { toasts, pushToast, dismissToast } = useToasts();
+  const mainRef = useRef<HTMLDivElement>(null);
+
+  const reportError = useCallback(
+    (context: string, err: unknown) => {
+      console.error(`${context}:`, err);
+      pushToast("error", `${context}: ${String(err)}`);
+    },
+    [pushToast]
+  );
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, next ? "1" : "0");
+      } catch {
+        // Opslag niet beschikbaar: voorkeur geldt alleen voor deze sessie.
+      }
+      return next;
+    });
+  };
 
   const isFetchingRef = useRef(false);
 
@@ -79,13 +116,21 @@ export default function App() {
       setPowerData(powerRes);
       setCoolingData(coolingRes);
       setLastUpdated(new Date());
+      setFetchFailed(false);
     } catch (err) {
       console.error("Fout bij ophalen systeeminformatie:", err);
+      setFetchFailed(true);
     } finally {
       isFetchingRef.current = false;
       setIsLoading(false);
     }
   }, []);
+
+  const refreshNow = async () => {
+    setIsRefreshing(true);
+    await fetchOverview();
+    setIsRefreshing(false);
+  };
 
   const scanFreezeDiagnostic = async () => {
     setIsScanningFreeze(true);
@@ -93,7 +138,7 @@ export default function App() {
       const report = await invoke<FreezeDiagnosticReport>("scan_freeze_diagnostic");
       setFreezeData(report);
     } catch (err) {
-      console.error("Fout bij uitvoeren freeze-diagnose:", err);
+      reportError("Freeze-diagnose mislukt", err);
     } finally {
       setIsScanningFreeze(false);
     }
@@ -105,7 +150,7 @@ export default function App() {
       const report = await invoke<BatteryHealthReport>("run_battery_health_check");
       setBatteryReport(report);
     } catch (err) {
-      console.error("Fout bij uitvoeren batterijtest:", err);
+      reportError("Batterijtest mislukt", err);
     } finally {
       setIsTestingBattery(false);
     }
@@ -117,7 +162,7 @@ export default function App() {
       const report = await invoke<HardwarePowerCheckReport>("check_hardware_power_delivery");
       setPowerDeliveryReport(report);
     } catch (err) {
-      console.error("Fout bij uitvoeren hardware vermogenstest:", err);
+      reportError("Hardware vermogenstest mislukt", err);
     } finally {
       setIsTestingPowerDelivery(false);
     }
@@ -129,7 +174,7 @@ export default function App() {
       const report = await invoke<DriverReport>("scan_drivers");
       setDriverReport(report);
     } catch (err) {
-      console.error("Fout bij uitvoeren driver-scan:", err);
+      reportError("Driver-scan mislukt", err);
     } finally {
       setIsScanningDrivers(false);
     }
@@ -144,34 +189,35 @@ export default function App() {
       });
       setLatencyResult(res);
     } catch (err) {
-      console.error("Fout bij uitvoeren latency-test:", err);
+      reportError("Latency-test mislukt", err);
     } finally {
       setIsTestingLatency(false);
     }
   };
 
+  const pollingSuspended = PERIPHERAL_TABS.includes(activeTab);
+
+  // Eenmalig bij opstarten: eerste meting en freeze-diagnose.
   useEffect(() => {
     fetchOverview();
     scanFreezeDiagnostic();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    if (!autoRefresh) return;
+  // Tab-gebaseerde polling optimalisatie:
+  // Pauzeer zware achtergrond-polling wanneer de gebruiker in een interactieve test zit
+  useEffect(() => {
+    if (!autoRefresh || pollingSuspended) return;
 
-    // Tab-gebaseerde polling optimalisatie:
-    // Pauzeer zware achtergrond-polling wanneer de gebruiker in een interactieve test zit
-    const isPeripheralTesting = [
-      "keyboard",
-      "screen",
-      "touchpad",
-      "audio",
-      "camera",
-      "network",
-    ].includes(activeTab);
-
-    if (isPeripheralTesting) return;
-
+    fetchOverview();
     const interval = setInterval(fetchOverview, 4000);
     return () => clearInterval(interval);
-  }, [fetchOverview, autoRefresh, activeTab]);
+  }, [fetchOverview, autoRefresh, pollingSuspended]);
+
+  // Elke pagina begint bovenaan.
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
 
   const {
     isTestingCpu,
@@ -190,6 +236,92 @@ export default function App() {
     diskResult,
     handleDiskBenchmark,
   } = useHardwareTests({ onTestComplete: fetchOverview });
+
+  const navStatuses = useMemo(() => {
+    const statuses: Partial<Record<TabType, NavStatus>> = {};
+    const fromTest = (running: boolean, result: { success: boolean } | null): NavStatus | undefined =>
+      running ? "running" : result ? (result.success ? "ok" : "fail") : undefined;
+    const set = (tab: TabType, status: NavStatus | undefined) => {
+      if (status) statuses[tab] = status;
+    };
+
+    set(
+      "freeze",
+      isScanningFreeze
+        ? "running"
+        : freezeData?.system_freeze_risk === "Hoog"
+          ? "fail"
+          : freezeData?.system_freeze_risk === "Middel"
+            ? "warn"
+            : undefined
+    );
+    set(
+      "latency",
+      isTestingLatency
+        ? "running"
+        : latencyResult
+          ? !latencyResult.success || latencyResult.verdict === "Slecht"
+            ? "fail"
+            : latencyResult.verdict === "Matig"
+              ? "warn"
+              : "ok"
+          : undefined
+    );
+    set(
+      "drivers",
+      isScanningDrivers
+        ? "running"
+        : driverReport?.is_available
+          ? driverReport.problem_count > 0
+            ? "fail"
+            : driverReport.outdated_count > 0 || driverReport.unsigned_count > 0
+              ? "warn"
+              : "ok"
+          : undefined
+    );
+    set(
+      "power",
+      isTestingBattery || isTestingPowerDelivery
+        ? "running"
+        : powerDeliveryReport
+          ? powerDeliveryReport.is_sufficient
+            ? "ok"
+            : "warn"
+          : undefined
+    );
+    set("cpu", fromTest(isTestingCpu, cpuResult));
+    set("ram", fromTest(isTestingRam, ramResult));
+    set("disk", fromTest(isTestingDisk, diskResult));
+    for (const tab of PERIPHERAL_TABS) {
+      if (peripherals[tab as keyof PeripheralTestResults]) statuses[tab] = "ok";
+    }
+    return statuses;
+  }, [
+    isScanningFreeze,
+    freezeData,
+    isTestingLatency,
+    latencyResult,
+    isScanningDrivers,
+    driverReport,
+    isTestingBattery,
+    isTestingPowerDelivery,
+    powerDeliveryReport,
+    isTestingCpu,
+    cpuResult,
+    isTestingRam,
+    ramResult,
+    isTestingDisk,
+    diskResult,
+    peripherals,
+  ]);
+
+  const connection: ConnectionState = fetchFailed
+    ? "error"
+    : !autoRefresh
+      ? "paused"
+      : pollingSuspended
+        ? "suspended"
+        : "live";
 
   const exportReport = () => {
     if (!data) return;
@@ -256,38 +388,75 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none">
+    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden font-sans select-none">
       <Header
         data={data}
         powerData={powerData}
         autoRefresh={autoRefresh}
         setAutoRefresh={setAutoRefresh}
-        fetchOverview={fetchOverview}
-        isLoading={isLoading}
+        pollingSuspended={pollingSuspended}
+        fetchOverview={refreshNow}
+        isRefreshing={isRefreshing || isLoading}
         exportReport={exportReport}
       />
 
-      <Navigation
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        freezeData={freezeData}
-      />
+      <div className="flex flex-1 min-h-0">
+        <Navigation
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          statuses={navStatuses}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+        />
 
-      <main className="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+        <div ref={mainRef} className="flex-1 min-w-0 overflow-y-auto">
+      <main className="p-6 max-w-7xl w-full mx-auto space-y-6">
+        {data && fetchFailed && (
+          <div
+            role="alert"
+            className="px-4 py-3 bg-red-950/30 border border-red-900 rounded-xl text-red-300 text-xs flex items-center gap-3"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+            <span className="flex-1">
+              De laatste meting is mislukt. Onderstaande waarden kunnen verouderd zijn.
+            </span>
+            <button
+              type="button"
+              onClick={refreshNow}
+              disabled={isRefreshing}
+              className="px-2.5 py-1 rounded-lg border border-red-800 hover:bg-red-900/40 font-medium cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+            >
+              Opnieuw proberen
+            </button>
+          </div>
+        )}
+
         {isLoading && !data ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400">
+          <div className="flex flex-col items-center justify-center h-64 gap-3 text-slate-400" role="status">
             <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
             <p className="text-sm">Hardware- en stroomgegevens uitlezen...</p>
           </div>
         ) : !data ? (
-          <div className="p-6 bg-red-950/30 border border-red-900 rounded-xl text-red-300 flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-red-400" />
-            <div>
+          <div
+            role="alert"
+            className="p-6 bg-red-950/30 border border-red-900 rounded-xl text-red-300 flex items-center gap-4"
+          >
+            <AlertTriangle className="w-6 h-6 shrink-0 text-red-400" />
+            <div className="flex-1">
               <h3 className="font-semibold">Kon hardware niet uitlezen</h3>
               <p className="text-sm text-red-400/80">
                 Er is een fout opgetreden bij het communiceren met de Rust backend.
               </p>
             </div>
+            <button
+              type="button"
+              onClick={refreshNow}
+              disabled={isRefreshing}
+              className="px-4 py-2 rounded-lg bg-red-900/50 border border-red-800 hover:bg-red-900 text-red-100 text-sm font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
+            >
+              <RefreshCw className={isRefreshing ? "w-4 h-4 animate-spin" : "w-4 h-4"} />
+              Opnieuw proberen
+            </button>
           </div>
         ) : (
           <>
@@ -437,8 +606,11 @@ export default function App() {
           </>
         )}
       </main>
+        </div>
+      </div>
 
-      <Footer data={data} lastUpdated={lastUpdated} />
+      <Footer connection={connection} lastUpdated={lastUpdated} />
+      <Toasts toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
