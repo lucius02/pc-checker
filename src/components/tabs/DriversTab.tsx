@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { api, errorMessage } from "../../lib/api";
 import { toast } from "../../store/toastStore";
+import { useDiagnosticsStore } from "../../store/diagnosticsStore";
 import {
   CircuitBoard,
   Clock,
@@ -83,6 +84,38 @@ const STATUS_STYLE: Record<string, { badge: string; card: string; icon: React.El
 
 const statusStyle = (status: string) => STATUS_STYLE[status] ?? STATUS_STYLE.OK;
 
+interface PlatformCopy {
+  intro: MessageKey;
+  readingHint: MessageKey;
+  startHint: MessageKey;
+  safeIntro: MessageKey;
+  steps: { title: MessageKey; body: MessageKey; color: string }[];
+}
+
+const WINDOWS_COPY: PlatformCopy = {
+  intro: "drivers.intro",
+  readingHint: "drivers.readingHint",
+  startHint: "drivers.startHint",
+  safeIntro: "drivers.safeIntro",
+  steps: [
+    { title: "drivers.step1Title", body: "drivers.step1", color: "text-cyan-400" },
+    { title: "drivers.step2Title", body: "drivers.step2", color: "text-emerald-400" },
+    { title: "drivers.step3Title", body: "drivers.step3", color: "text-amber-400" },
+  ],
+};
+
+const LINUX_COPY: PlatformCopy = {
+  intro: "drivers.introLinux",
+  readingHint: "drivers.readingHintLinux",
+  startHint: "drivers.startHintLinux",
+  safeIntro: "drivers.safeIntroLinux",
+  steps: [
+    { title: "drivers.step1TitleLinux", body: "drivers.step1Linux", color: "text-cyan-400" },
+    { title: "drivers.step2TitleLinux", body: "drivers.step2Linux", color: "text-emerald-400" },
+    { title: "drivers.step3TitleLinux", body: "drivers.step3Linux", color: "text-amber-400" },
+  ],
+};
+
 const formatDate = (entry: DriverEntry, t: TFn) => {
   if (!entry.date) return t("drivers.unknown");
   if (entry.age_years === null) return t("drivers.genericDate", { d: entry.date });
@@ -104,6 +137,10 @@ export const DriversTab: React.FC<DriversTabProps> = ({
   const t = useT();
   const status = useStatusLabel();
   const [filter, setFilter] = useState<FilterMode>("all");
+  const platform = useDiagnosticsStore((s) => s.elevation?.platform);
+  // Apparaatbeheer en Windows Update bestaan alleen op Windows.
+  const isWindows = platform === "windows";
+  const copy = platform === "linux" ? LINUX_COPY : WINDOWS_COPY;
 
   const handleOpenDeviceManager = async () => {
     try {
@@ -153,29 +190,33 @@ export const DriversTab: React.FC<DriversTabProps> = ({
             <div>
               <h2 className="text-lg font-bold text-white">Driver Check</h2>
               <p className="text-xs text-slate-400 mt-1">
-                {t("drivers.intro")}
+                {t(copy.intro)}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-            <button
-              onClick={handleOpenDeviceManager}
-              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-              title={t("drivers.dmTitle")}
-            >
-              <Wrench className="w-3.5 h-3.5 text-blue-400" />
-              {t("drivers.dm")}
-            </button>
+            {isWindows && (
+              <>
+                <button
+                  onClick={handleOpenDeviceManager}
+                  className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+                  title={t("drivers.dmTitle")}
+                >
+                  <Wrench className="w-3.5 h-3.5 text-blue-400" />
+                  {t("drivers.dm")}
+                </button>
 
-            <button
-              onClick={handleOpenWindowsUpdate}
-              className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-              title={t("drivers.wuTitle")}
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
-              Windows Update
-            </button>
+                <button
+                  onClick={handleOpenWindowsUpdate}
+                  className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+                  title={t("drivers.wuTitle")}
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+                  Windows Update
+                </button>
+              </>
+            )}
 
             <button
               onClick={scanDrivers}
@@ -229,8 +270,8 @@ export const DriversTab: React.FC<DriversTabProps> = ({
           </h3>
           <p className="text-xs text-slate-400 max-w-md">
             {isScanningDrivers
-              ? t("drivers.readingHint")
-              : t("drivers.startHint")}
+              ? t(copy.readingHint)
+              : t(copy.startHint)}
           </p>
         </div>
       )}
@@ -280,27 +321,17 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                 </h3>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                <RichText text={t("drivers.safeIntro")} />
+                <RichText text={t(copy.safeIntro)} />
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-1">
-                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="font-semibold text-cyan-400 block">{t("drivers.step1Title")}</span>
-                  <p className="text-slate-400 text-xs">
-                    <RichText text={t("drivers.step1")} />
-                  </p>
-                </div>
-                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="font-semibold text-emerald-400 block">{t("drivers.step2Title")}</span>
-                  <p className="text-slate-400 text-xs">
-                    <RichText text={t("drivers.step2")} />
-                  </p>
-                </div>
-                <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
-                  <span className="font-semibold text-amber-400 block">{t("drivers.step3Title")}</span>
-                  <p className="text-slate-400 text-xs">
-                    <RichText text={t("drivers.step3")} />
-                  </p>
-                </div>
+                {copy.steps.map((step) => (
+                  <div key={step.title} className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl space-y-1.5">
+                    <span className={cn("font-semibold block", step.color)}>{t(step.title)}</span>
+                    <p className="text-slate-400 text-xs">
+                      <RichText text={t(step.body)} />
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -419,7 +450,7 @@ export const DriversTab: React.FC<DriversTabProps> = ({
                           tone={DRIVER_TONE[entry.status] ?? "muted"}
                           advice={entry.advice_detail}
                           action={
-                            entry.status === "Probleem"
+                            entry.status === "Probleem" && isWindows
                               ? { label: t("drivers.openInDm"), title: t("drivers.openInDmTitle"), icon: Wrench, onClick: handleOpenDeviceManager }
                               : undefined
                           }
