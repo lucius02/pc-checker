@@ -140,7 +140,7 @@ Installers end up in `src-tauri/target/release/bundle/`. See [RELEASING.md](RELE
 Some design choices worth knowing:
 * **The UI never blocks.** Stress tests and WMI queries run on worker threads, so they don't freeze the window or distort the app's own freeze and latency measurements.
 * **Native WMI** (`wmi` crate) for frequently polled data instead of a PowerShell process per poll. Heavy queries (ACPI thermal zones, power plans) are cached for 30 seconds.
-* **Status codes are Dutch strings** (`"Goed"`, `"Let op"`, `"Kritiek"`, …) because the frontend compares on them. They are translated for display in `src/i18n/status.ts`. (Replacing them with an enum is an [open issue](https://github.com/lucius02/pc-checker/issues).)
+* **Status codes are Dutch strings** (`"Goed"`, `"Let op"`, `"Kritiek"`, …) because the frontend compares on them. They are translated for display in `src/i18n/status.ts`. (Replacing them with an enum is tracked in [#12](https://github.com/lucius02/pc-checker/issues/12).)
 * **Errors are visible:** every command returns `Result<T, String>`, and failures show up as a toast in the UI.
 
 CI (`.github/workflows/ci.yml`) runs on every push and pull request: `tsc`, ESLint, Vitest and a production build for the frontend, plus `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` and a check that the generated TypeScript types are current (Windows + Linux).
