@@ -18,6 +18,14 @@ health_status: string, operational_status: string, temperature_celsius: number |
  */
 wear_percent: number | null, power_on_hours: number | null, read_errors_uncorrected: number | null, write_errors_uncorrected: number | null, read_errors_total: number | null, write_errors_total: number | null, 
 /**
+ * Omgewisselde (defecte) sectoren; alleen via smartctl (ATA-attribuut 5).
+ */
+reallocated_sectors: number | null, 
+/**
+ * Sectoren die wachten op omwisseling; alleen via smartctl (ATA-attribuut 197).
+ */
+pending_sectors: number | null, 
+/**
  * "Goed" | "Let op" | "Kritiek"
  */
 verdict: string, findings: Array<string>, };

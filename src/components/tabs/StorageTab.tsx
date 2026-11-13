@@ -1,6 +1,7 @@
 import React from "react";
-import { Database, RefreshCw, ShieldAlert } from "lucide-react";
+import { Database, Info, RefreshCw, ShieldAlert } from "lucide-react";
 import { useT } from "../../i18n";
+import { RichText } from "../../i18n/RichText";
 import { useDiagnosticsStore } from "../../store/diagnosticsStore";
 import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
@@ -30,6 +31,9 @@ const DiskCard: React.FC<{ d: StorageHealthEntry }> = ({ d }) => {
     [t("storage.hours"), d.power_on_hours != null ? d.power_on_hours.toLocaleString() : na],
     [t("storage.errors"), uncorrected != null ? String(uncorrected) : na],
   ];
+  // Alleen smartctl kent deze tellers; bij de Windows-bron laten we ze weg i.p.v. "n.v.t.".
+  if (d.reallocated_sectors != null) metrics.push([t("storage.reallocated"), String(d.reallocated_sectors)]);
+  if (d.pending_sectors != null) metrics.push([t("storage.pending"), String(d.pending_sectors)]);
   return (
     <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -99,7 +103,7 @@ export const StorageTab: React.FC = () => {
         </button>
       </div>
 
-      {report && !report.is_elevated && report.is_available && (
+      {report && !report.is_elevated && report.is_available && report.source === "windows" && (
         <div className="p-3 rounded-xl border border-amber-900 bg-amber-950/20 text-amber-300 text-xs flex items-center gap-3">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span className="flex-1">{t("storage.adminHint")}</span>
@@ -111,13 +115,29 @@ export const StorageTab: React.FC = () => {
         </div>
       )}
 
+      {report?.notes.map((note) => (
+        <div key={note} className="p-3 rounded-xl border border-sky-900 bg-sky-950/20 text-sky-300 text-xs flex items-start gap-3">
+          <Info className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            <RichText text={note} />
+          </span>
+        </div>
+      ))}
+
       {!report ? (
         <p className="text-sm text-slate-500">{t("storage.notScanned")}</p>
       ) : !report.is_available ? (
         <p className="text-sm text-slate-400">{report.summary || t("storage.unavailable")}</p>
       ) : (
         <>
-          <p className="text-sm text-slate-300">{report.summary}</p>
+          <p className="text-sm text-slate-300">
+            {report.summary}
+            {report.source && (
+              <span className="block text-xs text-slate-500 mt-1">
+                {t("storage.source", { s: report.source === "windows" ? t("storage.sourceWindows") : report.source })}
+              </span>
+            )}
+          </p>
           <div className="grid md:grid-cols-2 gap-4">
             {report.disks.map((d, i) => (
               <DiskCard key={`${d.serial}-${i}`} d={d} />

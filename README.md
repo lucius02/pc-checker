@@ -5,7 +5,7 @@ Een professionele, lichte en razendsnelle desktop applicatie voor hardware-diagn
 | Platform | Status |
 |---|---|
 | **Windows 10/11** | Volledig: alle modules (WMI, Event Log, powercfg, Storage Reliability Counters, DPC-tellers). |
-| **Linux** | Gedeeltelijk: systeemoverzicht (sysfs/DMI, `lspci`), temperaturen en fans (hwmon), stroom & batterij (`/sys/class/power_supply`), freeze-scan via `journalctl -k`, stresstests, live monitor. Geen driver-check, DPC-latency-tellers of SMART. |
+| **Linux** | Gedeeltelijk: systeemoverzicht (sysfs/DMI, `lspci`), temperaturen en fans (hwmon), stroom & batterij (`/sys/class/power_supply`), freeze-scan via `journalctl -k`, stresstests, live monitor. SMART via `smartctl` (met root-rechten). Geen driver-check of DPC-latency-tellers. |
 | **macOS** | Basis: systeemoverzicht, temperaturen (sysinfo), stresstests en live monitor. |
 
 Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **Tailwind CSS**.
@@ -91,8 +91,11 @@ Gebouwd met **Tauri v2**, **Rust** (native hardware-engine), **React 19** en **T
 * **Scrollwiel & Gesture Telemetrie:** Meet realtime richting (▲, ▼, ◀, ▶) en scrollstappen zonder dat het venster meebeweegt.
 
 ### 15. 💽 Schijfgezondheid (SMART)
-* Leest per fysieke schijf `HealthStatus`, slijtage (SSD wear), temperatuur, draaiuren en (niet-)corrigeerbare fouten via `Get-PhysicalDisk` + `Get-StorageReliabilityCounter`.
-* Het oordeel Goed / Let op / Kritiek telt mee in de gezondheidsscore. Sommige tellers zijn alleen met beheerdersrechten leesbaar.
+* Leest per fysieke schijf gezondheidsstatus, slijtage (SSD wear), temperatuur, draaiuren en (niet-)corrigeerbare fouten.
+* **Bronnen**, in volgorde van voorkeur:
+  * `smartctl` ([smartmontools](https://www.smartmontools.org/)) op Windows, Linux en macOS. Geeft ook omgewisselde en instabiele sectoren, falende SMART-attributen en de NVMe critical warning. Vereist beheerders- of root-rechten.
+  * Windows `Get-PhysicalDisk` + `Get-StorageReliabilityCounter`, zonder extra software.
+* Het oordeel Goed / Let op / Kritiek telt mee in de gezondheidsscore. Beide bronnen gebruiken dezelfde drempels. Sommige tellers zijn alleen met beheerdersrechten leesbaar; ontbreekt smartctl of de rechten, dan toont de app een tip.
 
 ### 16. 🕓 Historie over sessies heen
 * Freezes van de Watchdog en gezondheidsscores worden bewaard in `history.json` in de app-datamap.

@@ -116,7 +116,7 @@ export const coreNl = {
   "toast.historyCleared": "Historie gewist",
 
   "storage.title": "Schijfgezondheid (SMART)",
-  "storage.intro": "Leest de Windows Storage Reliability Counters: gezondheidsstatus, slijtage, temperatuur, draaiuren en (niet-)gecorrigeerde fouten. Vaak nuttiger dan een snelheidstest.",
+  "storage.intro": "Leest de SMART-gegevens van je schijven via smartctl (Windows, Linux en macOS) of de Windows Storage Reliability Counters: gezondheidsstatus, slijtage, temperatuur, draaiuren, defecte sectoren en (niet-)gecorrigeerde fouten. Vaak nuttiger dan een snelheidstest.",
   "storage.scan": "Schijven scannen",
   "storage.scanning": "Scannen...",
   "storage.notScanned": "Nog niet gescand.",
@@ -130,6 +130,10 @@ export const coreNl = {
   "storage.size": "Capaciteit",
   "storage.unknown": "n.v.t.",
   "storage.noFindings": "Geen bijzonderheden.",
+  "storage.reallocated": "Omgewisselde sectoren",
+  "storage.pending": "Instabiele sectoren",
+  "storage.source": "Bron: {s}",
+  "storage.sourceWindows": "Windows Storage API",
 
   "history.title": "Historie over sessies heen",
   "history.intro": "Freezes van de Watchdog en gezondheidsscores worden lokaal bewaard, zodat je trends ziet over dagen en weken.",

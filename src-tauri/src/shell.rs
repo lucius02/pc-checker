@@ -10,7 +10,7 @@
 //! we zelf aanleveren, dus Bypass was ook nooit nodig.
 
 use std::io::{Read, Write};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use serde::de::DeserializeOwned;
@@ -61,29 +61,50 @@ pub fn run_powershell(script: &str, timeout: Duration) -> Option<String> {
                 let _ = stdin.write_all(&bytes);
             });
         }
-        let mut stdout = child.stdout.take()?;
-        let reader = std::thread::spawn(move || {
-            let mut buf = Vec::new();
-            let _ = stdout.read_to_end(&mut buf);
-            String::from_utf8_lossy(&buf).into_owned()
-        });
-        let started = Instant::now();
-        loop {
-            match child.try_wait() {
-                Ok(Some(_)) => break,
-                Ok(None) if started.elapsed() < timeout => {
-                    std::thread::sleep(Duration::from_millis(50))
-                }
-                _ => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    break;
-                }
-            }
-        }
-        return reader.join().ok();
+        return wait_for_output(child, timeout).map(|(output, _)| output);
     }
     None
+}
+
+/// Start een programma (zonder shell) en geeft stdout terug, of `None` als het niet start of
+/// niet succesvol eindigt. Na `timeout` wordt het proces gekild.
+pub fn run_command(exe: &str, args: &[&str], timeout: Duration) -> Option<String> {
+    let child = hidden_command(exe)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let (output, success) = wait_for_output(child, timeout)?;
+    success.then_some(output)
+}
+
+/// Leest stdout van `child` in een aparte thread (zodat een volle pipe het proces niet
+/// blokkeert) en wacht maximaal `timeout`. Geeft de uitvoer terug plus of het proces
+/// succesvol (exitcode 0, geen time-out) eindigde.
+fn wait_for_output(mut child: Child, timeout: Duration) -> Option<(String, bool)> {
+    let mut stdout = child.stdout.take()?;
+    let reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stdout.read_to_end(&mut buf);
+        String::from_utf8_lossy(&buf).into_owned()
+    });
+    let started = Instant::now();
+    let success = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status.success(),
+            Ok(None) if started.elapsed() < timeout => {
+                std::thread::sleep(Duration::from_millis(50))
+            }
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break false;
+            }
+        }
+    };
+    Some((reader.join().ok()?, success))
 }
 
 /// Voert een script uit met UTF-8 uitvoer en de standaard time-out.
@@ -134,6 +155,20 @@ pub fn str_field(value: &Value, key: &str) -> Option<String> {
         .and_then(|v| v.as_str())
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
+}
+
+/// Als [`run_command`], maar geeft stdout ook terug bij een exitcode ongelijk aan 0. Voor
+/// programma's die de exitcode als statusbitmasker gebruiken, zoals `smartctl` (bijv. bit 3 =
+/// "schijf faalt"), terwijl de uitvoer dan juist het interessantst is.
+pub fn run_command_any_status(exe: &str, args: &[&str], timeout: Duration) -> Option<String> {
+    let child = hidden_command(exe)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    wait_for_output(child, timeout).map(|(output, _)| output)
 }
 
 #[cfg(test)]

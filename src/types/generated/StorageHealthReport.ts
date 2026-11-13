@@ -5,4 +5,12 @@ export type StorageHealthReport = { is_available: boolean, scanned_at: string,
 /**
  * Sommige tellers (temperatuur, slijtage) vereisen beheerdersrechten.
  */
-is_elevated: boolean, disks: Array<StorageHealthEntry>, warning_count: number, critical_count: number, summary: string, };
+is_elevated: boolean, disks: Array<StorageHealthEntry>, warning_count: number, critical_count: number, summary: string, 
+/**
+ * Waar de gegevens vandaan komen: "smartctl" of "windows" (leeg als niets lukte).
+ */
+source: string, 
+/**
+ * Tips over ontbrekende gegevens (smartctl niet geïnstalleerd, rechten nodig).
+ */
+notes: Array<string>, };
