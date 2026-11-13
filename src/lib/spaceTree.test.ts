@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { DiskInfo, SpaceEntry, SpaceReport } from "../types";
-import { analyzableDisks, folderRows, isVolumeRoot, parentDir, resolveTrail, unaccountedBytes } from "./spaceTree";
+import type { SpaceEntry, SpaceReport } from "../types";
+import { folderRows, isVolumeRoot, parentDir, resolveTrail, unaccountedBytes } from "./spaceTree";
 
 const GB = 1024 ** 3;
 
@@ -74,24 +74,4 @@ describe("spaceTree", () => {
     expect(parentDir("/home/me/big.iso")).toBe("/home/me");
   });
 
-  it("hides container overlays, AppImage mounts and empty volumes", () => {
-    const disk = (mount_point: string, file_system: string, total_bytes = 100 * GB): DiskInfo => ({
-      name: "",
-      mount_point,
-      file_system,
-      total_bytes,
-      available_bytes: 0,
-      is_removable: false,
-      disk_type: "SSD",
-    });
-    const disks = [
-      disk("C:\\", "NTFS"),
-      disk("/", "btrfs"),
-      disk("/var/lib/docker/rootfs/overlayfs/abc", "overlay", 0),
-      disk("/tmp/.mount_app", "fuse.app.AppImage", 256 * 1024 ** 2),
-      disk("/snap/core/1", "squashfs"),
-      disk("/mnt/empty", "ext4", 0),
-    ];
-    expect(analyzableDisks(disks).map((d) => d.mount_point)).toEqual(["C:\\", "/"]);
-  });
 });

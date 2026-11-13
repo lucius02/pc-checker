@@ -1,4 +1,4 @@
-import type { DiskInfo, SpaceEntry, SpaceReport } from "../types";
+import type { SpaceEntry, SpaceReport } from "../types";
 
 /** Eén regel in de mappenlijst: een submap, de losse bestanden of de samengevoegde kleine mappen. */
 export type SpaceRow =
@@ -55,17 +55,4 @@ export function unaccountedBytes(report: SpaceReport): number {
 export function parentDir(path: string): string {
   const i = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
   return i > 0 ? path.slice(0, i) : path;
-}
-
-/** Bestandssystemen zonder eigen opslag (containers, ingepakte apps, RAM-schijven). */
-const PSEUDO_FS = new Set(["overlay", "squashfs", "tmpfs", "devtmpfs", "ramfs", "iso9660"]);
-
-/**
- * Volumes die zinvol zijn om te analyseren. Op Linux staan in de lijst ook Docker-overlays en
- * gekoppelde AppImages (0 B of alleen-lezen); die zouden de keuzeknoppen vullen.
- */
-export function analyzableDisks(disks: DiskInfo[]): DiskInfo[] {
-  return disks.filter(
-    (d) => d.total_bytes > 0 && !PSEUDO_FS.has(d.file_system.toLowerCase()) && !/appimage/i.test(d.file_system),
-  );
 }

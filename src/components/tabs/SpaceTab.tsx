@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { ChartPie, FolderInput, HardDrive, Info, Loader2, Play, ShieldAlert, Square, AlertTriangle } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -8,7 +8,7 @@ import { RichText } from "../../i18n/RichText";
 import { useDiagnosticsStore } from "../../store/diagnosticsStore";
 import { toast } from "../../store/toastStore";
 import { errorMessage } from "../../lib/api";
-import { analyzableDisks, isVolumeRoot, unaccountedBytes } from "../../lib/spaceTree";
+import { isVolumeRoot, unaccountedBytes } from "../../lib/spaceTree";
 import { formatBytes } from "../../utils/formatters";
 import { cn } from "../../utils/cn";
 import { FolderBrowser } from "./space/FolderBrowser";
@@ -62,8 +62,7 @@ const VolumeBar: React.FC<{ report: SpaceReport }> = ({ report }) => {
 export const SpaceTab: React.FC = () => {
   const t = useT();
   const lang = useI18nStore((s) => s.lang);
-  const allDisks = useDiagnosticsStore((s) => s.data?.disks ?? NO_DISKS);
-  const disks = useMemo(() => analyzableDisks(allDisks), [allDisks]);
+  const disks = useDiagnosticsStore((s) => s.data?.disks ?? NO_DISKS);
   const report = useDiagnosticsStore((s) => s.spaceReport);
   const progress = useDiagnosticsStore((s) => s.spaceProgress);
   const scanning = useDiagnosticsStore((s) => !!s.busy.space);
