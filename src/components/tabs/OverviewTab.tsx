@@ -25,6 +25,7 @@ import {
   TabType,
 } from "../../types";
 import { formatBytes, formatUptime } from "../../utils/formatters";
+import { uniqueStorage } from "../../lib/volumes";
 import { cn } from "../../utils/cn";
 import { useT } from "../../i18n";
 import { OverviewCardsGrid } from "./overview/OverviewCardsGrid";
@@ -58,10 +59,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   setActiveTab,
 }) => {
   const t = useT();
-  const totalDiskBytes = data.disks.reduce((acc, d) => acc + d.total_bytes, 0);
+  // Btrfs-subvolumes e.d. delen één schijf: per onderliggende opslag één keer tellen.
+  const volumes = uniqueStorage(data.disks);
+  const totalDiskBytes = volumes.reduce((acc, d) => acc + d.total_bytes, 0);
   const primaryGpu = data.gpus[0];
 
-  const fullDisks = data.disks.filter((d) => {
+  const fullDisks = volumes.filter((d) => {
     const usedPercent = Math.round(
       ((d.total_bytes - d.available_bytes) / Math.max(1, d.total_bytes)) * 100
     );
@@ -248,7 +251,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <span>{t("ov.storage")}</span>
             </div>
             <div className="font-semibold text-slate-100">
-              {t("ov.volumes", { v: formatBytes(totalDiskBytes), n: data.disks.length })}
+              {t("ov.volumes", { v: formatBytes(totalDiskBytes), n: volumes.length })}
             </div>
             <div className="text-xs text-slate-400 truncate">
               {t("ov.mainDisk", { t: data.disks[0]?.disk_type || "SSD", m: data.disks[0]?.mount_point || "C:" })}

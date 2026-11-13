@@ -220,6 +220,20 @@ pub fn is_storage_volume(file_system: &str, total_bytes: u64) -> bool {
     total_bytes > 0 && !NON_STORAGE_FS.contains(&fs.as_str()) && !fs.contains("appimage")
 }
 
+/// Sleutel voor de onderliggende opslag van een volume.
+///
+/// Op Linux delen btrfs-subvolumes (`/`, `/home`, `/var/log`) en bind mounts één apparaat
+/// (`/dev/mapper/root`) en melden ze allemaal dezelfde capaciteit; die krijgen één sleutel.
+/// Elders blijft elk koppelpunt apart: op Windows is `name` een volumelabel (twee schijven kunnen
+/// allebei "Data" heten) en op macOS heeft elk APFS-volume een eigen apparaatnaam.
+pub fn storage_id(name: &str, mount_point: &str) -> String {
+    if cfg!(target_os = "linux") && name.starts_with("/dev/") {
+        name.to_string()
+    } else {
+        mount_point.to_string()
+    }
+}
+
 pub fn get_system_overview() -> SystemOverview {
     ensure_watchdog_started();
 
@@ -316,9 +330,12 @@ pub fn get_system_overview() -> SystemOverview {
             .filter(|d| is_storage_volume(&d.file_system().to_string_lossy(), d.total_space()))
             .map(|d| {
                 let disk_kind = format!("{:?}", d.kind());
+                let name = d.name().to_string_lossy().to_string();
+                let mount_point = d.mount_point().to_string_lossy().to_string();
                 DiskInfo {
-                    name: d.name().to_string_lossy().to_string(),
-                    mount_point: d.mount_point().to_string_lossy().to_string(),
+                    storage_id: storage_id(&name, &mount_point),
+                    name,
+                    mount_point,
                     file_system: d.file_system().to_string_lossy().to_string(),
                     total_bytes: d.total_space(),
                     available_bytes: d.available_space(),
@@ -366,6 +383,27 @@ mod tests {
             "Intel Corporation TigerLake GT2 [Iris Xe Graphics]"
         );
         assert!(gpus[1].name.contains("RTX 3050"));
+    }
+
+    #[test]
+    fn subvolumes_share_storage_but_drive_letters_do_not() {
+        if cfg!(target_os = "linux") {
+            assert_eq!(
+                storage_id("/dev/mapper/root", "/"),
+                storage_id("/dev/mapper/root", "/home")
+            );
+            assert_ne!(
+                storage_id("/dev/sda1", "/boot"),
+                storage_id("/dev/mapper/root", "/")
+            );
+        }
+        // Volumelabels zijn niet uniek: twee schijven met label "Data" blijven apart.
+        assert_ne!(storage_id("Data", "D:\\"), storage_id("Data", "E:\\"));
+        // Netwerk-/fuse-namen zonder apparaatpad: per koppelpunt.
+        assert_ne!(
+            storage_id("server:/x", "/mnt/a"),
+            storage_id("server:/x", "/mnt/b")
+        );
     }
 
     #[test]

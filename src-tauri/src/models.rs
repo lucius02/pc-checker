@@ -65,6 +65,10 @@ pub struct DiskInfo {
     pub is_removable: bool,
     /// Schijfcategorie (bijv. "SSD", "HDD" of "Onbekend").
     pub disk_type: String,
+    /// Zelfde waarde = zelfde onderliggende opslag (btrfs-subvolumes, bind mounts). Gebruik dit
+    /// om capaciteit niet dubbel op te tellen; zie `system::storage_id`.
+    #[serde(default)]
+    pub storage_id: String,
 }
 
 /// Specificaties van een grafische processor (GPU).

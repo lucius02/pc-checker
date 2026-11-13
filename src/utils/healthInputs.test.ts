@@ -13,8 +13,8 @@ const overview = (): SystemOverview => ({
   cpu: { brand: "CPU", vendor_id: "", physical_cores: 4, logical_cores: 8, global_usage: 5, cores: [] },
   ram: { total_bytes: 1000, used_bytes: 456, free_bytes: 544, total_swap_bytes: 0, used_swap_bytes: 0 },
   disks: [
-    { name: "C", mount_point: "C:\\", file_system: "NTFS", total_bytes: 100, available_bytes: 40, is_removable: false, disk_type: "SSD" },
-    { name: "D", mount_point: "D:\\", file_system: "NTFS", total_bytes: 100, available_bytes: 12.4, is_removable: false, disk_type: "HDD" },
+    { name: "C", mount_point: "C:\\", file_system: "NTFS", total_bytes: 100, available_bytes: 40, is_removable: false, disk_type: "SSD", storage_id: "C:\\" },
+    { name: "D", mount_point: "D:\\", file_system: "NTFS", total_bytes: 100, available_bytes: 12.4, is_removable: false, disk_type: "HDD", storage_id: "D:\\" },
   ],
   gpus: [],
   motherboard: { manufacturer: "", product: "", bios_vendor: "", bios_version: "" },
